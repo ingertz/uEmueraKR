@@ -232,6 +232,26 @@ private sealed class VARI_Instruction : AbstractInstruction
             }
         }
 
+        /// <summary>
+        /// CHECK_OVERFLOW 0/1 (Emuera1824+v10+v3)
+        /// 1で、整数演算が溢れた時に符号が反転せずINT64の最大値/最小値に張り付く
+        /// </summary>
+        private sealed class CHECK_OVERFLOW_Instruction : AbstractInstruction
+        {
+            public CHECK_OVERFLOW_Instruction()
+            {
+                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+                flag = 0x00002 | 0x00004; // EXTENDED | METHOD_SAFE
+            }
+            public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+            {
+                long mode = func.Argument.ConstInt;
+                if (!func.Argument.IsConst)
+                    mode = ((ExpressionArgument)func.Argument).Term.GetIntValue(exm);
+                OverflowMode.Saturate = mode != 0;
+            }
+        }
+
         private sealed class PLAYSOUND_Instruction : AbstractInstruction
         {
             public PLAYSOUND_Instruction()

@@ -349,6 +349,7 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.PLAYBGM, new PLAYBGM_Instruction());
 			addFunction(FunctionCode.STOPBGM, new STOPBGM_Instruction());
 			addFunction(FunctionCode.SETBGMVOLUME, new SETBGMVOLUME_Instruction());
+			addFunction(FunctionCode.CHECK_OVERFLOW, new CHECK_OVERFLOW_Instruction());
 			addFunction(FunctionCode.PLAYSOUND, new PLAYSOUND_Instruction());
 			addFunction(FunctionCode.STOPSOUND, new STOPSOUND_Instruction());
 			addFunction(FunctionCode.SETSOUNDVOLUME, new SETSOUNDVOLUME_Instruction());

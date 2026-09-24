@@ -215,7 +215,7 @@ namespace MinorShift.Emuera.GameData.Expression
 
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-				return arguments[0].GetIntValue(exm) + arguments[1].GetIntValue(exm);
+				return OverflowMode.Add(arguments[0].GetIntValue(exm), arguments[1].GetIntValue(exm));
 			}
 		}
 
@@ -244,7 +244,7 @@ namespace MinorShift.Emuera.GameData.Expression
 
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-				return arguments[0].GetIntValue(exm) - arguments[1].GetIntValue(exm);
+				return OverflowMode.Sub(arguments[0].GetIntValue(exm), arguments[1].GetIntValue(exm));
 			}
 		}
 
@@ -258,7 +258,7 @@ namespace MinorShift.Emuera.GameData.Expression
 
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-				return arguments[0].GetIntValue(exm) * arguments[1].GetIntValue(exm);
+				return OverflowMode.Mul(arguments[0].GetIntValue(exm), arguments[1].GetIntValue(exm));
 			}
 		}
 
@@ -706,7 +706,7 @@ namespace MinorShift.Emuera.GameData.Expression
 
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-				return -arguments[0].GetIntValue(exm);
+				return OverflowMode.Negate(arguments[0].GetIntValue(exm));
 			}
 		}
 

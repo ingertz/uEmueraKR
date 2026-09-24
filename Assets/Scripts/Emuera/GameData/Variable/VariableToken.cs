@@ -596,7 +596,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[VarCodeInt] += value;
+				array[VarCodeInt] = OverflowMode.Add(array[VarCodeInt], value);
 				return array[VarCodeInt];
 			}
 		}
@@ -637,7 +637,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0]] += value;
+				array[arguments[0]] = OverflowMode.Add(array[arguments[0]], value);
 				return array[arguments[0]];
 			}
 			public override Int32 GetLength()
@@ -703,7 +703,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			}
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0], arguments[1]] += value;
+				array[arguments[0], arguments[1]] = OverflowMode.Add(array[arguments[0], arguments[1]], value);
 				return array[arguments[0], arguments[1]];
 			}
 			public override Int32 GetLength()
@@ -773,7 +773,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0], arguments[1], arguments[2]] += value;
+				array[arguments[0], arguments[1], arguments[2]] = OverflowMode.Add(array[arguments[0], arguments[1], arguments[2]], value);
 				return array[arguments[0], arguments[1], arguments[2]];
 			}
 			public override Int32 GetLength()
@@ -1046,7 +1046,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
 				CharacterData chara = varData.CharacterList[(int)arguments[0]];
-				chara.DataInteger[VarCodeInt] += value;
+				chara.DataInteger[VarCodeInt] = OverflowMode.Add(chara.DataInteger[VarCodeInt], value);
 				return chara.DataInteger[VarCodeInt];
 			}
 		}
@@ -1092,7 +1092,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
 				CharacterData chara = varData.CharacterList[(int)arguments[0]];
-				chara.DataIntegerArray[VarCodeInt][arguments[1]] += value;
+				chara.DataIntegerArray[VarCodeInt][arguments[1]] = OverflowMode.Add(chara.DataIntegerArray[VarCodeInt][arguments[1]], value);
 				return chara.DataIntegerArray[VarCodeInt][arguments[1]];
 			}
 
@@ -1226,7 +1226,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
 				CharacterData chara = varData.CharacterList[(int)arguments[0]];
-				chara.DataIntegerArray2D[VarCodeInt][arguments[1], arguments[2]] += value;
+				chara.DataIntegerArray2D[VarCodeInt][arguments[1], arguments[2]] = OverflowMode.Add(chara.DataIntegerArray2D[VarCodeInt][arguments[1], arguments[2]], value);
 				return chara.DataIntegerArray2D[VarCodeInt][arguments[1], arguments[2]];
 			}
 
@@ -1759,7 +1759,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (array == null)
 					array = new Int64[size];
-				array[arguments[0]] += value;
+				array[arguments[0]] = OverflowMode.Add(array[arguments[0]], value);
 				return array[arguments[0]];
 			}
 
@@ -1890,7 +1890,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0]] += value;
+				array[arguments[0]] = OverflowMode.Add(array[arguments[0]], value);
 				return array[arguments[0]];
 			}
 			public override object GetArray() { return array; }
@@ -1940,7 +1940,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			}
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0], arguments[1]] += value;
+				array[arguments[0], arguments[1]] = OverflowMode.Add(array[arguments[0], arguments[1]], value);
 				return array[arguments[0], arguments[1]];
 			}
 			public override object GetArray() { return array; }
@@ -1992,7 +1992,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0], arguments[1], arguments[2]] += value;
+				array[arguments[0], arguments[1], arguments[2]] = OverflowMode.Add(array[arguments[0], arguments[1], arguments[2]], value);
 				return array[arguments[0], arguments[1], arguments[2]];
 			}
 			public override object GetArray() { return array; }
@@ -2181,7 +2181,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0]] += value;
+				array[arguments[0]] = OverflowMode.Add(array[arguments[0]], value);
 				return array[arguments[0]];
 			}
 			public override object GetArray() { return array; }
@@ -2249,7 +2249,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			}
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0], arguments[1]] += value;
+				array[arguments[0], arguments[1]] = OverflowMode.Add(array[arguments[0], arguments[1]], value);
 				return array[arguments[0], arguments[1]];
 			}
 			public override object GetArray() { return array; }
@@ -2318,7 +2318,7 @@ namespace MinorShift.Emuera.GameData.Variable
 
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
-				array[arguments[0], arguments[1], arguments[2]] += value;
+				array[arguments[0], arguments[1], arguments[2]] = OverflowMode.Add(array[arguments[0], arguments[1], arguments[2]], value);
 				return array[arguments[0], arguments[1], arguments[2]];
 			}
 			public override object GetArray() { return array; }
@@ -2592,7 +2592,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (array == null)
 					throw new CodeEE("参照型変数" + varName + "は何も参照していません");
-				((Int64[])array)[arguments[0]] += value;
+				((Int64[])array)[arguments[0]] = OverflowMode.Add(((Int64[])array)[arguments[0]], value);
 				return ((Int64[])array)[arguments[0]];
 			}
 
@@ -2646,7 +2646,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (array == null)
 					throw new CodeEE("参照型変数" + varName + "は何も参照していません");
-				((Int64[,])array)[arguments[0], arguments[1]] += value;
+				((Int64[,])array)[arguments[0], arguments[1]] = OverflowMode.Add(((Int64[,])array)[arguments[0], arguments[1]], value);
 				return ((Int64[,])array)[arguments[0], arguments[1]];
 			}
 		}
@@ -2701,7 +2701,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (array == null)
 					throw new CodeEE("参照型変数" + varName + "は何も参照していません");
-				((Int64[, ,])array)[arguments[0], arguments[1], arguments[2]] += value;
+				((Int64[, ,])array)[arguments[0], arguments[1], arguments[2]] = OverflowMode.Add(((Int64[, ,])array)[arguments[0], arguments[1], arguments[2]], value);
 				return ((Int64[, ,])array)[arguments[0], arguments[1], arguments[2]];
 			}
 
@@ -2877,7 +2877,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
 				Int64[] array = (Int64[])GetArrayChara((int)arguments[0]);
-				array[arguments[1]] += value;
+				array[arguments[1]] = OverflowMode.Add(array[arguments[1]], value);
 				return array[arguments[1]];
 			}
 		}
@@ -2959,7 +2959,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			public override Int64 PlusValue(Int64 value, Int64[] arguments)
 			{
 				Int64[,] array = (Int64[,])GetArrayChara((int)arguments[0]);
-				array[arguments[1], arguments[2]] += value;
+				array[arguments[1], arguments[2]] = OverflowMode.Add(array[arguments[1], arguments[2]], value);
 				return array[arguments[1], arguments[2]];
 			}
 		}

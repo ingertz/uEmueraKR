@@ -404,6 +404,7 @@ namespace MinorShift.Emuera.GameProc.Function
 		SPRITECREATED,
 		SPRITEDISPOSE,
 		DT_COLUMN_OPTIONS,
-		MATCHALL
+		MATCHALL,
+		CHECK_OVERFLOW
 	}
 }
