@@ -71,6 +71,10 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 2. `File → Build Profiles`에서 Android 또는 Windows를 고르고 빌드합니다.
 3. Android 서명 키(`*.keystore`)는 저장소에 들어 있지 않습니다. 직접 만들거나 가지고 있는 키를 지정하세요.
 
+### 최신 코드 받기 (Windows)
+프로젝트 폴더가 이 저장소의 clone이라면, `update.bat`을 더블클릭하면 `master`의 최신 코드를 받아옵니다.
+Unity를 켜 둔 채로 실행해도 되고, 받아온 뒤 자동으로 다시 컴파일됩니다.
+
 > `Library/`, `Temp/`, `obj/`, `build/`, `*.csproj`, `*.sln`처럼 Unity나 IDE가 자동으로 만드는 파일은
 > `.gitignore`로 제외되어 있습니다. 커밋할 대상은 `Assets/`, `Packages/`, `ProjectSettings/` 세 가지입니다.
 
