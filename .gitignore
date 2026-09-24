@@ -1,0 +1,47 @@
+# Unity 自動生成
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+*_BurstDebugInformation_DoNotShip/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+UpgradeLog*.htm
+.collabignore
+
+# ビルド成果物
+*.apk
+*.aab
+*.unitypackage
+
+# 署名鍵(絶対にコミットしない)
+*.keystore
+*.jks
+
+# Claude Code 個人設定
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
