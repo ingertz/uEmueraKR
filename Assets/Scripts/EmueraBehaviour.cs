@@ -220,6 +220,24 @@ public abstract class EmueraBehaviour : MonoBehaviour
                         continue;
                     }
 
+                    if(s is MinorShift.Emuera.GameView.ConsoleSpacePart)
+                    {
+                        //PRINT_SPACE / <shape type='space'>。Strが空なので下の文字列処理では
+                        //幅が捨てられ、後続の文字が行頭へ詰まって画像に重なっていた。
+                        //本家と同じく空白分だけ後ろへずらす
+                        if(s.Width > 0)
+                        {
+                            int space_width = uEmuera.Utils.GetDisplayLength(" ", (float)FontSize);
+                            if(space_width > 0)
+                            {
+                                int count = Mathf.Max(1, Mathf.RoundToInt((float)s.Width / space_width));
+                                content.Append(new string(' ', count));
+                            }
+                        }
+                        ud.width += s.Width;
+                        continue;
+                    }
+
                     var str = s.Str;
                     //タブを取り除く。
                     //
