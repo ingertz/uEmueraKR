@@ -54,26 +54,16 @@ namespace MinorShift.Emuera
 			ExeDir = @"";
 			
 #endif
-			CsvDir = ExeDir + "csv/";
-			if (!Directory.Exists(CsvDir)){
-				CsvDir = ExeDir + "CSV/";
-			}
-			ErbDir = ExeDir + "erb/";
-			if (!Directory.Exists(ErbDir)){
-				ErbDir = ExeDir + "ERB/";
-			}
-			DebugDir = ExeDir + "debug/";
-			if (!Directory.Exists(DebugDir)){
-				DebugDir = ExeDir + "DEBUG/";
-			}
-			DatDir = ExeDir + "dat/";
-			if (!Directory.Exists(DatDir)){
-				DatDir = ExeDir + "DAT/";
-			}
-			ContentDir = ExeDir + "resources/";
-			if (!Directory.Exists(ContentDir)){
-				ContentDir = ExeDir + "RESOURCES/";
-			}
+			//フォルダ名の大小は配布物によってまちまち(csv/CSV/Csv)。
+			//小文字と大文字の二択では拾えない物があるので実体に合わせる
+			CsvDir = uEmuera.Utils.ResolvePath(ExeDir + "csv/");
+			ErbDir = uEmuera.Utils.ResolvePath(ExeDir + "erb/");
+			DebugDir = uEmuera.Utils.ResolvePath(ExeDir + "debug/");
+			DatDir = uEmuera.Utils.ResolvePath(ExeDir + "dat/");
+			ContentDir = uEmuera.Utils.ResolvePath(ExeDir + "resources/");
+			//フォルダの列挙は重い。他を進めている間に裏で済ませておく
+			Config.BeginSnapshot(CsvDir);
+			Config.BeginSnapshot(ErbDir);
 			//エラー出力用
 			//1815 .exeが東方板のNGワードに引っかかるそうなので除去
 			//ExeName = Path.GetFileNameWithoutExtension(Sys.ExeName);
@@ -97,6 +87,11 @@ namespace MinorShift.Emuera
 				MessageBox.Show("\"" + ErbDir + "\" erbフォルダが見つかりません", "フォルダなし");
 				return;
 			}
+			//本家はコマンドライン引数の-DEBUGでデバッグモードに入るが、
+			//こちらは引数を渡せる入口が無い。
+			//ゲームフォルダに"debug.on"という名前のファイルを置いたら同じ扱いにする
+			if (File.Exists(uEmuera.Utils.ResolvePath(ExeDir + "debug.on")))
+				debugMode = true;
             int argsStart = 0;
             if ((args.Length > 0)&&(args[0].Equals("-DEBUG", StringComparison.CurrentCultureIgnoreCase)))
             {

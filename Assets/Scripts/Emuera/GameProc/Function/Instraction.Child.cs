@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using MinorShift.Emuera.GameData.Expression;
@@ -80,6 +80,11 @@ namespace MinorShift.Emuera.GameProc.Function
 				if (st.CurrentEqualTo("D"))
 				{
 					flag |= ISPRINTDFUNC | EXTENDED;
+					st.Jump(1);
+				}
+				if (st.CurrentEqualTo("N"))
+				{
+					flag |= PRINT_WAITINPUT;
 					st.Jump(1);
 				}
 				if (st.CurrentEqualTo("L"))
@@ -237,24 +242,47 @@ namespace MinorShift.Emuera.GameProc.Function
 			}
 		}
 		
+		private sealed class HTML_PRINT_ArgumentBuilder : ArgumentBuilder
+		{
+			public HTML_PRINT_ArgumentBuilder()
+			{
+				argumentTypeArray = new Type[] { typeof(string), typeof(Int64) };
+				minArg = 1;
+			}
+			public override Argument CreateArgument(InstructionLine line, ExpressionMediator exm)
+			{
+				IOperandTerm[] terms = popTerms(line);
+				if (!checkArgumentType(line, exm, terms))
+					return null;
+				return new ExpressionsArgument(argumentTypeArray, terms);
+			}
+		}
+
 		private sealed class HTML_PRINT_Instruction : AbstractInstruction
 		{
 			public HTML_PRINT_Instruction()
 			{
 				flag = EXTENDED | METHOD_SAFE;
-				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.STR_EXPRESSION);
+				ArgBuilder = new HTML_PRINT_ArgumentBuilder();
 			}
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
                 if (GlobalStatic.Process.SkipPrint)
                     return;
+                var arg = (ExpressionsArgument)func.Argument;
                 string str;
-				if (func.Argument.IsConst)
-					str = func.Argument.ConstStr;
-				else
-					str = ((ExpressionArgument)func.Argument).Term.GetStrValue(exm);
-				exm.Console.PrintHtml(str);
+                if (arg.ArgumentArray[0] is SingleTerm st)
+                    str = st.Str;
+                else
+                    str = arg.ArgumentArray[0].GetStrValue(exm);
+
+                bool noNewline = false;
+                if (arg.ArgumentArray.Length > 1 && arg.ArgumentArray[1] != null)
+                {
+                    noNewline = (arg.ArgumentArray[1].GetIntValue(exm) != 0);
+                }
+				exm.Console.PrintHtml(str, noNewline);
 			}
 		}
 
@@ -1617,6 +1645,78 @@ namespace MinorShift.Emuera.GameProc.Function
                 return;
             }
         }
+
+        private sealed class TOOLTIP_CUSTOM_Instruction : AbstractInstruction
+        {
+            public TOOLTIP_CUSTOM_Instruction()
+            {
+                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+                flag = METHOD_SAFE | EXTENDED;
+            }
+            public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+            {
+                ExpressionArgument arg = (ExpressionArgument)func.Argument;
+                long custom;
+                if (arg.IsConst)
+                    custom = arg.ConstInt;
+                else
+                    custom = arg.Term.GetIntValue(exm);
+                // Just consume the argument, actual tooltip custom handling might be deferred
+                return;
+            }
+        }
+		
+        private sealed class TOOLTIP_SETFONT_Instruction : AbstractInstruction
+        {
+            public TOOLTIP_SETFONT_Instruction()
+            {
+                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.STR_EXPRESSION);
+                flag = METHOD_SAFE | EXTENDED;
+            }
+            public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+            {
+                return;
+            }
+        }
+        
+        private sealed class TOOLTIP_SETFONTSIZE_Instruction : AbstractInstruction
+        {
+            public TOOLTIP_SETFONTSIZE_Instruction()
+            {
+                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+                flag = METHOD_SAFE | EXTENDED;
+            }
+            public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+            {
+                return;
+            }
+        }
+
+        private sealed class TOOLTIP_FORMAT_Instruction : AbstractInstruction
+        {
+            public TOOLTIP_FORMAT_Instruction()
+            {
+                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+                flag = METHOD_SAFE | EXTENDED;
+            }
+            public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+            {
+                return;
+            }
+        }
+
+        private sealed class TOOLTIP_IMG_Instruction : AbstractInstruction
+        {
+            public TOOLTIP_IMG_Instruction()
+            {
+                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+                flag = METHOD_SAFE | EXTENDED;
+            }
+            public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+            {
+                return;
+            }
+        }
 		
 		private sealed class INPUTMOUSEKEY_Instruction : AbstractInstruction
 		{
@@ -2439,5 +2539,45 @@ namespace MinorShift.Emuera.GameProc.Function
 			}
 		}
 		#endregion
+
+		private sealed class DT_COLUMN_OPTIONS_Instruction : AbstractInstruction
+		{
+			public DT_COLUMN_OPTIONS_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_DT_COLUMN_OPTIONS);
+				flag = EXTENDED | METHOD_SAFE;
+			}
+
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				var arg = (SpDtColumnOptions)func.Argument;
+				var dict = exm.VEvaluator.VariableData.DataDataTables;
+				var cName = arg.Column.GetStrValue(exm);
+				var key = arg.DT.GetStrValue(exm);
+				if (!dict.ContainsKey(key)) { exm.VEvaluator.RESULT = -1; return; }
+				var dt = dict[key];
+				if (!dt.Columns.Contains(cName)) { exm.VEvaluator.RESULT = 0; return; }
+				var column = dt.Columns[cName];
+				bool isString = column.DataType == typeof(string);
+				int idx = 0;
+				foreach (var opt in arg.Options)
+				{
+					var v = arg.Values[idx];
+					switch (opt)
+					{
+						case SpDtColumnOptions.DTOptions.Default:
+							if (v.GetOperandType() != (isString ? typeof(string) : typeof(Int64)))
+								throw new CodeEE(string.Format("{0}: テーブル [{1}] カラム [{2}] の型とデフォルト値の型が一致していません", "DT_COLUMN_OPTIONS", key, cName));
+							if (isString)
+								column.DefaultValue = v.GetStrValue(exm);
+							else
+								column.DefaultValue = MinorShift.Emuera.GameData.Function.Utils.DataTable.ConvertInt(v.GetIntValue(exm), column.DataType);
+							break;
+					}
+					idx++;
+				}
+				exm.VEvaluator.RESULT = 1;
+			}
+		}
 	}
 }

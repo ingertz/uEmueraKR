@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using MinorShift.Emuera.Sub;
@@ -31,6 +31,7 @@ namespace MinorShift.Emuera
 			UserMacro,
 			UserRefMethod,
 			NameSpace,
+			UserErdMacro,
 		}
 		readonly static char[] badSymbolAsIdentifier = new char[]
 		{
@@ -297,8 +298,12 @@ namespace MinorShift.Emuera
 						warnLevel = 2;
 						break;
 					case DefinedNameType.SystemVariable:
+						//別に上書きしてもいいがとりあえず許可しないでおく。いずれ解放するかもしれない
 						errMes = "変数名" + varName + "はEmueraの変数名として使われています";
 						warnLevel = 2;
+						break;
+					case DefinedNameType.UserErdMacro:
+						// ERD変数は上書き可能
 						break;
 					case DefinedNameType.UserMacro:
 						errMes = "変数名" + varName + "は既にマクロ名に使用されています";
@@ -343,6 +348,10 @@ namespace MinorShift.Emuera
 						//別に上書きしてもいいがとりあえず許可しないでおく。いずれ解放するかもしれない
 						errMes = "マクロ名" + macroName + "はEmueraの変数名として使われています";
 						warnLevel = 2;
+						break;
+					case DefinedNameType.UserErdMacro:
+						errMes = "マクロ名" + macroName + "は既にERDマクロ名に使用されています";
+						warnLevel = 1;
 						break;
 					case DefinedNameType.UserMacro:
 						errMes = "マクロ名" + macroName + "は既にマクロ名に使用されています";
@@ -401,6 +410,8 @@ namespace MinorShift.Emuera
                         errMes = "変数名" + varName + "はEmueraの変数名として使われています";
                         warnLevel = 2;
 						break;
+					case DefinedNameType.UserErdMacro:
+						break;
 					case DefinedNameType.UserMacro:
 						//字句解析がうまくいっていれば本来あり得ないはず
 						errMes = "変数名" + varName + "はマクロに使用されています";
@@ -432,17 +443,23 @@ namespace MinorShift.Emuera
 			{
 
 			}
-			nameDic.Add(var.Name, DefinedNameType.UserGlobalVariable);
+			nameDic[var.Name] = DefinedNameType.UserGlobalVariable;
 		}
 		internal void AddMacro(DefineMacro mac)
 		{
-			nameDic.Add(mac.Keyword, DefinedNameType.UserMacro);
+			nameDic[mac.Keyword] = DefinedNameType.UserMacro;
+			macroDic.Add(mac.Keyword, mac);
+		}
+		internal void AddErdMacro(DefineMacro mac)
+		{
+			if (nameDic.ContainsKey(mac.Keyword)) return;
+			nameDic.Add(mac.Keyword, DefinedNameType.UserErdMacro);
 			macroDic.Add(mac.Keyword, mac);
 		}
 		internal void AddRefMethod(UserDefinedRefMethod refm)
 		{
 			refmethodDic.Add(refm.Name, refm);
-			nameDic.Add(refm.Name, DefinedNameType.UserRefMethod);
+			nameDic[refm.Name] = DefinedNameType.UserRefMethod;
 		}
 		#endregion
 
@@ -459,7 +476,24 @@ namespace MinorShift.Emuera
 				key = key.ToUpper();
             DefineMacro dm = null;
             if (macroDic.TryGetValue(key, out dm))
+            {
+                if (nameDic.TryGetValue(key, out DefinedNameType type) && type == DefinedNameType.UserErdMacro)
+                    return null;
 				return dm;
+            }
+			return null;
+		}
+
+		public DefineMacro GetErdMacro(string key)
+		{
+			if (Config.ICVariable)
+				key = key.ToUpper();
+            DefineMacro dm = null;
+            if (macroDic.TryGetValue(key, out dm))
+            {
+                if (nameDic.TryGetValue(key, out DefinedNameType type) && type == DefinedNameType.UserErdMacro)
+                    return dm;
+            }
 			return null;
 		}
 

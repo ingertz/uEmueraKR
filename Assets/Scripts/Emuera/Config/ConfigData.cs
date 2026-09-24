@@ -18,8 +18,10 @@ namespace MinorShift.Emuera
 	/// </summary>
 	internal sealed class ConfigData
 	{
+		//綴りは配布物によってまちまち(emuera.config/Emuera.config)。
+		//大小を区別する環境では読めずに既定値へ落ちてしまうので実体に合わせる
 		static string configPath
-        { get { return Program.ExeDir + "emuera.config"; } }
+        { get { return uEmuera.Utils.ResolvePath(Program.ExeDir + "emuera.config"); } }
 		static string configdebugPath
         { get { return Program.DebugDir + "debug.config"; } }
 
@@ -223,15 +225,27 @@ static ConfigData() { }
 			}
 			return null;
 		}
+		/// <summary>
+		/// 項目名の照合。大文字小文字は区別しない。
+		///
+		/// 配布物のconfigは「セーブデータをSAVフォルダ内に作成する」のように
+		/// ラテン文字を大文字で書いている物があり、厳密に比べると項目が見つからず
+		/// 設定が黙って既定値に落ちる。セーブ先がsavフォルダにならないのはこれが原因だった
+		/// </summary>
+		private static bool sameKey(string a, string b)
+		{
+			return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+		}
+
 		public AConfigItem GetConfigItem(string key)
 		{
 			foreach (AConfigItem item in configArray)
 			{
 				if (item == null)
 					continue;
-				if (item.Name == key)
+				if (sameKey(item.Name, key))
 					return item;
-				if (item.Text == key)
+				if (sameKey(item.Text, key))
 					return item;
 			}
 			return null;
@@ -254,9 +268,9 @@ static ConfigData() { }
 			{
 				if (item == null)
 					continue;
-				if (item.Name == key)
+				if (sameKey(item.Name, key))
 					return item;
-				if (item.Text == key)
+				if (sameKey(item.Text, key))
 					return item;
 			}
 			return null;
@@ -279,9 +293,9 @@ static ConfigData() { }
 			{
 				if (item == null)
 					continue;
-				if (item.Name == key)
+				if (sameKey(item.Name, key))
 					return item;
-				if (item.Text == key)
+				if (sameKey(item.Text, key))
 					return item;
 			}
 			return null;
@@ -469,13 +483,16 @@ static ConfigData() { }
 				//bool defineIgnoreWarningFiles = false;
 				while ((line = eReader.ReadLine()) != null)
 				{
-					var md5 = md5s[md5i++];
 					if ((line.Length == 0) || (line[0] == ';'))
 						continue;
 					pos = new ScriptPosition(eReader.Filename, eReader.LineNo);
 					string[] tokens = line.Split(new char[] { ':' });
 					if (tokens.Length < 2)
 						continue;
+					//md5の一覧は':'を含む行の分しか作られないのに、
+					//読み込み側は空行やコメント行でも1つ消費していたため添字が溢れていた。
+					//':'のある行だけ進め、足りない場合はnullにする
+					var md5 = md5i < md5s.Count ? md5s[md5i++] : null;
                     var token_0 = tokens[0].Trim();
                     AConfigItem item = GetConfigItem(token_0);
                     if(item == null)

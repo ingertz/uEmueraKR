@@ -22,6 +22,9 @@ namespace MinorShift.Emuera.GameView
 			ButtonResourceName = resNameb;
 
             cImage = AppContents.GetSprite(ResourceName);
+            if(cImage == null)
+            {
+            }
 #if !UNITY_EDITOR
             if(cImage == null)
             {
@@ -134,8 +137,8 @@ namespace MinorShift.Emuera.GameView
 //#pragma warning restore CS0649 // フィールド 'ConsoleImagePart.ia' は割り当てられません。常に既定値 null を使用します。
 		public readonly string ResourceName;
 		public readonly string ButtonResourceName;
-		public override int Top { get { return top; } }
-		public override int Bottom { get { return bottom; } }
+		public override int Top { get { return top + YOffset; } }
+		public override int Bottom { get { return bottom + YOffset; } }
 		
 		public override bool CanDivide { get { return false; } }
 		public override void SetWidth(StringMeasure sm, float subPixel)

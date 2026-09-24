@@ -21,6 +21,18 @@ public abstract class EmueraBehaviour : MonoBehaviour
         CENTER = 1,
         RIGHT = 2,
     }
+    /// <summary>
+    /// 下線・打ち消し線を引く区間。行頭からの位置と幅、そしてその区間の色を持つ
+    /// </summary>
+    public struct StyleSpan
+    {
+        public float x;
+        public float w;
+        public Color color;
+        public bool under;
+        public bool strike;
+    }
+
     public class UnitDesc
     {
         //Text
@@ -41,11 +53,22 @@ public abstract class EmueraBehaviour : MonoBehaviour
         public string code;
         public int generation;
         public int posx;
+        public int posy;
+        public bool absolute_posy;
         public int relative_posx;
         public int width;
         public int height;
         public Color color;
         public List<int> image_indices;
+        /// <summary>&lt;font&gt;タグで参照されるフォント名。素のフォント以外の分</summary>
+        public List<string> extra_fonts;
+        internal List<MinorShift.Emuera.GameView.ConsoleDivPart> div_parts = new List<MinorShift.Emuera.GameView.ConsoleDivPart>();
+        /// <summary>&lt;shape&gt;で描かれる矩形。HPゲージなどに使われる</summary>
+        internal List<MinorShift.Emuera.GameView.ConsoleRectangleShapePart> shape_parts = null;
+        public Color bgcolor;
+        public bool has_bgcolor;
+        /// <summary>下線・打ち消し線を引く区間。行の一部にだけ掛かる</summary>
+        public List<StyleSpan> style_spans = null;
 
         public uint flags = 0;
         public bool isbutton
@@ -86,7 +109,18 @@ public abstract class EmueraBehaviour : MonoBehaviour
             display_line = (ConsoleDisplayLine)display;
             position_y = posy;
             height = h;
+            extent_down = h;
         }
+
+        /// <summary>
+        /// この行が実際に描画で占める範囲。行高さは常にConfig.LineHeightだが、
+        /// 画像やdivはその何倍も上下へはみ出すので別に持つ
+        /// </summary>
+        public float extent_up = 0;
+        public float extent_down = 0;
+        /// <summary>全行を通じての最大はみ出し量。走査の打ち切り判定に使う</summary>
+        public static float max_extent_up = 0;
+        public static float max_extent_down = 0;
         public object console_line { get { return display_line; } }
         ConsoleDisplayLine display_line = null;
 
@@ -101,6 +135,8 @@ public abstract class EmueraBehaviour : MonoBehaviour
         public void Update()
         {
             units = new List<UnitDesc>();
+            float ext_up = 0;
+            float ext_down = height;
 
             var Buttons = display_line.Buttons;
             for(int i = 0; i < Buttons.Length; ++i)
@@ -108,6 +144,7 @@ public abstract class EmueraBehaviour : MonoBehaviour
                 var btn = Buttons[i];
                 var ud = new UnitDesc();
                 var fontname = FontUtils.default_fontname;
+                var basefont_set = false;
                 var btnlength = btn.StrArray.Length;
                 var validstr = 0;
                 var validlength = 0;
@@ -140,11 +177,60 @@ public abstract class EmueraBehaviour : MonoBehaviour
                             if(ud.image_indices == null)
                                 ud.image_indices = new List<int>();
                             ud.image_indices.Add(si);
+                            var r = cp.dest_rect;
+                            if(-r.Top > ext_up) ext_up = -r.Top;
+                            if(r.Top + r.Height > ext_down) ext_down = r.Top + r.Height;
                             continue;
                         }
                     }
+                    if(s is MinorShift.Emuera.GameView.ConsoleDivPart)
+                    {
+                        var dp = s as MinorShift.Emuera.GameView.ConsoleDivPart;
+                        ud.div_parts.Add(dp);
+                        ud.width += dp.width;
+                        validlength += 1; // Ensure it's not considered empty
+                        int dh = dp.Height > 0
+                            ? dp.Height
+                            : (dp.Children != null
+                                ? dp.Children.Length * MinorShift.Emuera.Config.LineHeight : 0);
+                        if(-dp.PointY > ext_up) ext_up = -dp.PointY;
+                        if(dp.PointY + dh > ext_down) ext_down = dp.PointY + dh;
+                        continue;
+                    }
+                    if(s is MinorShift.Emuera.GameView.ConsoleRectangleShapePart)
+                    {
+                        //<shape>はテキストを持たないので、描画情報を別に集める
+                        var sp = s as MinorShift.Emuera.GameView.ConsoleRectangleShapePart;
+                        if(ud.shape_parts == null)
+                            ud.shape_parts = new List<MinorShift.Emuera.GameView.ConsoleRectangleShapePart>();
+                        ud.shape_parts.Add(sp);
+                        //1つのユニットは1つのTextに連結されるため、
+                        //テキスト側にも幅を確保しないと後続の文字が矩形へ重なる
+                        if(sp.Width > 0)
+                        {
+                            int space_width = uEmuera.Utils.GetDisplayLength(" ", (float)FontSize);
+                            if(space_width > 0)
+                            {
+                                int count = Mathf.Max(1, Mathf.RoundToInt((float)sp.Width / space_width));
+                                content.Append(new string(' ', count));
+                            }
+                        }
+                        ud.width += sp.Width;
+                        validlength += 1; // 空行扱いにしない
+                        continue;
+                    }
 
                     var str = s.Str;
+                    //タブを取り除く。
+                    //
+                    //ERBには「PRINTPLAIN ┃<TAB>」のように引数の末尾へタブが
+                    //紛れ込んでいる事がある。本家はGDIで描いていてタブ位置を
+                    //設定していないため、タブは幅を持たない。
+                    //TMPは次のタブ位置まで飛ばすので、そこだけ大きく空き、
+                    //行が伸びて右側の枠が次の行へ押し出されていた。
+                    //幅の計算側でもタブは0として数える(Utils.GetDisplayLength)
+                    if(str.IndexOf('\t') >= 0)
+                        str = str.Replace("\t", "");
                     validlength += str.Trim().Length;
                     if(string.IsNullOrEmpty(str))
                         continue;
@@ -152,12 +238,22 @@ public abstract class EmueraBehaviour : MonoBehaviour
                     var fontstyle = uEmuera.Drawing.FontStyle.Regular;
                     var fontcolor = FontColor;
 
+                    bool under_here = false;
+                    bool strike_here = false;
+                    string partfont = null;
                     if(s is MinorShift.Emuera.GameView.ConsoleStyledString)
                     {
                         var u = (MinorShift.Emuera.GameView.ConsoleStyledString)s;
                         fontsize = u.Font.Size;
                         fontstyle = u.Font.Style;
-                        fontname = u.Font.FontFamily.Name;
+                        partfont = u.Font.FontFamily.Name;
+                        //1つのユニットは1つのTMP_Textで描くので、素のフォントは1つしか持てない。
+                        //最初に現れたものを基準にし、途中で変わる分は<font>タグで切り替える
+                        if(!basefont_set)
+                        {
+                            basefont_set = true;
+                            fontname = partfont;
+                        }
                         ud.monospaced = u.Font.Monospaced;
                     }
                     if(s is MinorShift.Emuera.GameView.AConsoleColoredPart)
@@ -177,10 +273,8 @@ public abstract class EmueraBehaviour : MonoBehaviour
                             str = string.Format("<i>{0}</i>", str);
                             richedit = true;
                         }
-                        if((fontstyle & uEmuera.Drawing.FontStyle.Underline) > 0)
-                            ud.underline = true;
-                        if((fontstyle & uEmuera.Drawing.FontStyle.Strikeout) > 0)
-                            ud.strickout = true;
+                        under_here = (fontstyle & uEmuera.Drawing.FontStyle.Underline) > 0;
+                        strike_here = (fontstyle & uEmuera.Drawing.FontStyle.Strikeout) > 0;
                     }
                     if(fontsize != FontSize)
                     {
@@ -197,10 +291,44 @@ public abstract class EmueraBehaviour : MonoBehaviour
                         else
                             ud.color = fontcolor;
                     }
+                    //基準と違うフォントの区間はTMPのタグで囲む。
+                    //TMPFontsがMaterialReferenceManagerへ登録済みなので名前で引ける
+                    if(partfont != null && partfont != fontname)
+                    {
+                        str = string.Format("<font=\"{0}\">{1}</font>", partfont, str);
+                        richedit = true;
+                        //TMPは名前で登録済みのフォントしか解決できない。
+                        //未登録だとタグがそのまま文字として出てしまうので、
+                        //描画側(メインスレッド)で用意させるため名前を残す
+                        if(ud.extra_fonts == null)
+                            ud.extra_fonts = new List<string>();
+                        if(!ud.extra_fonts.Contains(partfont))
+                            ud.extra_fonts.Add(partfont);
+                    }
                     content.Append(str);
-                    ud.width += uEmuera.Utils.GetDisplayLength(s.Str, fontsize);
+                    var partwidth = uEmuera.Utils.GetDisplayLength(s.Str, partfont, fontsize);
+                    //下線・打ち消し線は、その区間の上だけに引く。
+                    //以前は行のどこか1箇所に指定があると行全体へ引いていたため、
+                    //「FONTSTYLE 8」で一部だけ下線を付けている画面で、
+                    //行の端まで長い線が伸びてしまっていた。色もその区間の物を使う
+                    if(under_here || strike_here)
+                    {
+                        if(ud.style_spans == null)
+                            ud.style_spans = new List<StyleSpan>();
+                        ud.style_spans.Add(new StyleSpan
+                        {
+                            x = ud.width,
+                            w = partwidth,
+                            color = fontcolor,
+                            under = under_here,
+                            strike = strike_here,
+                        });
+                    }
+                    ud.width += partwidth;
                 }
-                ud.empty = (validlength == 0);
+                //空白だけのボタン(PRINTBUTTON " " * 80 など)も行を作らないと
+                //GameObjectが存在せずクリックできなくなる
+                ud.empty = (validlength == 0) && !btn.IsButton;
                 if(ud.empty)
                     ud.content = null;
                 else
@@ -209,6 +337,8 @@ public abstract class EmueraBehaviour : MonoBehaviour
                 ud.generation = (int)btn.Generation;
                 ud.code = btn.Inputs;
                 ud.posx = btn.PointX;
+                ud.posy = btn.PointY;
+                ud.absolute_posy = btn.IsAbsolutePositionedY;
                 ud.relative_posx = btn.RelativePointX;
                 if(fontname != FontUtils.default_fontname)
                     ud.fontname = fontname;
@@ -216,8 +346,16 @@ public abstract class EmueraBehaviour : MonoBehaviour
                     ud.fontname = null;
                 ud.richedit = richedit;
 
+                ud.bgcolor = GenericUtils.ToUnityColor(GlobalStatic.Console.bgColor);
+                ud.has_bgcolor = GlobalStatic.Console.bgColor.A > 0;
+
                 units.Add(ud);
             }
+
+            extent_up = ext_up;
+            extent_down = ext_down;
+            if(ext_up > max_extent_up) max_extent_up = ext_up;
+            if(ext_down > max_extent_down) max_extent_down = ext_down;
         }
         /// <summary>
         /// 对其方式
@@ -247,16 +385,38 @@ public abstract class EmueraBehaviour : MonoBehaviour
 
     public static void OnClick(UnityEngine.EventSystems.PointerEventData e)
     {
+        //INPUTMOUSEKEY待ちの間はボタン入力ではなくマウスイベントを返す。
+        //PressEnterKeyではこの待ちを解けない
+        var console = MinorShift.Emuera.GlobalStatic.Console;
+        if(console != null && console.IsWaitingPrimitive)
+        {
+            EmueraThread.instance.InputMouse(
+                (int)e.position.x,
+                (int)(Screen.height - e.position.y),//左上基準へ
+                0x100000);//MouseButtons.Left
+            return;
+        }
         var obj = e.rawPointerPress;
         if(obj == null)
             return;
         var behaviour = obj.GetComponent<EmueraBehaviour>();
         if(behaviour == null)
         {
+            //当たり判定用の子オブジェクトが押された場合は、それを持つ行まで遡る。
+            //divが中身のボタンはテキストが空で、判定を子オブジェクトに任せている
+            behaviour = obj.GetComponentInParent<EmueraBehaviour>();
+        }
+        if(behaviour == null)
+        {
             EmueraThread.instance.Input("", false);
             return;
         }
         var unit_desc = behaviour.unit_desc;
+        if(unit_desc == null)
+        {
+            EmueraThread.instance.Input("", false);
+            return;
+        }
         if(!unit_desc.isbutton)
             return;
         if(unit_desc.generation < EmueraContent.instance.button_generation)
@@ -267,7 +427,7 @@ public abstract class EmueraBehaviour : MonoBehaviour
 
     public abstract void UpdateContent();
 
-    public void SetPosition(float x, float y)
+    public virtual void SetPosition(float x, float y)
     {
         var rt = (RectTransform)transform;
         rt.anchoredPosition = new Vector2(x, y);

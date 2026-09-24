@@ -38,6 +38,15 @@ namespace MinorShift.Emuera.Content
 		/// </summary>
 		public Point DestBasePosition;
 
+		/// <summary>
+		/// csvが7・8列目でずらす位置を明示していたか。
+		///
+		/// 6列だけの行では、この位置に切り出し元の座標(x,y)が入っている。
+		/// SPRITEPOSX/Yはその値を返す前提で使われている(顔の切り出し範囲など)ので
+		/// そちらは変えられない。描く時にずらすかどうかだけをここで区別する
+		/// </summary>
+		public bool HasExplicitPosition;
+
         public Rectangle Rectangle
         {
             get { return new Rectangle(DestBasePosition, DestBaseSize); }
@@ -239,10 +248,12 @@ namespace MinorShift.Emuera.Content
 				return FrameList[0];
 			}
 			//時間経過なしに複数回呼ばれた場合はさっき返したフレームをもう一度返す。
-			if (MinorShift._Library.WinmmTimer.CurrentFrameTime == lastFrameTime && lastFrame >= 0)
+			uint now = MinorShift._Library.WinmmTimer.CurrentFrameTime;
+			if (now == lastFrameTime && lastFrame >= 0)
 				return FrameList[lastFrame];
+			lastFrameTime = now;
 			//StartTimeからの経過時間をtotaltimeで剰余計算
-			Int64 time = (MinorShift._Library.WinmmTimer.CurrentFrameTime - StartTime) % totaltime;
+			Int64 time = (now - StartTime) % totaltime;
 			//winmmtimerは一周して0になることがあり得るのでその場合の対策。C#の剰余の結果の符号は左辺値の符号に等しい。
 			if (time < 0)
 				time += totaltime;
@@ -264,11 +275,42 @@ namespace MinorShift.Emuera.Content
 			get { return true; }
 		}
 
+		/// <summary>
+		/// 今表示すべきフレームの番号。フレームが無いなら-1。
+		/// 表示側がこれを毎フレーム見て、変わった時だけ絵を差し替える
+		/// </summary>
+		internal int CurrentFrameIndex
+		{
+			get
+			{
+				var frame = GetCurrentFrame();
+				return frame == null ? -1 : frame.index;
+			}
+		}
+
+		/// <summary>
+		/// 今表示すべきフレームが、元画像のどこを指しているか。
+		/// フレームごとに切り出し位置が違う作りもあるので、Rectangleでは代用できない
+		/// </summary>
+		internal Rectangle CurrentFrameRectangle
+		{
+			get
+			{
+				var frame = GetCurrentFrame();
+				return frame == null ? Rectangle : frame.SrcRectangle;
+			}
+		}
+
         public override Bitmap Bitmap
         {
             get
             {
-                return GetCurrentFrame().BaseImage.Bitmap;
+                //フレームが一枚も追加されていない、又は元のGが破棄された事がある。
+                //ここで落とさず、描かないだけにして呼び元へ判断を返す
+                var frame = GetCurrentFrame();
+                if (frame == null || frame.BaseImage == null)
+                    return null;
+                return frame.BaseImage.Bitmap;
             }
         }
 

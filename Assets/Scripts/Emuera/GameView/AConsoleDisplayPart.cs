@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 //using System.Drawing;
 using System.Text;
@@ -15,12 +15,14 @@ namespace MinorShift.Emuera.GameView
 
 		public string Str { get; protected set; }
 		public string AltText { get; protected set; }
-		public int PointX { get; set; }
+		public virtual int PointX { get; set; }
 		public float XsubPixel { get; set; }
 		public float WidthF { get; set; }
 		public int Width { get; set; }
-		public virtual int Top { get { return 0; } }
-		public virtual int Bottom { get { return Config.FontSize; } }
+		public int YOffset { get; set; }
+		public int Depth { get; set; }
+		public virtual int Top { get { return YOffset; } }
+		public virtual int Bottom { get { return YOffset + Config.FontSize; } }
 		public abstract bool CanDivide { get; }
 		
 		public abstract void DrawTo(Graphics graph, int pointY, bool isSelecting, bool isBackLog, TextDrawingMode mode);

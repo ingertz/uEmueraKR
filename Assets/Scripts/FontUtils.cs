@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,6 +10,18 @@ public static class FontUtils
         {"MS Gothic", "MS Gothic"},
         {"ＭＳ Ｐゴシック", "MS PGothic"},
         {"MS PGothic", "MS PGothic"},
+        {"돋움", "Dotum"},
+        {"Dotum", "Dotum"},
+        {"돋움체", "Dotumche"},
+        {"Dotumche", "Dotumche"},
+        {"굴림", "Gulim"},
+        {"Gulim", "Gulim"},
+        {"굴림체", "GulimChe"},
+        {"GulimChe", "GulimChe"},
+        {"xonFont", "xonFont"},
+        {"xonFontH", "xonFontH"},
+        {"ぉんFont", "xonFont"},
+        {"ぉんFont半角", "xonFontH"}
     };
 
     public static void SetDefaultFont(string fontname)
@@ -36,7 +48,8 @@ public static class FontUtils
         last_name = name;
 
         string path = null;
-        name_path_map.TryGetValue(name, out path);
+        if (!name_path_map.TryGetValue(name, out path))
+            path = name; // Fallback to the requested name so custom fonts can be loaded from Resources
 
         return LoadFont(path);
     }

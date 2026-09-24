@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 //using System.Drawing;
@@ -91,6 +91,12 @@ namespace MinorShift.Emuera.GameView
 				fromCssToButton();
 		}
 
+		public void AppendButton(ConsoleButtonString button)
+		{
+			fromCssToButton();
+			m_buttonList.Add(button);
+		}
+
 		public void AppendButton(string str, StringStyle style, string input)
 		{
 			fromCssToButton();
@@ -180,15 +186,15 @@ namespace MinorShift.Emuera.GameView
 			return new ConsoleDisplayLine(dispLineButtonArray, firstLine, temporary);
 		}
 
-		public static ConsoleDisplayLine[] ButtonsToDisplayLines(List<ConsoleButtonString> buttonList, StringMeasure stringMeasure, bool nobr, bool temporary)
+		public static ConsoleDisplayLine[] ButtonsToDisplayLines(List<ConsoleButtonString> buttonList, StringMeasure stringMeasure, bool nobr, bool temporary, bool subDiv = false, int divWidth = 0)
 		{
 			if (buttonList.Count == 0)
 				return new ConsoleDisplayLine[0];
 			setWidthToButtonList(buttonList, stringMeasure, nobr);
 			List<ConsoleDisplayLine> lineList = new List<ConsoleDisplayLine>();
 			List<ConsoleButtonString> lineButtonList = new List<ConsoleButtonString>();
-			int windowWidth = Config.DrawableWidth;
-			bool firstLine = true;
+			int windowWidth = divWidth > 0 ? divWidth : Config.DrawableWidth;
+			bool firstLine = !subDiv;//divの中はIsLogicalLineが常にFalse
 			for (int i = 0; i < buttonList.Count; i++)
 			{
 				if (buttonList[i] == null)
@@ -199,8 +205,8 @@ namespace MinorShift.Emuera.GameView
 					i--;
 					continue;
 				}
-				if (nobr || ((buttonList[i].PointX + buttonList[i].Width <= windowWidth)))
-				{//改行不要モードであるか表示可能領域に収まるならそのままでよい
+				if (nobr || buttonList[i].PointXisLocked || ((buttonList[i].PointX + buttonList[i].Width <= windowWidth)))
+				{//収まるなら
 					lineButtonList.Add(buttonList[i]);
 					continue;
 				}
@@ -212,7 +218,7 @@ namespace MinorShift.Emuera.GameView
 				//クリック可能なボタンでないなら分割する。ただし「ver1739以前の非ボタン折り返しを再現する」ならクリックの可否を区別しない
 				if ((!Config.ButtonWrap) || (lineButtonList.Count == 0) || (!buttonList[i].IsButton && !Config.CompatiLinefeedAs1739))
 				{//ボタン分割する
-					int divIndex = getDivideIndex(buttonList[i], stringMeasure);
+					int divIndex = getDivideIndex(buttonList[i], stringMeasure, windowWidth);
 					if (divIndex > 0)
 					{
 						ConsoleButtonString newButton = buttonList[i].DivideAt(divIndex, stringMeasure);
@@ -413,12 +419,18 @@ namespace MinorShift.Emuera.GameView
 				}
 				button.CalcWidth(stringMeasure, subPixel);
 				button.CalcPointX(pointX);
-				pointX = button.PointX + button.Width;
-				//これは何がしたいんだろう…
-				if (button.PointXisLocked)
+				if (!button.IsAbsolutePositioned)
+				{
+					pointX = button.PointX + button.Width;
+					if (button.PointXisLocked)
+						subPixel = 0;
+					else
+						subPixel = button.XsubPixel;
+				}
+				else
+				{
 					subPixel = 0;
-				//pointX += button.Width;
-				subPixel = button.XsubPixel;
+				}
 			}
 			return;
 			
@@ -478,19 +490,20 @@ namespace MinorShift.Emuera.GameView
 			//}
 		}
 
-		private static int getDivideIndex(ConsoleButtonString button, StringMeasure sm)
+		private static int getDivideIndex(ConsoleButtonString button, StringMeasure sm, int divWidth = 0)
 		{
 			AConsoleDisplayPart divCss = null;
 			int pointX = button.PointX;
 			int strLength = 0;
 			int index = 0;
+			if (divWidth <= 0) divWidth = Config.DrawableWidth;
 
             int count = button.StrArray.Length;
             AConsoleDisplayPart css = null;
             for(var i=0; i<count; ++i)
 			{
                 css = button.StrArray[i];
-				if (pointX + css.Width > Config.DrawableWidth)
+				if (pointX + css.Width > divWidth)
 				{
 					if (index == 0 && !css.CanDivide)
 						continue;
@@ -503,21 +516,22 @@ namespace MinorShift.Emuera.GameView
 			}
 			if (divCss != null)
 			{
-				int cssDivIndex = getDivideIndex(divCss, sm);
+				int cssDivIndex = getDivideIndex(divCss, sm, divWidth);
 				if (cssDivIndex > 0)
 					strLength += cssDivIndex;
 			}
 			return strLength;
 		}
 
-		private static int getDivideIndex(AConsoleDisplayPart part, StringMeasure sm)
+		private static int getDivideIndex(AConsoleDisplayPart part, StringMeasure sm, int divWidth = 0)
 		{
 			if (!part.CanDivide)
 				return -1;
 			ConsoleStyledString css = part as ConsoleStyledString;
 			if (part == null)
 				return -1;
-			int widthLimit = Config.DrawableWidth - css.PointX;
+			if (divWidth <= 0) divWidth = Config.DrawableWidth;
+			int widthLimit = divWidth - css.PointX;
 			string str = css.Str;
 			Font font = css.Font;
             int highLength = str.Length;//widthLimitを超える最低の文字index(文字数-1)。

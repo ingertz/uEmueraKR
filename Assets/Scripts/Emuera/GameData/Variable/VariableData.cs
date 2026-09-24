@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Xml;
+using System.Data;
 using System.IO;
 //using System.Windows.Forms;
 using MinorShift.Emuera.Sub;
@@ -14,6 +16,9 @@ namespace MinorShift.Emuera.GameData.Variable
 	internal sealed partial class VariableData : IDisposable
 	{
 
+				public Dictionary<string, XmlDocument> DataXmlDocument { get; set; } = new Dictionary<string, XmlDocument>();
+		public Dictionary<string, Dictionary<string, string>> DataStringMaps { get; set; } = new Dictionary<string, Dictionary<string, string>>();
+		public Dictionary<string, DataTable> DataDataTables { get; set; } = new Dictionary<string, DataTable>();
 		readonly Int64[] dataInteger;
 		readonly string[] dataString;
 		readonly Int64[][] dataIntegerArray;

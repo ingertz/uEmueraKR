@@ -119,8 +119,26 @@ namespace MinorShift.Emuera.GameView
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() { return list.GetEnumerator(); }
     }
 
+	    public class DummyWindow {
+        public void ResetTextBoxPos() {}
+        public void SetTextBoxPos(int a, int b) {} public void SetTextBoxPos(int a, int b, int c) {}
+        public void ChangeTextBox(string s) {}
+        public DummyTextBox TextBox = new DummyTextBox();
+    }
+    public class DummyTextBox {
+        public string Text = "";
+    }
+    public class DummyPointingSring {
+        public bool IsButton = false;
+        public bool IsInteger = false;
+        public int Input = 0;
+        public string Inputs = "";
+    }
 	internal sealed partial class EmueraConsole :IDisposable
 	{
+		public DummyWindow Window = new DummyWindow();
+		public bool AlwaysRefresh = false;
+		public DummyPointingSring PointingSring = null;
 		public EmueraConsole(MainWindow parent)
 		{
 			window = parent;
@@ -298,8 +316,16 @@ namespace MinorShift.Emuera.GameView
 			cbgList.Sort();
 			return true;
 		}
+		//マウス座標の変換に使う。Unityの入力と同じデバイス座標で返す
 		public int ClientWidth { get { return UnityEngine.Screen.width; } }
 		public int ClientHeight { get { return UnityEngine.Screen.height; } }
+		/// <summary>
+		/// ERBのCLIENTWIDTH()/CLIENTHEIGHT()が返す値。
+		/// 本家では描画領域(MainPicBox)の大きさであり、&lt;div xpos='..px'&gt;などと同じ座標系。
+		/// デバイスの画面サイズを返すと中央寄せの計算が崩れる
+		/// </summary>
+		public int ConsoleWidth { get { return Config.WindowX; } }
+		public int ConsoleHeight { get { return Config.WindowY; } }
 #endregion
 
 		const string ErrorButtonsText = "__openFileWithDebug__";

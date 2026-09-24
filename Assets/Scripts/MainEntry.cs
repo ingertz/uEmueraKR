@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using UnityEngine;
@@ -16,11 +16,24 @@ public class MainEntry : MonoBehaviour
 
     void Start()
     {
+#if UNITY_ANDROID && !UNITY_EDITOR
+        StartCoroutine(RequestPermissionsAndInit());
+#else
+        InitApp();
+#endif
+    }
+
+    void InitApp()
+    {
         LoadConfigMaps();
         if(!MultiLanguage.SetLanguage())
         {
             Object.FindObjectOfType<OptionWindow>().ShowLanguageBox();
         }
+
+        // Initialize SoundManager
+        var soundManagerGO = new GameObject("SoundManager");
+        soundManagerGO.AddComponent<uEmuera.SoundManager>();
 
 #if UNITY_EDITOR
         uEmuera.Logger.info = GenericUtils.Info;
@@ -28,6 +41,126 @@ public class MainEntry : MonoBehaviour
         uEmuera.Logger.error = GenericUtils.Error;
 #endif
     }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    System.Collections.IEnumerator RequestPermissionsAndInit()
+    {
+        // Android API 레벨 확인
+        int apiLevel = GetApiLevel();
+
+        // Android 13+ (API 33): READ_MEDIA_* 권한 요청
+        if (apiLevel >= 33)
+        {
+            string[] mediaPermissions = new string[] {
+                "android.permission.READ_MEDIA_IMAGES",
+                "android.permission.READ_MEDIA_AUDIO"
+            };
+            RequestNativePermissions(mediaPermissions);
+            yield return new WaitForSeconds(1f);
+        }
+        // Android 12 이하: 기존 저장소 권한 요청
+        else
+        {
+            string[] storagePermissions = new string[] {
+                "android.permission.READ_EXTERNAL_STORAGE",
+                "android.permission.WRITE_EXTERNAL_STORAGE"
+            };
+            RequestNativePermissions(storagePermissions);
+            yield return new WaitForSeconds(1f);
+        }
+
+        // Android 11+ (API 30): 모든 파일 접근 권한 요청
+        if (apiLevel >= 30 && CheckNeedsAllFilesAccess())
+        {
+            OpenAllFilesAccessSettings();
+            yield return new WaitForSeconds(1f);
+            while (CheckNeedsAllFilesAccess())
+            {
+                yield return new WaitForSeconds(1f);
+            }
+        }
+
+        InitApp();
+    }
+
+    int GetApiLevel()
+    {
+        try
+        {
+            using (var version = new AndroidJavaClass("android.os.Build$VERSION"))
+            {
+                return version.GetStatic<int>("SDK_INT");
+            }
+        }
+        catch (System.Exception)
+        {
+            return 28;
+        }
+    }
+
+    void RequestNativePermissions(string[] permissions)
+    {
+        try
+        {
+            using (var activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
+                .GetStatic<AndroidJavaObject>("currentActivity"))
+            {
+                activity.Call("requestPermissions", permissions, 0);
+            }
+        }
+        catch (System.Exception) { }
+    }
+
+    bool CheckNeedsAllFilesAccess()
+    {
+        try
+        {
+            using (var envClass = new AndroidJavaClass("android.os.Environment"))
+            {
+                return !envClass.CallStatic<bool>("isExternalStorageManager");
+            }
+        }
+        catch (System.Exception)
+        {
+            return false;
+        }
+    }
+
+    void OpenAllFilesAccessSettings()
+    {
+        try
+        {
+            using (var activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
+                .GetStatic<AndroidJavaObject>("currentActivity"))
+            {
+                // 이 앱 전용 "모든 파일 접근" 설정 페이지로 바로 이동
+                string packageName = activity.Call<string>("getPackageName");
+                using (var uri = new AndroidJavaClass("android.net.Uri")
+                    .CallStatic<AndroidJavaObject>("fromParts", "package", packageName, null))
+                using (var intent = new AndroidJavaObject("android.content.Intent",
+                    "android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION", uri))
+                {
+                    activity.Call("startActivity", intent);
+                }
+            }
+        }
+        catch (System.Exception)
+        {
+            // 폴백: 일반 모든 파일 접근 목록 페이지
+            try
+            {
+                using (var activity = new AndroidJavaClass("com.unity3d.player.UnityPlayer")
+                    .GetStatic<AndroidJavaObject>("currentActivity"))
+                using (var intent = new AndroidJavaObject("android.content.Intent",
+                    "android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION"))
+                {
+                    activity.Call("startActivity", intent);
+                }
+            }
+            catch (System.Exception) { }
+        }
+    }
+#endif
 
 #if UNITY_EDITOR
     public string era_path;

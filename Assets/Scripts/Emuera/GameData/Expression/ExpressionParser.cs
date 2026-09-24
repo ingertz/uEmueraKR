@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using MinorShift.Emuera.Sub;
 using MinorShift.Emuera.GameData.Variable;
@@ -263,6 +263,15 @@ namespace MinorShift.Emuera.GameData.Expression
 						return VariableParser.ReduceVariable(id, wc);
 				}
 				//idStrが変数名でない場合、
+				MinorShift.Emuera.GameData.DefineMacro erdMacro = GlobalStatic.IdentifierDictionary.GetErdMacro(idStr);
+				if (erdMacro != null && erdMacro.Statement.Collection.Count == 1)
+				{
+					if (erdMacro.Statement.Collection[0] is LiteralIntegerWord liw)
+						return new SingleTerm(liw.Int);
+					else if (erdMacro.Statement.Collection[0] is LiteralStringWord lsw)
+						return new SingleTerm(lsw.Str);
+				}
+
 				IOperandTerm refToken = GlobalStatic.IdentifierDictionary.GetFunctionMethod(GlobalStatic.LabelDictionary, idStr, null, false);
 				if (refToken != null)//関数参照と名前が一致したらそれを返す。実際に使うとエラー
 					return refToken;

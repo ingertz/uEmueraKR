@@ -10,6 +10,29 @@ namespace uEmuera.Drawing
             this.filename = GenericUtils.GetFilename(path);
         }
 
+        public Bitmap(int width, int height, string pseudoFilename)
+        {
+            this.path = pseudoFilename;
+            this.filename = pseudoFilename;
+            this.name = pseudoFilename;
+            this.size = new Size(width, height);
+            
+            var waitHandle = new System.Threading.ManualResetEvent(false);
+            SpriteManager.RunOnMainThread(() => {
+                try {
+                    var tex = new UnityEngine.Texture2D(width, height, UnityEngine.TextureFormat.RGBA32, false);
+                    UnityEngine.Color32[] pixels = new UnityEngine.Color32[width * height];
+                    for (int i = 0; i < pixels.Length; i++) pixels[i] = new UnityEngine.Color32(0, 0, 0, 0);
+                    tex.SetPixels32(pixels);
+                    tex.Apply(false, false);
+                    SpriteManager.RegisterDynamicTexture(pseudoFilename, tex);
+                } finally {
+                    waitHandle.Set();
+                }
+            });
+            waitHandle.WaitOne();
+        }
+
         public readonly string path;
         public readonly string filename;
         public string name;
@@ -50,8 +73,8 @@ namespace uEmuera.Drawing
         public BitmapTexture(string path)
             :base(path)
         {
-            var name = string.Concat(":FILE:", filename);
-            var tiot = SpriteManager.GetTextureInfoOtherThread(name, path,
+            this.name = string.Concat(":FILE:", filename);
+            var tiot = SpriteManager.GetTextureInfoOtherThread(this.name, path,
                 ret =>
                 {
                     textureinfo = ret;
@@ -162,7 +185,12 @@ namespace uEmuera.Drawing
         public Pen()
         { }
         public Pen(Color c, Int64 width)
-        { }
+        { 
+            Color = c;
+            Width = width;
+        }
+        public Color Color { get; set; }
+        public Int64 Width { get; set; } = 1;
     }
 
     public enum FontStyle
@@ -202,6 +230,10 @@ namespace uEmuera.Drawing
         {
             fontFamily = new FontFamily(familyName);
             monospaced = GetMonospaced(familyName);
+            //幅の計測はメインスレッドでしか出来ないので、フォントが最初に作られた
+            //ここで済ませておく。Config.GetFontが名前・スタイル毎にキャッシュするため
+            //同じフォントで何度も走ることはない
+            uEmuera.FontProvider.EnsureMeasured(familyName);
             size = emSize;
             fontStyle = style;
             graphicsUnit = unit;
@@ -211,6 +243,10 @@ namespace uEmuera.Drawing
         {
             fontFamily = new FontFamily(familyName);
             monospaced = GetMonospaced(familyName);
+            //幅の計測はメインスレッドでしか出来ないので、フォントが最初に作られた
+            //ここで済ませておく。Config.GetFontが名前・スタイル毎にキャッシュするため
+            //同じフォントで何度も走ることはない
+            uEmuera.FontProvider.EnsureMeasured(familyName);
             size = emSize;
             fontStyle = style;
             graphicsUnit = unit;
@@ -220,6 +256,10 @@ namespace uEmuera.Drawing
         {
             fontFamily = new FontFamily(familyName);
             monospaced = GetMonospaced(familyName);
+            //幅の計測はメインスレッドでしか出来ないので、フォントが最初に作られた
+            //ここで済ませておく。Config.GetFontが名前・スタイル毎にキャッシュするため
+            //同じフォントで何度も走ることはない
+            uEmuera.FontProvider.EnsureMeasured(familyName);
             size = emSize;
             fontStyle = style;
             graphicsUnit = unit;
@@ -254,7 +294,7 @@ namespace uEmuera.Drawing
         public static Color FromArgb(int argb)
         {
             return FromArgb(
-                    (argb >> 24),
+                    ((argb >> 24) & 0xFF),
                     ((argb >> 16) & 0xFF),
                     ((argb >> 8) & 0xFF),
                     (argb & 0xFF));

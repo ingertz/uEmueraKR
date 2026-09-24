@@ -41,13 +41,18 @@ namespace MinorShift.Emuera.GameProc
 			//checkScript();の時点でExpressionPerserがProcess.instance.LabelDicを必要とするから。
 			labelDic = labelDictionary;
 			labelDic.Initialized = false;
+			//Config.GetFilesが大文字小文字を区別しないので、綴り違いの二度読みは要らない
 			List<KeyValuePair<string, string>> erbFiles = Config.GetFiles(erbDir, "*.ERB");
-#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-            erbFiles.AddRange(Config.GetFiles(erbDir, "*.erb"));
-#endif
             List<string> isOnlyEvent = new List<string>();
             noError = true;
 			uint starttime = WinmmTimer.TickCount;
+			//解析している間に次のファイルを読んでおく。読み込みは待ち時間が殆どなので重ねられる
+			{
+				var paths = new List<string>(erbFiles.Count);
+				for (int i = 0; i < erbFiles.Count; i++)
+					paths.Add(erbFiles[i].Value);
+				uEmuera.FilePrefetch.Begin(paths, 4);
+			}
 			try
 			{
 				labelDic.RemoveAll();
@@ -66,6 +71,7 @@ namespace MinorShift.Emuera.GameProc
 					loadErb(file, filename, isOnlyEvent);
 				}
 				ParserMediator.FlushWarningList();
+				uEmuera.FilePrefetch.End();
 #if UEMUERA_DEBUG
 				output.PrintSystemLine("経過時間:" + (WinmmTimer.TickCount - starttime).ToString("D4") + "ms:");
 #endif
@@ -98,6 +104,7 @@ namespace MinorShift.Emuera.GameProc
 			}
 			finally
 			{
+				uEmuera.FilePrefetch.End();
 				parentProcess.scaningLine = null;
 			}
             isOnlyEvent.Clear();
@@ -420,7 +427,7 @@ namespace MinorShift.Emuera.GameProc
                         //        replacedLine = replacedLine.Replace(pair.Key, pair.Value);
                         //    st = new StringStream(replacedLine);
                         //}
-                        nextLine = LogicalLineParser.ParseLine(st, position, output);
+                        nextLine = LogicalLineParser.ParseLine(st, position, output, lastLabelLine);
 						if (nextLine == null)
 							continue;
 						if (nextLine is InvalidLine)

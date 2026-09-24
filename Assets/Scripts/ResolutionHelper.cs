@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -34,12 +34,14 @@ public static class ResolutionHelper
 
     static void ApplyResolution()
     {
+#if UNITY_STANDALONE
         var height = resolutions[resolution_index];
         var width = (int)Mathf.Ceil(height * aspect);
         if(Screen.width > Screen.height)
-            Screen.SetResolution(width, height, true, 24);
+            Screen.SetResolution(width, height, FullScreenMode.FullScreenWindow, 24);
         else
-            Screen.SetResolution(height, width, true, 24);
+            Screen.SetResolution(height, width, FullScreenMode.FullScreenWindow, 24);
+#endif
     }
 
     static float aspect {
@@ -55,6 +57,11 @@ public static class ResolutionHelper
         }
     }
     static float _aspect = -1.0f;
+
+    public static void ResetAspect()
+    {
+        _aspect = -1.0f;
+    }
 
     public static int resolution_index
     {

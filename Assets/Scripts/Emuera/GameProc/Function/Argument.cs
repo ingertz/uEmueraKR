@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using MinorShift.Emuera.GameData;
 using MinorShift.Emuera.GameData.Expression;
@@ -276,6 +276,21 @@ namespace MinorShift.Emuera.GameProc.Function
 		readonly public VariableTerm VariableDest;
 		readonly public IOperandTerm[] Term;
 	}
+    internal sealed class IntAsignArgument : Argument
+    {
+        public int[] Lengths;
+        public IntAsignArgument(string str, int[] lengths) { ConstStr = str; Lengths = lengths; }
+        public MinorShift.Emuera.GameData.Expression.IOperandTerm Exp;
+        public IntAsignArgument(string name, int[] lengths, MinorShift.Emuera.GameData.Expression.IOperandTerm exp) { ConstStr = name; Lengths = lengths; Exp = exp; }
+    }
+    internal sealed class StrAsignArgument : Argument
+    {
+        public int[] Lengths;
+        public StrAsignArgument(string str, int[] lengths) { ConstStr = str; Lengths = lengths; }
+        public string Value;
+        public StrAsignArgument(string name, int[] lengths, string value) { ConstStr = name; Lengths = lengths; Value = value; }
+    }
+
 
 	internal sealed class SpVarSetArgument : Argument
 	{
@@ -538,7 +553,22 @@ namespace MinorShift.Emuera.GameProc.Function
 	}
 	#endregion
 
-
-
-
+	internal sealed class SpDtColumnOptions : Argument
+	{
+		public enum DTOptions
+		{
+			Default,
+		};
+		public SpDtColumnOptions(IOperandTerm dt, IOperandTerm column, DTOptions[] opts, IOperandTerm[] values)
+		{
+			Values = values;
+			Options = opts;
+			DT = dt;
+			Column = column;
+		}
+		readonly public IOperandTerm[] Values;
+		readonly public DTOptions[] Options;
+		readonly public IOperandTerm DT;
+		readonly public IOperandTerm Column;
+	}
 }

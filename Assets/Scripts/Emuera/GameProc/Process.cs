@@ -18,6 +18,12 @@ namespace MinorShift.Emuera.GameProc
 
 	internal sealed partial class Process
 	{
+				public long flowinputDef = 0;
+		public bool flowinput = false;
+		public bool flowinputCanSkip = false;
+		public string flowinputDefString = "";
+		public bool flowinputString = false;
+		public bool flowinputForceSkip = false;
 		public Process(EmueraConsole view)
 		{
 			console = view;
@@ -179,6 +185,8 @@ namespace MinorShift.Emuera.GameProc
                     noError = loader.loadErbs(Program.AnalysisFiles, labelDic);
                 else
                     noError = loader.LoadErbFiles(Program.ErbDir, Config.DisplayReport, labelDic);
+                //読み込みが済んだのでフォルダの写しは捨てる
+                Config.ClearDirSnapshot();
                 initSystemProcess();
                 initialiing = false;
             }
@@ -523,13 +531,13 @@ namespace MinorShift.Emuera.GameProc
 			if (extents == ".erb")
 			{
 				return File.Exists(Program.ErbDir + position.Filename)
-					? position.LineNo > 0 ? File.ReadLines(Program.ErbDir + position.Filename, Config.Encode).Skip(position.LineNo - 1).First() : ""
+					? position.LineNo > 0 ? uEmuera.TextFileReader.ReadAllLines(Program.ErbDir + position.Filename).Skip(position.LineNo - 1).First() : ""
 					: "";
 			}
 			else if (extents == ".csv")
 			{
 				return File.Exists(Program.CsvDir + position.Filename)
-					? position.LineNo > 0 ? File.ReadLines(Program.CsvDir + position.Filename, Config.Encode).Skip(position.LineNo - 1).First() : ""
+					? position.LineNo > 0 ? uEmuera.TextFileReader.ReadAllLines(Program.CsvDir + position.Filename).Skip(position.LineNo - 1).First() : ""
 					: "";
 			}
 			else

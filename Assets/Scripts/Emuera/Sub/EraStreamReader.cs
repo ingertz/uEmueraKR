@@ -17,7 +17,10 @@ namespace MinorShift.Emuera.Sub
         readonly bool useRename = false;
 		int curNo = 0;
 		int nextNo = 0;
-		StreamReader reader;
+		//文字コードの判別のため一旦すべて読み込む。ERB/CSVは小さいので問題無い。
+		//StreamReaderに独自Encodingを渡す形にすると、読み込みの区切りに
+		//2バイト文字が跨った時の状態管理が要るため、こちらの方が安全
+		TextReader reader;
 		FileStream stream;
 
 		public bool Open(string path)
@@ -38,8 +41,16 @@ namespace MinorShift.Emuera.Sub
 			curNo = 0;
 			try
 			{
-				stream = new FileStream(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-				reader = new StreamReader(stream, Config.Encode);
+				//先に読んでもらっている分があればそれを使う
+				string prefetched;
+				reader = uEmuera.FilePrefetch.TryTake(filepath, out prefetched)
+					? new StringReader(prefetched)
+					: uEmuera.TextFileReader.OpenText(filepath);
+				if (reader == null)
+				{
+					this.Dispose();
+					return false;
+				}
 			}
 			catch
 			{

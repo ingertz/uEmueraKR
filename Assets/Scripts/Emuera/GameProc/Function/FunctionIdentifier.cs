@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using MinorShift.Emuera.GameData.Function;
 
 namespace MinorShift.Emuera.GameProc.Function
@@ -97,6 +97,13 @@ namespace MinorShift.Emuera.GameProc.Function
 			addPrintFunction(FunctionCode.PRINTFORMS);
 			addPrintFunction(FunctionCode.PRINTFORMSL);
 			addPrintFunction(FunctionCode.PRINTFORMSW);
+
+			//改行をしないで入力待ち(.NET版)
+			addPrintFunction(FunctionCode.PRINTN);
+			addPrintFunction(FunctionCode.PRINTVN);
+			addPrintFunction(FunctionCode.PRINTSN);
+			addPrintFunction(FunctionCode.PRINTFORMSN);
+
 			addPrintFunction(FunctionCode.PRINTK);
 			addPrintFunction(FunctionCode.PRINTKL);
 			addPrintFunction(FunctionCode.PRINTKW);
@@ -155,6 +162,7 @@ namespace MinorShift.Emuera.GameProc.Function
 			addPrintFunction(FunctionCode.PRINTLCD);
 			addPrintFunction(FunctionCode.PRINTFORMCD);
 			addPrintFunction(FunctionCode.PRINTFORMLCD);
+			addPrintFunction(FunctionCode.PRINTFORMN);
 			addPrintDataFunction(FunctionCode.PRINTDATA);
 			addPrintDataFunction(FunctionCode.PRINTDATAL);
 			addPrintDataFunction(FunctionCode.PRINTDATAW);
@@ -329,6 +337,21 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.CALLFORM, new CALL_Instruction(true, false, false, false), EXTENDED);
 			addFunction(FunctionCode.TRYJUMPFORM, new CALL_Instruction(true, true, true, false), EXTENDED);
 			addFunction(FunctionCode.TRYCALLFORM, new CALL_Instruction(true, false, true, false), EXTENDED);
+			addFunction(FunctionCode.TRYCALLF, new TRYCALLF_Instruction(false));
+			addFunction(FunctionCode.TRYCALLFORMF, new TRYCALLF_Instruction(true));
+		addFunction(FunctionCode.BINPUT, new BINPUT_Instruction());
+		addFunction(FunctionCode.SKIPLOG, new SKIPLOG_Instruction());
+		addFunction(FunctionCode.BINPUTS, new BINPUTS_Instruction());
+		addFunction(FunctionCode.ONEBINPUT, new ONEBINPUT_Instruction());
+		addFunction(FunctionCode.ONEBINPUTS, new ONEBINPUTS_Instruction());
+		addFunction(FunctionCode.QUIT_AND_RESTART, new QUIT_AND_RESTART_Instruction());
+		addFunction(FunctionCode.FORCE_QUIT_AND_RESTART, new FORCE_QUIT_AND_RESTART_Instruction());
+			addFunction(FunctionCode.PLAYBGM, new PLAYBGM_Instruction());
+			addFunction(FunctionCode.STOPBGM, new STOPBGM_Instruction());
+			addFunction(FunctionCode.SETBGMVOLUME, new SETBGMVOLUME_Instruction());
+			addFunction(FunctionCode.PLAYSOUND, new PLAYSOUND_Instruction());
+			addFunction(FunctionCode.STOPSOUND, new STOPSOUND_Instruction());
+			addFunction(FunctionCode.SETSOUNDVOLUME, new SETSOUNDVOLUME_Instruction());
 			addFunction(FunctionCode.TRYCJUMP, new CALL_Instruction(false, true, true, true), EXTENDED);
 			addFunction(FunctionCode.TRYCCALL, new CALL_Instruction(false, false, true, true), EXTENDED);
 			addFunction(FunctionCode.TRYCJUMPFORM, new CALL_Instruction(true, true, true, true), EXTENDED);
@@ -353,6 +376,22 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.FUNC, argb[FunctionArgType.SP_CALLFORM], EXTENDED | FLOW_CONTROL | PARTIAL | FORCE_SETARG);
 			addFunction(FunctionCode.ENDFUNC, new ENDIF_Instruction(), EXTENDED);
 
+			addFunction(FunctionCode.GCREATE, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GCREATEFROMFILE, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GDISPOSE, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GCLEAR, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GDRAWGWITHROTATE, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GDRAWG, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GDRAWTEXT, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GSETBRUSH, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GSETFONT, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GSETPEN, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GGETTEXTSIZE, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GSETCOLOR, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.GSETBGCOLOR, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.SPRITECREATED, new DummyGraphics_Instruction());
+			addFunction(FunctionCode.SPRITEDISPOSE, new DummyGraphics_Instruction());
+
 			addFunction(FunctionCode.DEBUGPRINT, new DEBUGPRINT_Instruction(false, false));
 			addFunction(FunctionCode.DEBUGPRINTL, new DEBUGPRINT_Instruction(false, true));
 			addFunction(FunctionCode.DEBUGPRINTFORM, new DEBUGPRINT_Instruction(true, false));
@@ -369,6 +408,8 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.REFBYNAME, new REF_Instruction(true));
 			addFunction(FunctionCode.HTML_PRINT, new HTML_PRINT_Instruction());
 			addFunction(FunctionCode.HTML_TAGSPLIT, new HTML_TAGSPLIT_Instruction());
+			addFunction(FunctionCode.HTML_PRINT_ISLAND, new HTML_PRINT_ISLAND_Instruction());
+			addFunction(FunctionCode.HTML_PRINT_ISLAND_CLEAR, new HTML_PRINT_ISLAND_CLEAR_Instruction());
 			addFunction(FunctionCode.PRINT_IMG, new PRINT_IMG_Instruction());
 			addFunction(FunctionCode.PRINT_RECT, new PRINT_RECT_Instruction());
 			addFunction(FunctionCode.PRINT_SPACE, new PRINT_SPACE_Instruction());
@@ -376,9 +417,15 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.TOOLTIP_SETCOLOR, new TOOLTIP_SETCOLOR_Instruction());
 			addFunction(FunctionCode.TOOLTIP_SETDELAY, new TOOLTIP_SETDELAY_Instruction());
             addFunction(FunctionCode.TOOLTIP_SETDURATION, new TOOLTIP_SETDURATION_Instruction());
+            addFunction(FunctionCode.TOOLTIP_CUSTOM, new TOOLTIP_CUSTOM_Instruction());
+            addFunction(FunctionCode.TOOLTIP_SETFONT, new TOOLTIP_SETFONT_Instruction());
+            addFunction(FunctionCode.TOOLTIP_SETFONTSIZE, new TOOLTIP_SETFONTSIZE_Instruction());
+            addFunction(FunctionCode.TOOLTIP_FORMAT, new TOOLTIP_FORMAT_Instruction());
+            addFunction(FunctionCode.TOOLTIP_IMG, new TOOLTIP_IMG_Instruction());
 
 			addFunction(FunctionCode.INPUTMOUSEKEY, new INPUTMOUSEKEY_Instruction());
 			addFunction(FunctionCode.AWAIT, new AWAIT_Instruction());
+			addFunction(FunctionCode.DT_COLUMN_OPTIONS, new DT_COLUMN_OPTIONS_Instruction());
 			#region 式中関数の引数違い
 			addFunction(FunctionCode.VARSIZE, argb[FunctionArgType.SP_VAR], METHOD_SAFE | EXTENDED);//動作が違うのでMETHOD化できない
 			addFunction(FunctionCode.GETTIME, argb[FunctionArgType.VOID], METHOD_SAFE | EXTENDED);//2つに代入する必要があるのでMETHOD化できない
@@ -386,6 +433,9 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.PRINTCPERLINE, argb[FunctionArgType.SP_GETINT], METHOD_SAFE | EXTENDED);//よく考えたら引数の仕様違うや
 			addFunction(FunctionCode.SAVENOS, argb[FunctionArgType.SP_GETINT], METHOD_SAFE | EXTENDED);//引数の仕様が違うので(ry
 			addFunction(FunctionCode.ENCODETOUNI, argb[FunctionArgType.FORM_STR_NULLABLE], METHOD_SAFE | EXTENDED);//式中関数版を追加。処理が全然違う
+			addFunction(FunctionCode.VARI, new VARI_Instruction());
+			addFunction(FunctionCode.VARS, new VARS_Instruction());
+			addFunction(FunctionCode.MATCHALL, new MATCHALL_Instruction());
 			#endregion
 
 			Dictionary<string, FunctionMethod> methodList = FunctionMethodCreator.GetMethodList();

@@ -260,6 +260,61 @@ namespace MinorShift.Emuera.Sub
 			}
 		}
 
+		//IsNumericにReadInt64を使うと、本来falseになるべき文字列の一部がCodeEEになってしまうので、新規に追加
+		public static bool NumericCheck(StringStream st)
+		{
+			Int64 significand;
+			int expBase = 0;
+			int exponent = 0;
+			int stStartPos = st.CurrentPosition;
+			int stEndPos;
+			int fromBase = 10;
+			if (st.Current == '0')
+			{
+				char c = st.Next;
+				if ((c == 'x') || (c == 'X'))
+				{
+					fromBase = 16;
+					st.ShiftNext();
+					st.ShiftNext();
+				}
+				else if ((c == 'b') || (c == 'B'))
+				{
+					fromBase = 2;
+					st.ShiftNext();
+					st.ShiftNext();
+				}
+			}
+			if (st.Current != '+' && st.Current != '-' && !char.IsDigit(st.Current))
+			{
+				if (fromBase != 16)
+					return false;
+				else if (!hexadecimalDigits.Contains(st.Current))
+					return false;
+			}
+			significand = readDigits(st, fromBase);
+			if ((st.Current == 'p') || (st.Current == 'P'))
+				expBase = 2;
+			else if ((st.Current == 'e') || (st.Current == 'E'))
+				expBase = 10;
+			if (expBase != 0)
+			{
+				st.ShiftNext();
+				if (st.EOS || !char.IsDigit(st.Current))
+					return false;
+				unchecked { exponent = (int)readDigits(st, fromBase); }
+			}
+			stEndPos = st.CurrentPosition;
+			if ((expBase != 0) && (exponent != 0))
+			{
+
+				double d = significand * Math.Pow(expBase, exponent);
+				if ((double.IsNaN(d)) || (double.IsInfinity(d)) || (d > Int64.MaxValue) || (d < Int64.MinValue))
+					throw new CodeEE("\"" + st.Substring(stStartPos, stEndPos) + "\"は64ビット符号付整数の範囲を超えています");
+			}
+			return true;
+		}
+
 		/// <summary>
 		/// TIMES第二引数のみが使用する。
 		/// Convertクラスが発行する例外をそのまま投げるので適切に処理すること。

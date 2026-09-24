@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 //using System.Drawing;
@@ -87,7 +87,11 @@ namespace MinorShift.Emuera.GameView
 		public Int64 Input { get; private set; }
 		public string Inputs { get; private set; }
 		public int PointX { get; set; }
+		public int PointY { get; set; } = -1;
+		public bool IsAbsolutePositionedY { get; set; }
 		public bool PointXisLocked { get; set; }
+		public bool IsAbsolutePositioned { get; set; }
+		public int Depth { get; set; }
 		public int Width { get; set; }
 		public float XsubPixel { get; set; }
 		public Int64 Generation { get; private set; }
@@ -181,8 +185,6 @@ namespace MinorShift.Emuera.GameView
 					Width += css.Width;
 					subpixel = css.XsubPixel;
 				}
-				if (Width <= 0)
-					Width = -1;
 			}
 			XsubPixel = subpixel;
 		}
@@ -200,8 +202,29 @@ namespace MinorShift.Emuera.GameView
 				px = PointX;
 			for (int i = 0; i < strArray.Length; i++)
 			{
-				strArray[i].PointX = px;
-				px += strArray[i].Width;
+				if (strArray[i] is ConsoleDivPart div && div.PointXisLocked)
+				{
+					if (div.xOffset < 0)
+					{
+						//xposは行頭からの絶対位置。負の値はそのままでは必ず行の左外へ出て
+						//何も見えないので、「今の位置から戻す」ずらし量として解釈する。
+						//マップ上の自機アイコンのように直前の文字へ重ねる用途で使われる。
+						//重ね描画なのでpxは進めない
+						div.PointX = px + div.xOffset;
+					}
+					else
+					{
+						div.PointX = div.xOffset;
+						//Widthが0のdiv(depth指定の重ね描画)はpxを巻き戻さないよう除外する
+						if (div.IsRelative && div.Width > 0)
+							px = div.PointX + div.Width;
+					}
+				}
+				else
+				{
+					strArray[i].PointX = px;
+					px += strArray[i].Width;
+				}
 			}
 			if (strArray.Length > 0)
 			{

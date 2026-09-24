@@ -184,9 +184,11 @@ namespace MinorShift.Emuera
 			if (TextDrawingMode != TextDrawingMode.WINAPI)
 				DrawingParam_ShapePositionShift = Math.Max(2, FontSize / 6);
 			DrawableWidth = WindowX - DrawingParam_ShapePositionShift;
-			ForceSavDir = Program.ExeDir + "sav\\";
+			//円記号は区切りとみなされない環境がある。
+			//フォルダ名がSAVの配布物もあるので実体に合わせる
+			ForceSavDir = uEmuera.Utils.ResolvePath(Program.ExeDir + "sav/");
 			if (UseSaveFolder)
-				SavDir = Program.ExeDir + "sav/";
+				SavDir = ForceSavDir;
 			else
 				SavDir = Program.ExeDir;
 			if (UseSaveFolder && !Directory.Exists(SavDir))
@@ -349,6 +351,218 @@ namespace MinorShift.Emuera
 			return getFiles(rootdir, rootdir, pattern, !SearchSubdirectory, SortWithFilename);
 		}
 
+		/// <summary>
+		/// 同じフォルダを何度も辿ると起動時間がそのまま延びる。
+		/// ERH・ERD・ERBを大文字小文字で2回ずつ、計6周していた。
+		/// 11000ファイルのゲームでは1周15秒近くかかり、ここだけで90秒を使っていた。
+		///
+		/// 一度だけ列挙して覚え、以降はその写しから答える。
+		/// 辿る順序と相対パスの作り方は元のままにして、読み出し元だけ差し替える
+		/// </summary>
+		private sealed class DirSnapshot
+		{
+			public Dictionary<string, List<string>> files =
+				new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+			public Dictionary<string, List<string>> dirs =
+				new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+		}
+		static Dictionary<string, DirSnapshot> snapshots_ = null;
+
+		private static string dirKey(string dir)
+		{
+			if (string.IsNullOrEmpty(dir))
+				return "";
+			var d = dir.Replace('\\', '/');
+			int end = d.Length;
+			while (end > 1 && d[end - 1] == '/')
+				end--;
+			return d.Substring(0, end);
+		}
+
+		static readonly object snapshotLock_ = new object();
+
+		/// <summary>
+		/// フォルダを列挙させておく。ERBの木は1万ファイルで12秒かかるが、
+		/// 中身は計算ではなく待ち時間なので、csvを読んでいる間に済ませられる。
+		/// 出来上がる前に使おうとした側は、錠の前で待つだけで済む
+		/// </summary>
+		public static void BeginSnapshot(string rootdir)
+		{
+			if (string.IsNullOrEmpty(rootdir) || !Directory.Exists(rootdir))
+				return;
+			var t = new System.Threading.Thread(() =>
+			{
+				try { getSnapshot(rootdir); }
+				catch (Exception) { }
+			});
+			t.IsBackground = true;
+			t.Start();
+		}
+
+		private static DirSnapshot getSnapshot(string rootdir)
+		{
+			var key = dirKey(rootdir);
+			lock (snapshotLock_)
+			{
+				if (snapshots_ == null)
+					snapshots_ = new Dictionary<string, DirSnapshot>(StringComparer.OrdinalIgnoreCase);
+				DirSnapshot snap;
+				if (snapshots_.TryGetValue(key, out snap))
+					return snap;
+				snap = buildSnapshot(key);
+				snapshots_[key] = snap;
+				return snap;
+			}
+		}
+
+		/// <summary>
+		/// フォルダを手分けして辿る。
+		///
+		/// 1本で辿ると885フォルダ・11000ファイルで12秒かかっていた。
+		/// 中身は計算ではなく記憶域の待ち時間なので、同時に投げれば重なる。
+		/// 見つけたフォルダを積んで各自が取っていく形なので、
+		/// 大きい枝が1つある様な偏った構成でも自然に均される
+		/// </summary>
+		private static DirSnapshot buildSnapshot(string key)
+		{
+			var snap = new DirSnapshot();
+			var pending = new Stack<string>();
+			pending.Push(key);
+			var gate = new object();
+			int active = 0;
+
+			System.Threading.ThreadStart work = () =>
+			{
+				while (true)
+				{
+					string dir;
+					lock (gate)
+					{
+						while (pending.Count == 0 && active > 0)
+							System.Threading.Monitor.Wait(gate);
+						if (pending.Count == 0)
+						{
+							//誰も動いておらず積みも無い。全員終わり
+							System.Threading.Monitor.PulseAll(gate);
+							return;
+						}
+						dir = pending.Pop();
+						active += 1;
+					}
+
+					string[] files = null;
+					string[] subs = null;
+					try
+					{
+						files = Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly);
+						subs = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
+					}
+					catch (Exception)
+					{ }
+
+					lock (gate)
+					{
+						var dkey = dirKey(dir);
+						if (files != null && files.Length > 0)
+						{
+							List<string> list;
+							if (!snap.files.TryGetValue(dkey, out list))
+							{
+								list = new List<string>();
+								snap.files.Add(dkey, list);
+							}
+							for (int i = 0; i < files.Length; i++)
+								list.Add(files[i].Replace('\\', '/'));
+						}
+						if (subs != null && subs.Length > 0)
+						{
+							List<string> dlist;
+							if (!snap.dirs.TryGetValue(dkey, out dlist))
+							{
+								dlist = new List<string>();
+								snap.dirs.Add(dkey, dlist);
+							}
+							for (int i = 0; i < subs.Length; i++)
+							{
+								var sub = subs[i].Replace('\\', '/');
+								dlist.Add(sub);
+								pending.Push(sub);
+							}
+						}
+						active -= 1;
+						System.Threading.Monitor.PulseAll(gate);
+					}
+				}
+			};
+
+			var helpers = new System.Threading.Thread[3];
+			for (int i = 0; i < helpers.Length; i++)
+			{
+				helpers[i] = new System.Threading.Thread(work);
+				helpers[i].IsBackground = true;
+				helpers[i].Start();
+			}
+			work();     //呼んだ側も働く
+			for (int i = 0; i < helpers.Length; i++)
+				helpers[i].Join();
+
+			//手分けした結果は集まる順が毎回変わる。読み込み順が揺れると
+			//同名定義の警告の出方まで変わるので、ここで並べ直して固定する
+			foreach (var list in snap.files.Values)
+				list.Sort(ignoreCaseComparer);
+			foreach (var list in snap.dirs.Values)
+				list.Sort(ignoreCaseComparer);
+			return snap;
+		}
+
+		/// <summary>
+		/// 読み込みが済んだら捨てる。持ち続けると、後で読み直した時に
+		/// 増えたファイルが見えなくなる
+		/// </summary>
+		public static void ClearDirSnapshot()
+		{
+			lock (snapshotLock_)
+			{
+				if (snapshots_ != null)
+				{
+					snapshots_.Clear();
+					snapshots_ = null;
+				}
+			}
+		}
+
+		private static readonly string[] emptyStrings = new string[0];
+
+		private static string[] snapshotDirs(DirSnapshot snap, string dir)
+		{
+			List<string> list;
+			if (!snap.dirs.TryGetValue(dirKey(dir), out list))
+				return emptyStrings;
+			return list.ToArray();
+		}
+
+		private static string[] snapshotFiles(DirSnapshot snap, string dir, string pattern)
+		{
+			List<string> list;
+			if (!snap.files.TryGetValue(dirKey(dir), out list))
+				return emptyStrings;
+			//"*.ERB"の形が大半なので、そこは拡張子比較で済ませる
+			bool extOnly = pattern.Length > 2 && pattern[0] == '*' && pattern[1] == '.'
+				&& pattern.IndexOf('*', 2) < 0 && pattern.IndexOf('?') < 0;
+			string ext = extOnly ? pattern.Substring(1) : null;
+			var result = new List<string>(list.Count);
+			for (int i = 0; i < list.Count; i++)
+			{
+				var name = Path.GetFileName(list[i]);
+				bool hit = extOnly
+					? string.Equals(Path.GetExtension(name), ext, StringComparison.OrdinalIgnoreCase)
+					: uEmuera.Utils.MatchWildcard(name, pattern);
+				if (hit)
+					result.Add(list[i]);
+			}
+			return result.ToArray();
+		}
+
 		private sealed class StrIgnoreCaseComparer : IComparer<string>
 		{
 			public int Compare(string x, string y)
@@ -362,10 +576,11 @@ namespace MinorShift.Emuera
 		private static List<KeyValuePair<string, string>> getFiles(string dir, string rootdir, string pattern, bool toponly, bool sort)
 		{
 			StringComparison strComp = StringComparison.OrdinalIgnoreCase;
+			DirSnapshot snap = getSnapshot(rootdir);
 			List<KeyValuePair<string, string>> retList = new List<KeyValuePair<string, string>>();
 			if (!toponly)
 			{//サブフォルダ内の検索
-				string[] dirList = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
+				string[] dirList = snapshotDirs(snap, dir);
 				if (dirList.Length > 0)
 				{
 					if (sort)
@@ -387,7 +602,7 @@ namespace MinorShift.Emuera
 					RelativePath += "/";//末尾が\又は/で終わるように。後でFile名を直接加算できるようにしておく
 			}
 			//filepathsは完全パスである
-			string[] filepaths = Directory.GetFiles(dir, pattern, SearchOption.TopDirectoryOnly);
+			string[] filepaths = snapshotFiles(snap, dir, pattern);
 			if (sort)
 				Array.Sort(filepaths, ignoreCaseComparer);
 			for (int i = 0; i < filepaths.Length; i++)

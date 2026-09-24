@@ -16,7 +16,14 @@ namespace MinorShift._Library
         public static void SetSourceFolder(string folder)
         {
             ExeDir = uEmuera.Utils.NormalizePath(_WorkFolder + "/" + folder + "/");
+            //「eraメガテンP版/Data」のように一階層潜って見つけた配布物か。
+            //その形の時だけ、本体の一つ上も同じゲームの一部として扱ってよい
+            SourceIsNested = folder != null
+                && (folder.IndexOf('/') >= 0 || folder.IndexOf('\\') >= 0);
         }
+
+        /// <summary>本体が配布物の中のサブフォルダに入っているか</summary>
+        public static bool SourceIsNested { get; private set; }
         
 		/// <summary>
 		/// 実行ファイルのパス

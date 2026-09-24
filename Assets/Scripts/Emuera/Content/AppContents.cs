@@ -83,14 +83,14 @@ namespace MinorShift.Emuera.Content
 		static public bool LoadContents()
 		{
 			if (!Directory.Exists(Program.ContentDir))
+			{
 				return true;
+			}
 			try
 			{
-				//resourcesフォルダ内の全てのcsvファイルを探索する
-				List<string> csvFiles = new List<string>(Directory.GetFiles(Program.ContentDir, "*.csv", SearchOption.TopDirectoryOnly));
-#if(UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-                csvFiles.AddRange(Directory.GetFiles(Program.ContentDir, "*.CSV", SearchOption.TopDirectoryOnly));
-#endif
+				//resourcesフォルダ内の全てのcsvファイルを探索する。
+				//拡張子の大小は環境によってまちまちなので区別せずに拾う
+				var csvFiles = uEmuera.Utils.PickByExtension(uEmuera.Utils.GetContentEntries(), ".CSV");
                 var count = csvFiles.Count;
                 for(var i=0; i<count; ++i)
 				{
@@ -100,6 +100,9 @@ namespace MinorShift.Emuera.Content
 					string filename = Path.GetFileName(filepath);
                     //string[] lines = File.ReadAllLines(filepath, Config.Encode);
                     string[] lines = uEmuera.Utils.GetResourceCSVLines(filepath, Config.Encode);
+					if (lines == null) {
+						continue;
+					}
 					int lineNo = 0;
                     var linecount = lines.Length;
                     for (var l=0; l<linecount; ++l)
@@ -170,11 +173,13 @@ namespace MinorShift.Emuera.Content
 			if(tokens.Length < 2)
 				return null;
 			string name = tokens[0].Trim().ToUpper();//
-			string arg2 = tokens[1].ToUpper();//画像ファイル名
+			//画像ファイル名。大小を区別する環境では実体に合わせる必要があるので、
+			//ここで大文字に潰してしまうと拡張子だけ小文字のファイルが開けなくなる
+			string arg2 = tokens[1];
 			if (name.Length == 0 || arg2.Length == 0)
 				return null;
 			//アニメーションスプライト宣言
-			if (arg2 == "ANIME")
+			if (arg2.ToUpper() == "ANIME")
 			{
 				if (tokens.Length < 4)
 				{
@@ -202,7 +207,9 @@ namespace MinorShift.Emuera.Content
 				ParserMediator.Warn("第二引数に拡張子がありません:" + arg2, sp, 1);
 				return null;
 			}
-			string parentName = dir + arg2;
+            arg2 = arg2.Replace("\\", "/");
+			//実在する綴りへ寄せてから鍵にする。同じ画像が大小違いで二重登録されるのを防ぐ
+			string parentName = uEmuera.Utils.ResolvePath(dir + arg2);
 
 			//親画像のロードConstImage
 			if (!resourceDic.ContainsKey(parentName))
@@ -244,6 +251,8 @@ namespace MinorShift.Emuera.Content
 			}
 			Rectangle rect = new Rectangle(new Point(0, 0), parentImage.Bitmap.Size);
 			Point pos = new Point();
+			//7・8列目で位置を明示していたか。描画時にずらすかの判断に使う
+			bool hasExplicitPos = false;
 			int delay = 1000;
 			//name,parentname, x,y,w,h ,offset_x,offset_y, delayTime
 			if(tokens.Length >= 6)//x,y,w,h
@@ -275,7 +284,10 @@ namespace MinorShift.Emuera.Content
 					for (int i = 0; i < 2; i++)
 						sccs &= int.TryParse(tokens[i + 6], out rectValue[i]);
 					if (sccs)
+					{
 						pos = new Point(rectValue[0], rectValue[1]);
+						hasExplicitPos = true;
+					}
 					if (tokens.Length >= 9)
 					{
 						sccs = int.TryParse(tokens[8], out delay);
@@ -299,8 +311,9 @@ namespace MinorShift.Emuera.Content
 			}
 
 			//新規スプライト定義
-			ASprite image = new SpriteF(name, parentImage, rect, pos);
-			return image;
+			var sprite = new SpriteF(name, parentImage, rect, pos);
+			sprite.HasExplicitPosition = hasExplicitPos;
+			return sprite;
 		}
 
 

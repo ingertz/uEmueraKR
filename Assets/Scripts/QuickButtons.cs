@@ -18,6 +18,74 @@ public class QuickButtons : MonoBehaviour
             EmueraThread.instance.Input(code, true);
         }
 
+        /// <summary>
+        /// 顔グラだけのボタンのように文字を持たない物は、中の画像をそのまま見出しにする
+        /// </summary>
+        public void SetPicture(MinorShift.Emuera.Content.ASprite src)
+        {
+            if(src == null)
+            {
+                ReleasePicture();
+                if(picture_ != null)
+                    picture_.enabled = false;
+                content.enabled = true;
+                return;
+            }
+            content.enabled = false;
+            if(picture_ == null)
+            {
+                var obj = new GameObject("picture");
+                obj.transform.SetParent(transform, false);
+                picture_ = obj.AddComponent<Image>();
+                picture_.raycastTarget = false;
+                picture_.preserveAspect = true;
+                var prt = obj.transform as RectTransform;
+                prt.anchorMin = Vector2.zero;
+                prt.anchorMax = Vector2.one;
+                prt.offsetMin = new Vector2(4, 4);
+                prt.offsetMax = new Vector2(-4, -4);
+            }
+            picture_.enabled = true;
+            picture_.color = kInvisible;
+            SpriteManager.GetSprite(src, this, OnPictureLoaded);
+        }
+        static void OnPictureLoaded(object obj, SpriteManager.SpriteInfo info)
+        {
+            var button = obj as QuickButton;
+            if(button == null || button.picture_ == null || !button.gameObject.activeSelf)
+            {
+                SpriteManager.GivebackSpriteInfo(info);
+                return;
+            }
+            button.ReleasePicture();
+            button.spriteinfo_ = info;
+            button.picture_.sprite = info != null ? info.sprite : null;
+            button.picture_.color = info != null ? Color.white : kInvisible;
+        }
+        void ReleasePicture()
+        {
+            if(spriteinfo_ == null)
+                return;
+            SpriteManager.GivebackSpriteInfo(spriteinfo_);
+            spriteinfo_ = null;
+        }
+        /// <summary>使い回す前に画像の参照を返しておく</summary>
+        public void Recycle()
+        {
+            ReleasePicture();
+            if(picture_ != null)
+            {
+                picture_.sprite = null;
+                picture_.enabled = false;
+            }
+            if(content != null)
+                content.enabled = true;
+        }
+
+        static readonly Color kInvisible = new Color(0, 0, 0, 0);
+        Image picture_ = null;
+        SpriteManager.SpriteInfo spriteinfo_ = null;
+
         public float x;
         public int line;
         public Image background;
@@ -210,7 +278,9 @@ public class QuickButtons : MonoBehaviour
         local_position.x = 0;
         dirty = true;
     }
-    public void AddButton(string text, Color color, string code)
+    //ASpriteがinternalなのでpublicにはできない(CS0051)
+    internal void AddButton(string text, Color color, string code,
+                            MinorShift.Emuera.Content.ASprite picture = null)
     {
         var button = PullButton();
         button.gameObject.SetActive(true);
@@ -219,8 +289,18 @@ public class QuickButtons : MonoBehaviour
 #if UNITY_EDITOR
         button.name = "Code:" + code;
 #endif
-        button.content.text = text.Trim();
-        button.content.color = color;
+        //長い見出しは折り返して切れるより、枠に合わせて縮める方が読める。
+        //「[r]ＲＥＣＯＶＥＲ」が「ＲＥＣＯＶＥ/Ｒ」と割れるのを防ぐ
+        var content = button.content;
+        if(!content.resizeTextForBestFit)
+        {
+            content.resizeTextForBestFit = true;
+            content.resizeTextMaxSize = content.fontSize;
+            content.resizeTextMinSize = System.Math.Max(8, content.fontSize / 2);
+        }
+        content.text = text.Trim();
+        content.color = color;
+        button.SetPicture(picture);
         button.code = code;
         button.line = lineidx;
         button.x = add_x - interval;
@@ -274,6 +354,7 @@ public class QuickButtons : MonoBehaviour
 #if UNITY_EDITOR
         button.name = "unused";
 #endif
+        button.Recycle();
         button.gameObject.SetActive(false);
         var rt = button.transform as RectTransform;
         rt.anchoredPosition = new Vector2(0, 0);

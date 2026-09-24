@@ -382,7 +382,52 @@ namespace MinorShift.Emuera.GameProc
 		}
 		
 		
-		public static LogicalLine ParseLine(StringStream stream, ScriptPosition position, EmueraConsole console)
+		/// <summary>
+		/// VARI/VARSが宣言する変数名だけを先に親関数へ登録する。
+		/// 引数解析パスまで遅らせると同じ関数内の後続行が変数名を解決できない。
+		/// 一方で初期値の式はここで解析してはいけない。
+		/// この時点ではまだ読み込まれていないERBの@関数を参照している場合があるため、
+		/// 式の解析は従来どおり引数解析パス(VARI_ArgBuilder)に任せる
+		/// </summary>
+		private static void registerScopedVariable(InstructionLine line, FunctionLabelLine parentLine)
+		{
+			if (parentLine == null)
+				return;
+			StringStream argPrimitive = line.PeekArgumentPrimitive();
+			if (argPrimitive == null)
+				return;
+			string text = argPrimitive.Substring();
+			int commentIndex = text.IndexOf(';');
+			if (commentIndex != -1)
+				text = text.Substring(0, commentIndex);
+			int equalsIndex = text.IndexOf('=');
+			string left = equalsIndex == -1 ? text : text.Substring(0, equalsIndex);
+			string[] leftSplit = left.Split(',');
+			string varName = leftSplit[0].Trim();
+			if (varName.Length == 0)
+				return;
+
+			List<int> lengths = new List<int>();
+			for (int i = 1; i < leftSplit.Length; i++)
+			{
+				//配列長がここで確定できないなら登録を諦めて引数解析パスに任せる
+				if (!int.TryParse(leftSplit[i].Trim(), out int len))
+					return;
+				lengths.Add(len);
+			}
+			if (lengths.Count == 0)
+				lengths.Add(1);
+
+			UserDefinedVariableData varData = new UserDefinedVariableData();
+			varData.Name = varName;
+			varData.Static = false;
+			varData.Lengths = lengths.ToArray();
+			varData.Dimension = lengths.Count;
+			varData.TypeIsStr = line.Function.Code == FunctionCode.VARS;
+			parentLine.AddPrivateVariable(varData);
+		}
+
+		public static LogicalLine ParseLine(StringStream stream, ScriptPosition position, EmueraConsole console, FunctionLabelLine parentLine = null)
 		{
 			//int lineNo = position.LineNo;
 			string errMes;
@@ -422,6 +467,15 @@ namespace MinorShift.Emuera.GameProc
 					//命令文
 					if (func != null)//関数文
 					{
+						//VARI/VARSはこの場で変数名を登録しないと、以降の行での識別子解決に間に合わない。
+						//Argumentはnullのままにして、式の解析は引数解析パスに任せる
+						if (func.Code == FunctionCode.VARI || func.Code == FunctionCode.VARS)
+						{
+							InstructionLine varLine = new InstructionLine(position, func, stream);
+							varLine.ParentLabelLine = parentLine;
+							registerScopedVariable(varLine, parentLine);
+							return varLine;
+						}
 						if (stream.EOS) //引数の無い関数
 							return new InstructionLine(position, func, stream);
 						if ((stream.Current != ';') && (stream.Current != ' ') && (stream.Current != '\t') && (!Config.SystemAllowFullSpace || (stream.Current != '　')))

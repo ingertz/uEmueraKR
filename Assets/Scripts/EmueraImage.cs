@@ -25,10 +25,26 @@ public class EmueraImage : EmueraBehaviour
         }
         public void Load(ASprite src)
         {
+            //アニメスプライトはフレームごとに元のGが違う。毎フレーム見張って差し替える
+            anime_ = src as SpriteAnime;
             SpriteManager.GetSprite(src, this, ImageInfo.OnLoadImageCallback);
+            anime_frame_ = anime_ != null ? anime_.CurrentFrameIndex : -1;
+        }
+        void Update()
+        {
+            if(anime_ == null)
+                return;
+            var index = anime_.CurrentFrameIndex;
+            if(index == anime_frame_)
+                return;
+            anime_frame_ = index;
+            SpriteManager.GetSprite(anime_, this, ImageInfo.OnLoadImageCallback);
         }
         void SetSprite(SpriteManager.SpriteInfo spriteinfo)
         {
+            //差し替え前の物は参照を返しておく。返さないとテクスチャが解放されない
+            if(this.spriteinfo != null && this.spriteinfo != spriteinfo)
+                SpriteManager.GivebackSpriteInfo(this.spriteinfo);
             if(spriteinfo == null)
             {
                 image.sprite = null;
@@ -43,9 +59,14 @@ public class EmueraImage : EmueraBehaviour
         }
         public void Clear()
         {
+            anime_ = null;
+            anime_frame_ = -1;
             SpriteManager.GivebackSpriteInfo(spriteinfo);
+            spriteinfo = null;
             EmueraContent.instance.PushImage(image);
         }
+        SpriteAnime anime_ = null;
+        int anime_frame_ = -1;
         
         public SpriteManager.SpriteInfo spriteinfo = null;
         UnityEngine.UI.Image image
@@ -80,6 +101,7 @@ public class EmueraImage : EmueraBehaviour
         if(ud.isbutton && ud.generation >= EmueraContent.instance.button_generation)
         {
             image.enabled = true;
+            image.color = kTransparent;
             click_handler_.enabled = true;
 #if UNITY_EDITOR
             code = ud.code;
@@ -100,6 +122,7 @@ public class EmueraImage : EmueraBehaviour
             miny = System.Math.Min(miny, image_part.Top);
         }
         logic_y = line_desc.position_y + miny;
+        if (ud.absolute_posy) logic_y += ud.posy;
         logic_height = 0;
 
         var prt = rect_transform;
@@ -133,6 +156,22 @@ public class EmueraImage : EmueraBehaviour
         }
 
         prt.sizeDelta = new Vector2(width, logic_height);
+
+        if (cb.Depth != 0)
+        {
+            var canvas = gameObject.GetComponent<Canvas>();
+            if (canvas == null) canvas = gameObject.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = -cb.Depth;
+            var graphicRaycaster = gameObject.GetComponent<UnityEngine.UI.GraphicRaycaster>();
+            if (graphicRaycaster == null) gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        }
+        else
+        {
+            var canvas = gameObject.GetComponent<Canvas>();
+            if (canvas != null) { canvas.overrideSorting = false; canvas.sortingOrder = 0; }
+        }
+
 #if UNITY_EDITOR
         name = string.Format("image:{0}:{1}", LineNo, UnitIdx);
 #endif

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
@@ -36,15 +36,25 @@ internal static class SpriteManager
         }
         internal SpriteInfo GetSprite(ASprite src)
         {
-            SpriteInfo sprite = null;
-            if(!sprites.TryGetValue(src.Name, out sprite))
+            //アニメスプライトは今のフレームが指す範囲を切り出す。
+            //フレームごとに元のGも切り出し位置も変わるので名前だけでは足りない
+            var key = src.Name;
+            var rect = src.Rectangle;
+            var anime = src as SpriteAnime;
+            if(anime != null)
             {
-                sprite = new SpriteInfo(this, 
+                key = src.Name + "#" + anime.CurrentFrameIndex;
+                rect = anime.CurrentFrameRectangle;
+            }
+            SpriteInfo sprite = null;
+            if(!sprites.TryGetValue(key, out sprite))
+            {
+                sprite = new SpriteInfo(this,
                     Sprite.Create(texture,
-                        GenericUtils.ToUnityRect(src.Rectangle, texture.width, texture.height),
+                        GenericUtils.ToUnityRect(rect, texture.width, texture.height),
                         Vector2.zero)
                     );
-                sprites[src.Name] = sprite;
+                sprites[key] = sprite;
             }
             if(sprite != null)
                 refcount += 1;
@@ -69,6 +79,10 @@ internal static class SpriteManager
             texture = null;
         }
         internal string imagename = null;
+        /// <summary>
+        /// GCREATEなどERB側が描いたテクスチャ。ファイルが無いので捨てると二度と戻せない
+        /// </summary>
+        internal bool isDynamic = false;
         internal int refcount = 0;
         internal float pasttime = 0;
         internal float width { get { return texture.width; } }
@@ -94,43 +108,89 @@ internal static class SpriteManager
         Action<object, SpriteInfo> callback;
     }
 
+    static int mainThreadId = -1;
+    static System.Collections.Concurrent.ConcurrentQueue<Action> mainThreadActions = new System.Collections.Concurrent.ConcurrentQueue<Action>();
+    public static void RunOnMainThread(Action action)
+    {
+        if (mainThreadId != -1 && System.Threading.Thread.CurrentThread.ManagedThreadId == mainThreadId)
+        {
+            try { action(); } catch (Exception e) { Debug.LogError(e); }
+        }
+        else
+        {
+            mainThreadActions.Enqueue(action);
+        }
+    }
+    static IEnumerator UpdateMainThread()
+    {
+        if (mainThreadId == -1) mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+        var swTotal = new System.Diagnostics.Stopwatch();
+        var swWait = new System.Diagnostics.Stopwatch();
+        while(true)
+        {
+            //アニメスプライトが参照する時刻。ここで進めないと止まったままになる
+            MinorShift._Library.WinmmTimer.FrameStart();
+            bool processedAny = false;
+            swTotal.Restart();
+            while (mainThreadActions.TryDequeue(out Action action))
+            {
+                processedAny = true;
+                try { action(); } catch (Exception e) { Debug.LogError(e); }
+                if (swTotal.ElapsedMilliseconds >= 30) break;
+            }
+            if (processedAny && swTotal.ElapsedMilliseconds < 30)
+            {
+                swWait.Restart();
+                while (swWait.ElapsedMilliseconds < 15 && swTotal.ElapsedMilliseconds < 30)
+                {
+                    if (mainThreadActions.TryDequeue(out Action action))
+                    {
+                        try { action(); } catch (Exception e) { Debug.LogError(e); }
+                        swWait.Restart();
+                    }
+                    else
+                    {
+                        System.Threading.Thread.Sleep(1);
+                    }
+                }
+            }
+            yield return null;
+        }
+    }
+
     public static void Init()
     {
+        mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
 #if UNITY_EDITOR
         kPastTime = 300.0f;
-        GenericUtils.StartCoroutine(Update());
-        GenericUtils.StartCoroutine(UpdateRenderOP());
 #else
         var memorysize = SystemInfo.systemMemorySize;
         if(memorysize <= 4096)
-        {
             kPastTime = 300.0f;
-            GenericUtils.StartCoroutine(Update());
-            GenericUtils.StartCoroutine(UpdateRenderOP());
-        }
         else if(memorysize <= 8192)
-        {
             kPastTime = 600.0f;
-            GenericUtils.StartCoroutine(Update());
-            GenericUtils.StartCoroutine(UpdateRenderOP());
-        }
-        //else
-        //{
-            //
-        //}
+        else
+            kPastTime = 1200.0f;
 #endif
+        GenericUtils.StartCoroutine(Update());
+        GenericUtils.StartCoroutine(UpdateRenderOP());
+        GenericUtils.StartCoroutine(UpdateMainThread());
     }
     public static void GetSprite(ASprite src, 
                                 object obj, Action<object, SpriteInfo> callback)
     {
-        if(src == null || src.Bitmap == null)
+        if(src == null)
         {
-            if(callback != null)
-                callback(null, null);
+            if(callback != null) callback(obj, null);
+            return;
+        }
+        if(src.Bitmap == null)
+        {
+            if(callback != null) callback(obj, null);
             return;
         }
 
-        var basename = src.Bitmap.filename;
+        var basename = src.Bitmap.name;
         TextureInfo ti = null;
         texture_dict.TryGetValue(basename, out ti);
         if(ti == null)
@@ -162,16 +222,26 @@ internal static class SpriteManager
         if(!fi.Exists)
             return null;
 
-        FileStream fs = fi.OpenRead();
-        var filesize = fs.Length;
-        byte[] content = new byte[filesize];
-        fs.Read(content, 0, (int)filesize);
+        //読み終わったら必ず閉じる。閉じ忘れるとテクスチャを捨てて読み直す度に
+        //ハンドルが積み上がり、Windowsではファイルも掴んだままになる
+        byte[] content = new byte[fi.Length];
+        using(FileStream fs = fi.OpenRead())
+        {
+            int read = 0;
+            while(read < content.Length)
+            {
+                int n = fs.Read(content, read, content.Length - read);
+                if(n <= 0)
+                    break;
+                read += n;
+            }
+        }
 
-        TextureFormat format = TextureFormat.DXT1;
+        TextureFormat format = TextureFormat.RGBA32;
 
         var extname = uEmuera.Utils.GetSuffix(filename).ToLower();
         if (extname == "png")
-            format = TextureFormat.DXT5;
+            format = TextureFormat.RGBA32;
 
         if (extname == "webp")
         {
@@ -183,7 +253,7 @@ internal static class SpriteManager
                 return null;
             }
             ti = new TextureInfo(name, tex);
-            texture_dict.Add(name, ti);
+            texture_dict[name] = ti;
         }
         else
         {
@@ -191,10 +261,36 @@ internal static class SpriteManager
             if (tex.LoadImage(content))
             {
                 ti = new TextureInfo(name, tex);
-                texture_dict.Add(name, ti);
+                texture_dict[name] = ti;
             }
         }
         return ti;
+    }
+
+    public static void RegisterDynamicTexture(string name, Texture2D tex)
+    {
+        if (texture_dict.ContainsKey(name)) return;
+        var ti = new TextureInfo(name, tex);
+        ti.isDynamic = true;
+        texture_dict[name] = ti;
+    }
+
+    /// <summary>
+    /// 指定名の書き込み用テクスチャを得る。同じ大きさの物が既にあればそれを使い回す。
+    /// 既存のTexture2Dは破棄しない(表示中のSpriteが参照している可能性があるため)
+    /// </summary>
+    public static Texture2D GetOrCreateDynamicTexture(string name, int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+            return null;
+        TextureInfo ti = null;
+        if (texture_dict.TryGetValue(name, out ti) && ti != null && ti.texture != null &&
+            ti.texture.width == width && ti.texture.height == height)
+            return ti.texture;
+
+        var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        texture_dict[name] = new TextureInfo(name, tex) { isDynamic = true };
+        return tex;
     }
 
     public static TextureInfoOtherThread GetTextureInfoOtherThread(
@@ -265,19 +361,20 @@ internal static class SpriteManager
         FileInfo fi = new FileInfo(baseimage.path);
         if(fi.Exists)
         {
+            byte[] content = new byte[fi.Length];
+            //yieldを跨ぐのでusingでは囲えない。読み終えたら明示的に閉じる
             FileStream fs = fi.OpenRead();
-            var filesize = fs.Length;
-            byte[] content = new byte[filesize];
-
-            var async = fs.BeginRead(content, 0, (int)filesize, null, null);
+            var async = fs.BeginRead(content, 0, content.Length, null, null);
             while(!async.IsCompleted)
                 yield return null;
+            fs.EndRead(async);
+            fs.Close();
 
-            TextureFormat format = TextureFormat.DXT1;
+            TextureFormat format = TextureFormat.RGBA32;
 
             var extname = uEmuera.Utils.GetSuffix(baseimage.path).ToLower();
             if (extname == "png")
-                format = TextureFormat.DXT5;
+                format = TextureFormat.RGBA32;
 
             if (extname == "webp")
             {
@@ -286,21 +383,23 @@ internal static class SpriteManager
                 if (err != Error.Success)
                 {
                     Debug.LogWarning($"{baseimage.path} {err.ToString()}");
-                    yield break;
                 }
-                ti = new TextureInfo(baseimage.filename, tex);
-                texture_dict.Add(baseimage.filename, ti);
+                else
+                {
+                    ti = new TextureInfo(baseimage.name, tex);
+                    texture_dict[baseimage.name] = ti;
 
-                baseimage.size.Width = tex.width;
-                baseimage.size.Height = tex.height;
+                    baseimage.size.Width = tex.width;
+                    baseimage.size.Height = tex.height;
+                }
             }
             else
             {
                 var tex = new Texture2D(4, 4, format, false);
                 if (tex.LoadImage(content))
                 {
-                    ti = new TextureInfo(baseimage.filename, tex);
-                    texture_dict.Add(baseimage.filename, ti);
+                    ti = new TextureInfo(baseimage.name, tex);
+                    texture_dict[baseimage.name] = ti;
 
                     baseimage.size.Width = tex.width;
                     baseimage.size.Height = tex.height;
@@ -308,7 +407,7 @@ internal static class SpriteManager
             }
         }
         List<CallbackInfo> list = null;
-        if(loading_set.TryGetValue(baseimage.filename, out list))
+        if(loading_set.TryGetValue(baseimage.name, out list))
         {
             var count = list.Count;
             CallbackInfo item = null;
@@ -318,11 +417,12 @@ internal static class SpriteManager
                 item.DoCallback(GetSpriteInfo(ti, item.src));
             }
             list.Clear();
-            loading_set.Remove(baseimage.filename);
+            loading_set.Remove(baseimage.name);
         }
     }
     static SpriteInfo GetSpriteInfo(TextureInfo textinfo, ASprite src)
     {
+        if (textinfo == null) return null;
         return textinfo.GetSprite(src);
     }
     internal static void GivebackSpriteInfo(SpriteInfo info)
@@ -337,7 +437,7 @@ internal static class SpriteManager
         {
             do
             {
-                yield return new WaitForSeconds(15.0f);
+                yield return new WaitForSeconds(1.0f);
             } while(texture_dict.Count == 0);
 
             var now = Time.unscaledTime;
@@ -347,6 +447,10 @@ internal static class SpriteManager
             while(iter.MoveNext())
             {
                 ti = iter.Current;
+                //ERB側が描いたテクスチャは読み直せないので捨てない。
+                //捨てるとGDISPOSEもしていない画像が突然消え、以後空のまま戻らない
+                if(ti.isDynamic)
+                    continue;
                 if(ti.refcount == 0 && now > ti.pasttime)
                 {
                     tinfo = ti;
@@ -355,13 +459,11 @@ internal static class SpriteManager
             }
             if(tinfo != null)
             {
-                Debug.Log("Unload Texture " + tinfo.imagename);
-
                 tinfo.Dispose();
                 texture_dict.Remove(tinfo.imagename);
                 tinfo = null;
 
-                GC.Collect();
+                // GC.Collect(); - Removed synchronous GC freeze during gameplay
             }
         }
     }
@@ -371,7 +473,7 @@ internal static class SpriteManager
         {
             do
             {
-                yield return new WaitForSeconds(15);
+                yield return null;
             } while(texture_other_threads.Count == 0
                 && render_texture_other_threads.Count == 0);
 
@@ -418,34 +520,43 @@ internal static class SpriteManager
         texture_dict.Clear();
         GC.Collect();
     }
+    /// <summary>
+    /// 整形結果の作り方を変えたら上げる。上げないと、前の版が残した
+    /// 壊れた内容を読み続けてしまう。CSVの更新時刻だけでは気付けない
+    /// </summary>
+    const string kResourceCSVCacheVersion = "_v2";
+
     internal static void SetResourceCSVLine(string filename, string[] lines)
     {
+        var key = filename + kResourceCSVCacheVersion;
         var cache = string.Join("\n", lines);
-        UnityEngine.PlayerPrefs.SetInt(filename + "_fixed", 1);
-        UnityEngine.PlayerPrefs.SetString(filename + "_time",
+        UnityEngine.PlayerPrefs.SetInt(key + "_fixed", 1);
+        UnityEngine.PlayerPrefs.SetString(key + "_time",
                         File.GetLastWriteTime(filename).ToString());
-        UnityEngine.PlayerPrefs.SetString(filename, cache);
+        UnityEngine.PlayerPrefs.SetString(key, cache);
     }
     internal static string[] GetResourceCSVLines(string filename)
     {
-        if(PlayerPrefs.GetInt(filename + "_fixed", 0) == 0)
+        var key = filename + kResourceCSVCacheVersion;
+        if(PlayerPrefs.GetInt(key + "_fixed", 0) == 0)
             return null;
-        var oldwritetime = PlayerPrefs.GetString(filename + "_time", null);
+        var oldwritetime = PlayerPrefs.GetString(key + "_time", null);
         if(string.IsNullOrEmpty(oldwritetime))
             return null;
         var writetime = File.GetLastWriteTime(filename).ToString();
         if(oldwritetime != writetime)
             return null;
-        var cache = UnityEngine.PlayerPrefs.GetString(filename, null);
+        var cache = UnityEngine.PlayerPrefs.GetString(key, null);
         if(string.IsNullOrEmpty(cache))
             return null;
         return cache.Split('\n');
     }
     internal static void ClearResourceCSVLines(string filename)
     {
-        UnityEngine.PlayerPrefs.SetInt(filename + "_fixed", 0);
-        UnityEngine.PlayerPrefs.SetString(filename + "_time", null);
-        UnityEngine.PlayerPrefs.SetString(filename, null);
+        var key = filename + kResourceCSVCacheVersion;
+        UnityEngine.PlayerPrefs.SetInt(key + "_fixed", 0);
+        UnityEngine.PlayerPrefs.SetString(key + "_time", null);
+        UnityEngine.PlayerPrefs.SetString(key, null);
     }
     static Dictionary<string, List<CallbackInfo>> loading_set =
         new Dictionary<string, List<CallbackInfo>>();

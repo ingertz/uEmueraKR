@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 //using System.Drawing;
 //using Microsoft.VisualBasic;
@@ -227,6 +227,7 @@ namespace MinorShift.Emuera.GameProc.Function
 			argb[FunctionArgType.SP_REF] = new SP_REF_ArgumentBuilder(false);
 			argb[FunctionArgType.SP_REFBYNAME] = new SP_REF_ArgumentBuilder(true);
 			argb[FunctionArgType.SP_HTMLSPLIT] = new SP_HTMLSPLIT_ArgumentBuilder();
+			argb[FunctionArgType.SP_DT_COLUMN_OPTIONS] = new SP_DT_COLUMN_OPTIONS_ArgumentBuilder();
 			
         }
 		
@@ -1922,6 +1923,92 @@ namespace MinorShift.Emuera.GameProc.Function
             }
         }
         #endregion		
+
+		private sealed class SP_DT_COLUMN_OPTIONS_ArgumentBuilder : ArgumentBuilder
+		{
+			public SP_DT_COLUMN_OPTIONS_ArgumentBuilder()
+			{
+				argumentTypeArray = null;
+			}
+			public override Argument CreateArgument(InstructionLine line, ExpressionMediator exm)
+			{
+				var wc = popWords(line);
+				IOperandTerm dt, colum;
+				if (!wc.EOL)
+				{
+					dt = ExpressionParser.ReduceExpressionTerm(wc, TermEndWith.Comma);
+					if (dt == null)
+					{
+						warn("1番目の引数を省略することはできません", line, 2, false);
+						return null;
+					}
+					if (Config.NeedReduceArgumentOnLoad) dt = dt.Restructure(exm);
+					wc.ShiftNext();
+				}
+				else
+				{
+					warn("1番目の引数を省略することはできません", line, 2, false);
+					return null;
+				}
+				if (!wc.EOL)
+				{
+					colum = ExpressionParser.ReduceExpressionTerm(wc, TermEndWith.Comma);
+					if (colum == null)
+					{
+						warn("2番目の引数を省略することはできません", line, 2, false);
+						return null;
+					}
+					if (Config.NeedReduceArgumentOnLoad) colum = colum.Restructure(exm);
+					wc.ShiftNext();
+				}
+				else
+				{
+					warn("2番目の引数を省略することはできません", line, 2, false);
+					return null;
+				}
+				List<SpDtColumnOptions.DTOptions> opts = new List<SpDtColumnOptions.DTOptions>();
+				List<IOperandTerm> values = new List<IOperandTerm>();
+				int argCount = 3;
+				while (!wc.EOL)
+				{
+					IOperandTerm v = null;
+					string keyword = wc.Current.ToString().ToLower();
+					wc.ShiftNext(); // keyword
+					wc.ShiftNext(); // ,
+					if (wc.EOL)
+					{
+						warn("引数が足りません", line, 2, false);
+						return null;
+					}
+					argCount++;
+					switch (keyword)
+					{
+						case "default":
+							opts.Add(SpDtColumnOptions.DTOptions.Default);
+							v = ExpressionParser.ReduceExpressionTerm(wc, TermEndWith.Comma);
+							wc.ShiftNext();
+							break;
+						default:
+							warn("解釈できないキーワードです: " + keyword, line, 2, false);
+							return null;
+					}
+					if (v == null)
+					{
+						warn(argCount + "番目の引数を省略することはできません", line, 2, false);
+						return null;
+					}
+					if (Config.NeedReduceArgumentOnLoad) v = v.Restructure(exm);
+					values.Add(v);
+					argCount++;
+				}
+				if (opts.Count == 0)
+				{
+					warn("引数が足りません", line, 2, false);
+					return null;
+				}
+				return new SpDtColumnOptions(dt, colum, opts.ToArray(), values.ToArray());
+			}
+		}
 
 		/// <summary>
 		/// 一般型。数式と文字列式の組み合わせのみを引数とし、特殊なチェックが必要ないもの

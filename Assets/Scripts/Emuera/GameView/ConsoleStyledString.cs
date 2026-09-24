@@ -18,8 +18,18 @@ namespace MinorShift.Emuera.GameView
 		private ConsoleStyledString() { }
 		public ConsoleStyledString(string str, StringStyle style)
 		{
-            //if ((StaticConfig.TextDrawingMode != TextDrawingMode.GRAPHICS) && (str.IndexOf('\t') >= 0))
-            //    str = str.Replace("\t", "");
+			//タブをここで正規化する。
+			//
+			//以降の幅計算・折り返し・描画は全てこのStrを見るので、
+			//入口で揃えておけば三者が食い違わない。
+			//
+			//末尾のタブは「PRINTPLAIN ┃<TAB>」のようにERBの字下げが
+			//引数へ紛れ込んだ物なので取り除く。本家でも場所を取らない。
+			//途中のタブは書き手が間を空ける意図で置いた可能性があるので半角空白にする。
+			//era系の桁揃えは全角・半角空白で行うのが普通で、
+			//タブに決まった桁幅が無い以上それに頼る書き方はまず無い
+			if (str != null && str.IndexOf('\t') >= 0)
+				str = str.TrimEnd('\t').Replace('\t', ' ');
 			this.Str = str;
 			this.StringStyle = style;
 			Font = Config.GetFont(style.Fontname, style.FontStyle);

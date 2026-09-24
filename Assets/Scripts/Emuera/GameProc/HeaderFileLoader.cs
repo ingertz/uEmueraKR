@@ -33,14 +33,23 @@ namespace MinorShift.Emuera.GameProc
 		/// <returns></returns>
 		public bool LoadHeaderFiles(string headerDir, bool displayReport)
 		{
+			//Config.GetFilesが大文字小文字を区別しないので、綴り違いの二度読みは要らない
 			List<KeyValuePair<string, string>> headerFiles = Config.GetFiles(headerDir, "*.ERH");
-#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-            headerFiles.AddRange(Config.GetFiles(headerDir, "*.erh"));
-#endif
+			List<KeyValuePair<string, string>> erdFiles = Config.GetFiles(headerDir, "*.ERD");
             bool noError = true;
 			dimlines = new Queue<DimLineWC>();
 			try
 			{
+				for (int i = 0; i < erdFiles.Count; i++)
+				{
+					string filename = erdFiles[i].Key;
+					string file = erdFiles[i].Value;
+					if (displayReport)
+						output.PrintSystemLine(filename + "読み込み中・・・");
+					noError = loadErdFile(file, filename);
+					if (!noError)
+						break;
+				}
 				for (int i = 0; i < headerFiles.Count; i++)
 				{
 					string filename = headerFiles[i].Key;
@@ -123,6 +132,67 @@ namespace MinorShift.Emuera.GameProc
 							break;
 						default:
 							throw new CodeEE("#" + sharpID + "は解釈できないプリプロセッサです", position);
+					}
+				}
+			}
+			catch (CodeEE e)
+			{
+				if (e.Position != null)
+					position = e.Position;
+				ParserMediator.Warn(e.Message, position, 2);
+				return false;
+			}
+			finally
+			{
+				eReader.Close();
+			}
+			return true;
+		}
+
+		private bool loadErdFile(string filepath, string filename)
+		{
+			StringStream st;
+			ScriptPosition position = null;
+			EraStreamReader eReader = new EraStreamReader(true);
+
+			if (!eReader.Open(filepath, filename))
+			{
+				throw new CodeEE(eReader.Filename + "のオープンに失敗しました");
+			}
+			try
+			{
+				while ((st = eReader.ReadEnabledLine()) != null)
+				{
+					if (!noError)
+						return false;
+					position = new ScriptPosition(filename, eReader.LineNo);
+					
+					string[] tokens = st.RowString.Split(',');
+					if (tokens.Length >= 2)
+					{
+						if (long.TryParse(tokens[0].Trim(), out long val))
+						{
+							string id = tokens[1].Trim();
+							if (!string.IsNullOrEmpty(id))
+							{
+								if (Config.ICVariable)
+									id = id.ToUpper();
+								
+								string errMes = "";
+								int errLevel = -1;
+								idDic.CheckUserMacroName(ref errMes, ref errLevel, id);
+								if (errLevel >= 0)
+								{
+									// ERD files might have duplicated definitions or conflicts.
+									// Just ignore them instead of failing, as they are globally loaded here.
+									continue;
+								}
+								WordCollection wc = new WordCollection();
+								wc.Add(new LiteralIntegerWord(val));
+								DefineMacro macro = new DefineMacro(id, wc, 0);
+								idDic.AddErdMacro(macro);
+							}
+						}
 					}
 				}
 			}

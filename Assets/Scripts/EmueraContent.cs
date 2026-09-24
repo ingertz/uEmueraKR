@@ -11,7 +11,7 @@ public class EmueraContent : MonoBehaviour
     static EmueraContent instance_ = null;
 
     public string default_fontname;
-    public Text template_text;
+    public TMPro.TMP_Text template_text;
     public Image template_block;
     public RectTransform template_images;
     public RectTransform image_content;
@@ -35,7 +35,36 @@ public class EmueraContent : MonoBehaviour
     void Start()
     {
         instance_ = this;
-        background = GetComponent<Image>();
+        
+        var oldBg = GetComponent<Image>();
+        if (oldBg != null)
+        {
+            oldBg.enabled = true;
+            oldBg.color = Color.clear;
+            oldBg.raycastTarget = true;
+        }
+
+        var bgObj = new GameObject("Background");
+        bgObj.transform.SetParent(transform, false);
+        bgObj.transform.SetAsFirstSibling();
+        var bgRt = bgObj.AddComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = Vector2.zero;
+        bgRt.offsetMax = Vector2.zero;
+        background = bgObj.AddComponent<Image>();
+        
+        var canvas = bgObj.AddComponent<Canvas>();
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = -30000;
+        bgObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+        if (UnityEngine.EventSystems.EventSystem.current != null)
+        {
+            int dragThreshold = Mathf.Max(35, (int)(Screen.dpi * 0.1f));
+            UnityEngine.EventSystems.EventSystem.current.pixelDragThreshold = dragThreshold;
+        }
+
         mask2d = GetComponent<RectMask2D>();
 
         GenericUtils.SetListenerOnBeginDrag(gameObject, OnBeginDrag);
@@ -43,18 +72,35 @@ public class EmueraContent : MonoBehaviour
         GenericUtils.SetListenerOnEndDrag(gameObject, OnEndDrag);
         GenericUtils.SetListenerOnClick(gameObject, OnClick);
 
+        if (image_content != null)
+        {
+            image_content.SetAsFirstSibling();
+        }
+
         SetIntentBox(PlayerPrefs.GetInt("IntentBox_L", 0),
-                    PlayerPrefs.GetInt("IntentBox_R", 0));
+                    PlayerPrefs.GetInt("IntentBox_R", 0),
+                    PlayerPrefs.GetInt("IntentBox_T", 0),
+                    PlayerPrefs.GetInt("IntentBox_B", 0));
     }
 
-    public void SetIntentBox(int left, int right)
+    /// <summary>
+    /// 下端に常に空ける余白。
+    /// 最終行が画面の縁にぴったり着くと、そこにあるボタンが押しにくい
+    /// </summary>
+    public const int kBottomGap = 8;
+
+    public void SetIntentBox(int left, int right, int top, int bottom)
     {
-        if(left == 0 && right == 0)
-            mask2d.enabled = false;
-        else
-            mask2d.enabled = true;
-        rect_transform.anchoredPosition = new Vector2((left - right) / 2.0f, 0);
-        rect_transform.sizeDelta = new Vector2(-right - left, 0);
+        //切り取りは利用者が余白を指定した時だけ。
+        //常に有効にすると、行からはみ出す画像まで切れてしまう
+        mask2d.enabled = (left != 0 || right != 0 || top != 0 || bottom != 0);
+
+        var b = bottom + kBottomGap;
+        //引き伸ばしアンカーなのでsizeDeltaは親との差分。
+        //位置は余白の差の半分だけ動かすと、指定した側が狭くなる
+        rect_transform.anchoredPosition = new Vector2((left - right) / 2.0f, (b - top) / 2.0f);
+        rect_transform.sizeDelta = new Vector2(-right - left, -top - b);
+        SetDirty();
     }
 
     int GetLineNoIndex(int lineno)
@@ -165,7 +211,7 @@ public class EmueraContent : MonoBehaviour
             if((local_position.x <= display_width - content_width && drag_delta.x < 0) ||
                 (local_position.x >= 0 && drag_delta.x > 0))
                 drag_delta.x = 0;
-            if((local_position.y >= content_height - display_height && drag_delta.y > 0) ||
+            if((local_position.y >= DrawnHeight - display_height && drag_delta.y > 0) ||
                 (local_position.y <= offset_height && drag_delta.y < 0))
                 drag_delta.y = 0;
         }
@@ -251,9 +297,19 @@ public class EmueraContent : MonoBehaviour
         while(zero <= index && index < end_index)
         {
             var l = console_lines_[index % max_log_count];
-            if(l.position_y > local.y + display_height ||
-                l.position_y + l.height < local.y)
+            //行の高さは常にConfig.LineHeightだが、画像やdivを含む行はそれより遥かに
+            //上下へはみ出して描かれる。画面外の行に当たった時点で打ち切ると、
+            //その手前にある背の高い行(画像行など)を取りこぼす。
+            //最大はみ出し量ぶんは走査を続け、掛からない行だけを読み飛ばす
+            if(l.position_y - EmueraBehaviour.LineDesc.max_extent_up > local.y + display_height ||
+                l.position_y + EmueraBehaviour.LineDesc.max_extent_down < local.y)
                 break;
+            if(l.position_y - l.extent_up > local.y + display_height ||
+                l.position_y + l.extent_down < local.y)
+            {
+                index += delta;
+                continue;
+            }
 
             for(int li = 0; li < l.units.Count; ++li)
             {
@@ -310,8 +366,9 @@ public class EmueraContent : MonoBehaviour
         }
         else
         {
-            var display_delta = content_height - display_height;
-            if(content_height <= display_height)
+            //はみ出す分まで含めた下端で止める。でないと最後の行が枠の外に残る
+            var display_delta = DrawnHeight - display_height;
+            if(DrawnHeight <= display_height)
                 local.y = display_delta;
             else if(local.y > display_delta)
                 local.y = display_delta;
@@ -344,6 +401,16 @@ public class EmueraContent : MonoBehaviour
     void OnEndDrag(UnityEngine.EventSystems.PointerEventData e)
     {
         dirty = true;
+        float dragDistance = (e.position - drag_begin_position).magnitude;
+        if (dragDistance < 45f)
+        {
+            drag_begin_position = Vector2.zero;
+            drag_curr_position = Vector2.zero;
+            drag_delta = Vector2.zero;
+            OnClick();
+            return;
+        }
+
         float display_width = DISPLAY_WIDTH;
         float display_height = DISPLAY_HEIGHT;
         local_position = GetLimitPosition(
@@ -386,13 +453,23 @@ public class EmueraContent : MonoBehaviour
         FontUtils.SetDefaultFont(Config.FontName);
 
         template_text.color = EmueraBehaviour.FontColor;
-        template_text.font = FontUtils.default_font;
-        if(template_text.font == null)
-            template_text.font = FontUtils.default_font;
+        //設定フォント -> ＭＳ ゴシック -> ハングルの順に字形を補う。
+        //ＭＳ ゴシックにハングルが無いなど、1つのフォントでは足りない事が多い
+        var basefont = uEmuera.TMPFonts.GetOrDefault(Config.FontName);
+        if(basefont != null)
+        {
+            uEmuera.TMPFonts.SetFallback(basefont, "ＭＳ ゴシック", "ＭＳ Ｐゴシック");
+            //以後に作るフォントの行送りをこれへ揃える。
+            //<font=～>で差し込まれる物が行の高さを押し上げないように
+            uEmuera.TMPFonts.SetReference(basefont);
+            template_text.font = basefont;
+            Debug.Log("EmueraContent: 본문 폰트 [" + Config.FontName + "] -> [" + basefont.name + "]");
+        }
         template_text.fontSize = EmueraBehaviour.FontSize;
         template_text.rectTransform.sizeDelta =
             new Vector2(template_text.rectTransform.sizeDelta.x, 0);
         template_text.gameObject.SetActive(false);
+        UpdateLineOverhang();
 
         console_lines_ = new List<EmueraBehaviour.LineDesc>(max_log_count);
         while(console_lines_.Count < max_log_count)
@@ -400,6 +477,32 @@ public class EmueraContent : MonoBehaviour
         invalid_count = max_log_count;
     }
     public void SetNoReady() { ready_ = false; }
+
+    /// <summary>
+    /// 行の箱は、行送りが行の高さより大きいフォントでは下へはみ出す。
+    ///
+    /// エミュレータはConfig.LineHeightで座標を組むが、実際に置かれる行の箱は
+    /// ContentSizeFitterがフォントの行送りで決めるため、その差だけ背が高い。
+    /// 一番下の行だけはこの差が表示領域の外へ出てしまい、半分ほど切れて見えていた。
+    ///
+    /// 描画位置は動かさない。動かすと行間が変わり、以前直した行の重なりが戻る。
+    /// 巻き取れる範囲をこの差だけ広げて、最後の行が枠の中へ入るようにする
+    /// </summary>
+    void UpdateLineOverhang()
+    {
+        line_overhang_ = 0f;
+        if(template_text == null || template_text.font == null)
+            return;
+        var fi = template_text.font.faceInfo;
+        if(fi.pointSize <= 0)
+            return;
+        float box = fi.lineHeight * template_text.fontSize / fi.pointSize;
+        line_overhang_ = Mathf.Max(0f, box - Config.LineHeight);
+    }
+    float line_overhang_ = 0f;
+
+    /// <summary>座標計算で使う、実際に描かれる内容の下端</summary>
+    float DrawnHeight { get { return content_height + line_overhang_; } }
     bool ready_ = false;
 
     public void Clear()
@@ -457,7 +560,7 @@ public class EmueraContent : MonoBehaviour
         content_height += Config.LineHeight;
         if(roll_to_bottom)
         {
-            local_position.y = content_height - rect_transform.rect.height;
+            local_position.y = DrawnHeight - rect_transform.rect.height;
             drag_delta.y = 0;
         }
         else
@@ -570,7 +673,7 @@ public class EmueraContent : MonoBehaviour
     }
     public void ToBottom()
     {
-        local_position.y = content_height - rect_transform.rect.height;
+        local_position.y = DrawnHeight - rect_transform.rect.height;
         drag_delta = Vector2.zero;
         dirty = true;
         Update();
@@ -590,29 +693,321 @@ public class EmueraContent : MonoBehaviour
             if(last_button_generation < 0)
                 return;
 
+            quick_codes_.Clear();
             for(int i = end_index - 1; i >= begin_index; --i)
             {
                 var cl = console_lines_[i%max_log_count];
                 if(cl.units == null)
                     continue;
-                var bl = 0;
-                for(int j = 0; j < cl.units.Count; ++j)
-                {
-                    var cu = cl.units[j];
-                    if(cu.isbutton)
-                    {
-                        if(cu.generation != last_button_generation)
-                            return;
-                        if(cu.empty)
-                            continue;
-                        quick_buttons.AddButton(cu.content, cu.color, cu.code);
-                        bl += 1;
-                    }
-                }
-                if(bl > 0)
-                    quick_buttons.ShiftLine();    
+                quick_entries_.Clear();
+                bool go_on = CollectQuickEntries(cl.console_line as ConsoleDisplayLine, cl.units, 0);
+                FlushQuickEntries(quick_buttons);
+                if(!go_on)
+                    return;
             }
         }
+    }
+
+    struct QuickEntry
+    {
+        public int y;
+        public string content;
+        public Color color;
+        public string code;
+        /// <summary>文字を持たないボタンの見出し代わりの画像</summary>
+        public MinorShift.Emuera.Content.ASprite picture;
+    }
+    readonly List<QuickEntry> quick_entries_ = new List<QuickEntry>();
+    /// <summary>もう並べた入力コード。同じ物を何組も出さないための控え</summary>
+    readonly HashSet<string> quick_codes_ = new HashSet<string>();
+
+    /// <summary>
+    /// 行の中のボタンを集める。古い世代のボタンに当たったらfalseを返して走査を打ち切る。
+    ///
+    /// divの中も辿る。コマンド欄をHTML_PRINTの&lt;div&gt;で組み立てるゲームがあり、
+    /// 行のButtonsを見るだけでは中のボタンに届かない。
+    /// yは本体の画面での縦位置。ボタン欄で行を分ける手掛かりに使う
+    /// </summary>
+    bool CollectQuickEntries(ConsoleDisplayLine line, List<EmueraBehaviour.UnitDesc> units, int y)
+    {
+        for(int j = 0; j < units.Count; ++j)
+        {
+            var cu = units[j];
+            if(cu.isbutton)
+            {
+                if(cu.generation != last_button_generation)
+                    return false;
+                if(cu.empty)
+                    continue;
+                //同じ画面を何度も刷り直すゲームがあり、同じ入力のボタンが世代を跨がずに
+                //何組も残る。押した時の結果は同じなので一番新しい物だけ並べる
+                if(!string.IsNullOrEmpty(cu.code) && !quick_codes_.Add(cu.code))
+                    continue;
+                //ボタンごとdivで包む書き方がある(パーティ欄など)。
+                //その場合ボタン自身は文字を持たないので中から見出しを拾う
+                var label = cu.content;
+                if(string.IsNullOrEmpty(label) || label.Trim().Length == 0)
+                    label = FirstTextInDivs(cu.div_parts);
+                MinorShift.Emuera.Content.ASprite picture = null;
+                if(string.IsNullOrEmpty(label) || label.Trim().Length == 0)
+                {
+                    //文字が一つも無いボタン。顔グラだけを押し場所にしている作りがあり、
+                    //見出しが作れず落としていた。中の画像をそのまま見出しにする
+                    picture = UnitImage(line, j, cu);
+                    if(picture == null)
+                        picture = FirstImageInDivs(cu.div_parts);
+                    if(picture == null)
+                        continue;
+                    label = "";
+                }
+                quick_entries_.Add(new QuickEntry
+                {
+                    y = y,
+                    content = label.Length > 0 ? Shorten(label) : label,
+                    color = cu.color,
+                    code = cu.code,
+                    picture = picture,
+                });
+                //ボタンは一つの押し場所。中を辿ると同じ物が二重に並ぶ
+                continue;
+            }
+            if(cu.div_parts != null)
+            {
+                for(int d = 0; d < cu.div_parts.Count; ++d)
+                {
+                    var dp = cu.div_parts[d];
+                    if(dp == null || dp.Children == null)
+                        continue;
+                    for(int c = 0; c < dp.Children.Length; ++c)
+                    {
+                        var child = dp.Children[c];
+                        if(child == null)
+                            continue;
+                        var ld = new EmueraBehaviour.LineDesc(child, 0, 0);
+                        ld.Update();
+                        if(!CollectQuickEntries(child, ld.units, y + dp.PointY + c * Config.LineHeight))
+                            return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    /// <summary>ボタン欄の枠に収まらない見出しを詰める</summary>
+    static string Shorten(string s)
+    {
+        s = s.Trim();
+        //改行までを見出しにする。複数行のステータス欄が丸ごと入るのを防ぐ。
+        //
+        //連続空白では切らないこと。「愛撫[ 12]」のように数字を右へ寄せる
+        //書き方が普通にあり、そこで切ると「愛撫[」になってしまう
+        int cut = s.IndexOfAny(kBreaks);
+        if(cut > 0)
+            s = s.Substring(0, cut).TrimEnd();
+        s = StripTags(s);
+        s = CollapseSpaces(s);
+        return s.Length > kQuickLabelMax ? s.Substring(0, kQuickLabelMax) + "…" : s;
+    }
+    static readonly char[] kBreaks = { '\n', '\r' };
+    //これを超えるのは大抵ステータス欄の中身。字は枠に合わせて縮むので余裕を持たせる
+    const int kQuickLabelMax = 32;
+
+    /// <summary>
+    /// TMPの書式タグを取り除く。
+    ///
+    /// 本文用のUnitDescは色や太さをタグで持っており、それを描くTMP_Textでは
+    /// 書式として消えるが、ボタン欄の見出しは書式を使わないTextなので
+    /// 「&lt;color=#660022ff&gt;」が文字のまま出てしまう。
+    /// 色はボタン側で別に持っているので落として構わない。
+    /// 知っているタグ名だけを対象にして、本文中の「&lt;注意&gt;」等は残す
+    /// </summary>
+    static string StripTags(string s)
+    {
+        if(s.IndexOf('<') < 0)
+            return s;
+        var sb = new System.Text.StringBuilder(s.Length);
+        int i = 0;
+        while(i < s.Length)
+        {
+            if(s[i] == '<')
+            {
+                int end = s.IndexOf('>', i + 1);
+                if(end > i && IsKnownTag(s, i + 1, end))
+                {
+                    i = end + 1;
+                    continue;
+                }
+            }
+            sb.Append(s[i]);
+            i += 1;
+        }
+        return sb.ToString();
+    }
+    static readonly string[] kKnownTags = { "b", "i", "u", "s", "size", "color", "font" };
+    static bool IsKnownTag(string s, int start, int end)
+    {
+        if(start < end && s[start] == '/')
+            start += 1;
+        int n = start;
+        while(n < end && s[n] != '=' && s[n] != ' ')
+            n += 1;
+        if(n == start)
+            return false;
+        for(int k = 0; k < kKnownTags.Length; ++k)
+            if(string.Compare(s, start, kKnownTags[k], 0, n - start, System.StringComparison.OrdinalIgnoreCase) == 0
+               && kKnownTags[k].Length == n - start)
+                return true;
+        return false;
+    }
+
+    /// <summary>
+    /// 桁を揃える為に並べられた空白を一つに詰める。
+    ///
+    /// 「%地名, 18, LEFT% 片道{時間, 3}」のように幅を指定して書かれた行は、
+    /// 等幅で並べる本体の画面では列が揃うが、ボタンを一つずつ並べるボタン欄では
+    /// 空白が枠を食うだけで意味が無い。
+    /// 一つ目の空白は元のまま残すので「愛撫[ 12]」のような書き方は崩れない
+    /// </summary>
+    static string CollapseSpaces(string s)
+    {
+        var sb = new System.Text.StringBuilder(s.Length);
+        bool prev_space = false;
+        for(int i = 0; i < s.Length; ++i)
+        {
+            var c = s[i];
+            if(c == ' ' || c == '　' || c == '\t')
+            {
+                if(!prev_space)
+                    sb.Append(c);
+                prev_space = true;
+                continue;
+            }
+            prev_space = false;
+            sb.Append(c);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>そのユニットが直接持っている画像。無ければnull</summary>
+    static MinorShift.Emuera.Content.ASprite UnitImage(ConsoleDisplayLine line, int index,
+                                                       EmueraBehaviour.UnitDesc cu)
+    {
+        if(cu.image_indices == null || cu.image_indices.Count == 0)
+            return null;
+        if(line == null || line.Buttons == null || index < 0 || index >= line.Buttons.Length)
+            return null;
+        var parts = line.Buttons[index].StrArray;
+        if(parts == null)
+            return null;
+        for(int i = 0; i < cu.image_indices.Count; ++i)
+        {
+            int si = cu.image_indices[i];
+            if(si < 0 || si >= parts.Length)
+                continue;
+            var ip = parts[si] as ConsoleImagePart;
+            if(ip != null && ip.Image != null)
+                return ip.Image;
+        }
+        return null;
+    }
+
+    /// <summary>divの中から見出しに使えそうな最初の画像を取り出す</summary>
+    MinorShift.Emuera.Content.ASprite FirstImageInDivs(
+        List<MinorShift.Emuera.GameView.ConsoleDivPart> parts)
+    {
+        if(parts == null)
+            return null;
+        for(int d = 0; d < parts.Count; ++d)
+        {
+            var dp = parts[d];
+            if(dp == null || dp.Children == null)
+                continue;
+            for(int c = 0; c < dp.Children.Length; ++c)
+            {
+                var child = dp.Children[c];
+                if(child == null)
+                    continue;
+                var ld = new EmueraBehaviour.LineDesc(child, 0, 0);
+                ld.Update();
+                for(int u = 0; u < ld.units.Count; ++u)
+                {
+                    var img = UnitImage(child, u, ld.units[u]);
+                    if(img != null)
+                        return img;
+                    img = FirstImageInDivs(ld.units[u].div_parts);
+                    if(img != null)
+                        return img;
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>divの中から見出しに使えそうな最初の文字列を取り出す</summary>
+    string FirstTextInDivs(List<MinorShift.Emuera.GameView.ConsoleDivPart> parts)
+    {
+        if(parts == null)
+            return null;
+        for(int d = 0; d < parts.Count; ++d)
+        {
+            var dp = parts[d];
+            if(dp == null || dp.Children == null)
+                continue;
+            for(int c = 0; c < dp.Children.Length; ++c)
+            {
+                var child = dp.Children[c];
+                if(child == null)
+                    continue;
+                var ld = new EmueraBehaviour.LineDesc(child, 0, 0);
+                ld.Update();
+                for(int u = 0; u < ld.units.Count; ++u)
+                {
+                    var t = ld.units[u].content;
+                    if(!string.IsNullOrEmpty(t) && t.Trim().Length > 0)
+                        return t;
+                    t = FirstTextInDivs(ld.units[u].div_parts);
+                    if(!string.IsNullOrEmpty(t))
+                        return t;
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 集めたボタンをボタン欄へ積む。縦位置が違う物は別の行にする
+    /// </summary>
+    void FlushQuickEntries(QuickButtons quick_buttons)
+    {
+        if(quick_entries_.Count == 0)
+            return;
+        //下にある物ほど手前へ。ボタン欄は新しい行から積むので本体と上下が揃う。
+        //同じ高さの中では元の並び順を崩さないよう挿入ソートで入れ替える
+        for(int i = 1; i < quick_entries_.Count; ++i)
+        {
+            var e = quick_entries_[i];
+            int k = i - 1;
+            while(k >= 0 && quick_entries_[k].y < e.y)
+            {
+                quick_entries_[k + 1] = quick_entries_[k];
+                k -= 1;
+            }
+            quick_entries_[k + 1] = e;
+        }
+        int last_y = quick_entries_[0].y;
+        for(int i = 0; i < quick_entries_.Count; ++i)
+        {
+            var e = quick_entries_[i];
+            if(e.y != last_y)
+            {
+                quick_buttons.ShiftLine();
+                last_y = e.y;
+            }
+            quick_buttons.AddButton(e.content, e.color, e.code, e.picture);
+        }
+        quick_buttons.ShiftLine();
+        quick_entries_.Clear();
     }
 
     public int button_generation { get { return last_button_generation; } }
@@ -679,6 +1074,8 @@ public class EmueraContent : MonoBehaviour
     /// 内容高
     /// </summary>
     float content_height = 0;
+    /// <summary>出力済み内容の総高さ。absolute配置divの縦の基準に使う</summary>
+    public float ContentHeight { get { return content_height; } }
     /// <summary>
     /// 当前移动点
     /// </summary>
@@ -690,7 +1087,7 @@ public class EmueraContent : MonoBehaviour
     /// 获取文本显示控件
     /// </summary>
     /// <returns></returns>
-    EmueraLine PullLine()
+    public EmueraLine PullLine()
     {
         EmueraLine line = null;
         if(cache_lines_.Count > 0)
@@ -699,10 +1096,10 @@ public class EmueraContent : MonoBehaviour
         {
             var obj = GameObject.Instantiate(template_text.gameObject);
             line = obj.GetComponent<EmueraLine>();
-            line.transform.SetParent(text_content);
-            line.transform.localScale = Vector3.one;
-            line.gameObject.SetActive(true);
         }
+        line.transform.SetParent(text_content, false);
+        line.transform.localScale = Vector3.one;
+        line.gameObject.SetActive(true);
         //line.size_fitter.enabled = true;
         //line.monospaced.enabled = true;
         //line.gameObject.SetActive(true);  
@@ -712,7 +1109,7 @@ public class EmueraContent : MonoBehaviour
     /// 交还文本显示控件
     /// </summary>
     /// <param name="line"></param>
-    void PushLine(EmueraLine line)
+    public void PushLine(EmueraLine line)
     {
         line.Clear();
         //line.gameObject.SetActive(false);
@@ -734,7 +1131,7 @@ public class EmueraContent : MonoBehaviour
     /// 获取图片显示控件
     /// </summary>
     /// <returns></returns>
-    EmueraImage PullImageContainer()
+    public EmueraImage PullImageContainer()
     {
         EmueraImage image = null;
         if(cache_image_containers_.Count > 0)
@@ -753,7 +1150,7 @@ public class EmueraContent : MonoBehaviour
     /// 交还图片显示控件
     /// </summary>
     /// <param name="image"></param>
-    void PushImageContainer(EmueraImage image)
+    public void PushImageContainer(EmueraImage image)
     {
         image.Clear();
         image.gameObject.SetActive(false);

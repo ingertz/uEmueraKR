@@ -30,6 +30,19 @@ namespace uEmuera.Forms
                 timer.Tick(timer, EventArgs.Empty);
             }
         }
+        /// <summary>
+        /// 動いている時計があるか。入力待ちの間どれだけ眠っていられるかの判断に使う
+        /// </summary>
+        public static bool HasEnabled()
+        {
+            var iter = timers.GetEnumerator();
+            while(iter.MoveNext())
+            {
+                if(iter.Current.Enabled)
+                    return true;
+            }
+            return false;
+        }
         static HashSet<Timer> timers = new HashSet<Timer>();
 
         public Timer()

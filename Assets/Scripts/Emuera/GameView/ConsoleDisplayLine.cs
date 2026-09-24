@@ -20,7 +20,7 @@ namespace MinorShift.Emuera.GameView
 	
 	//難読化用属性。enum.ToString()やenum.Parse()を行うなら(Exclude=true)にすること。
 	[global::System.Reflection.Obfuscation(Exclude=false)]
-	internal enum DisplayLineAlignment
+	public enum DisplayLineAlignment
 	{
 		LEFT = 0,
 		CENTER = 1,
@@ -57,13 +57,18 @@ namespace MinorShift.Emuera.GameView
 		public ConsoleButtonString[] Buttons{get{return buttons;}}
 		public DisplayLineAlignment Align{get{return align;}}
 		bool aligned = false;
-		public void SetAlignment(DisplayLineAlignment align)
+		public void SetAlignment(DisplayLineAlignment align, int customWidth = -1)
 		{
 			if (aligned)
 				return;
 			this.aligned = true;
 			this.align = align;
 			if (buttons.Length == 0)
+				return;
+			//位置が固定された要素(pos指定のボタン、xpos指定のdiv)を含む行は動かしてはいけない。
+			//表示の都合で折り返された2行目以降はIsLogicalLineがfalseになるため、
+			//この判定がないとdivが行ごと左端へ引き寄せられる
+			if (hasFixedPosition())
 				return;
 			//DisplayLineの幅
 			int width = 0;
@@ -81,15 +86,40 @@ namespace MinorShift.Emuera.GameView
 					return;
 				movetoX = 0;
 			}
+			//div内ではdivの幅を基準にする
 			else if (align == DisplayLineAlignment.CENTER)
-				movetoX = Config.WindowX / 2 - width / 2;
+				movetoX = (customWidth > 0 ? customWidth : Config.DrawableWidth) / 2 - width / 2;
 			else if (align == DisplayLineAlignment.RIGHT)
-				movetoX = Config.WindowX - width;
+				movetoX = (customWidth > 0 ? customWidth : Config.DrawableWidth) - width;
 
 			//移動距離
 			int shiftX = movetoX - pointX;
 			if(shiftX != 0)
 				this.ShiftPositionX(shiftX);
+		}
+
+		/// <summary>
+		/// この行にxpos指定のdivが含まれるか。
+		/// divは自前の絶対位置を持つので行ごと動かしてはいけない。
+		/// 一方でpos指定のボタンは折り返し行で左端へ寄せるのが本来の挙動なので対象にしない
+		/// </summary>
+		private bool hasFixedPosition()
+		{
+			for (var i = 0; i < buttons.Length; ++i)
+			{
+				ConsoleButtonString button = buttons[i];
+				if (button == null)
+					continue;
+				AConsoleDisplayPart[] parts = button.StrArray;
+				if (parts == null)
+					continue;
+				for (var j = 0; j < parts.Length; ++j)
+				{
+					if (parts[j] is ConsoleDivPart div && div.PointXisLocked)
+						return true;
+				}
+			}
+			return false;
 		}
 
 		public void ShiftPositionX(int shiftX)

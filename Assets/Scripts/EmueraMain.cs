@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using MinorShift.Emuera;
 using MinorShift._Library;
@@ -105,7 +105,7 @@ public class EmueraMain : MonoBehaviour
         }
 
 #if UNITY_EDITOR
-        if(Input.anyKey)
+        if(Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.Return))
             EmueraThread.instance.Input("", false);
         if(!string.IsNullOrEmpty(input))
         {
@@ -179,15 +179,62 @@ public class EmueraMain : MonoBehaviour
 
     void UpdateOrientation()
     {
+        bool changed = false;
         if(last_orientation_ != Input.deviceOrientation)
         {
-            if(Input.deviceOrientation == DeviceOrientation.FaceDown ||
-                Input.deviceOrientation == DeviceOrientation.FaceUp ||
-                Input.deviceOrientation == DeviceOrientation.Unknown)
-                return;
-            last_orientation_ = Input.deviceOrientation;
-            dirty_flag_ = true;
+            if(Input.deviceOrientation != DeviceOrientation.FaceDown &&
+                Input.deviceOrientation != DeviceOrientation.FaceUp &&
+                Input.deviceOrientation != DeviceOrientation.Unknown)
+            {
+                last_orientation_ = Input.deviceOrientation;
+                changed = true;
+            }
         }
+
+        if(last_screen_width_ != Screen.width || last_screen_height_ != Screen.height)
+        {
+            last_screen_width_ = Screen.width;
+            last_screen_height_ = Screen.height;
+            if (resize_coroutine_ != null) StopCoroutine(resize_coroutine_);
+            resize_coroutine_ = StartCoroutine(HandleScreenResize());
+        }
+
+        if(changed)
+            dirty_flag_ = true;
     }
+
+    Coroutine resize_coroutine_ = null;
+    System.Collections.IEnumerator HandleScreenResize()
+    {
+        // Wait for 0.5 seconds for the OS window transition to settle
+        yield return new WaitForSeconds(0.5f);
+        
+        // Wait a couple of frames for CanvasScaler to apply the new resolution
+        yield return null;
+        yield return null;
+
+        // Re-read the settled screen dimensions
+        last_screen_width_ = Screen.width;
+        last_screen_height_ = Screen.height;
+
+        if (canvas_ != null)
+        {
+            // Canvas should have updated its RectTransform by now
+            var current_size = (transform as RectTransform).rect.size;
+            float w = current_size.x;
+            float h = current_size.y;
+            size_delta_.x = Mathf.Max(w, h);
+            size_delta_.y = Mathf.Min(w, h);
+        }
+        
+        // If AutoFit is expected, re-apply AutoFit scale logic here
+        AutoFit();
+        
+        dirty_flag_ = true;
+        resize_coroutine_ = null;
+    }
+
     DeviceOrientation last_orientation_ = DeviceOrientation.Unknown;
+    int last_screen_width_ = -1;
+    int last_screen_height_ = -1;
 }

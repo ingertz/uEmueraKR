@@ -992,6 +992,32 @@ check1break:
 
         }
 
+		/// <summary>
+		/// 名前からキャラクタ番号を逆引きする(GETCSVNOBYNAME系)。
+		/// 見つからなければ-1を返す
+		/// </summary>
+		public Int64 GetCharacterNoByStrData(CharacterStrData type, string key)
+		{
+			if (key == null)
+				return -1;
+			for (int i = 0; i < CharacterTmplList.Count; i++)
+			{
+				CharacterTemplate tmpl = CharacterTmplList[i];
+				string value;
+				switch (type)
+				{
+					case CharacterStrData.NAME: value = tmpl.Name; break;
+					case CharacterStrData.CALLNAME: value = tmpl.Callname; break;
+					case CharacterStrData.NICKNAME: value = tmpl.Nickname; break;
+					case CharacterStrData.MASTERNAME: value = tmpl.Mastername; break;
+					default: return -1;
+				}
+				if (string.Equals(value, key, StringComparison.Ordinal))
+					return tmpl.No;
+			}
+			return -1;
+		}
+
 		public CharacterTemplate GetPseudoChara()
 		{
 			return new CharacterTemplate(0, this);
@@ -1008,20 +1034,27 @@ check1break:
 		{
 			if (!Directory.Exists(csvDir))
 				return;
+			//Config.GetFilesは大文字小文字を区別しなくなったので一度で足りる。
+			//綴り違いを4通り並べていた頃は、chara*.csvのような全小文字が漏れていた
 			List<KeyValuePair<string, string>> csvPaths = Config.GetFiles(csvDir, "CHARA*.CSV");
-			for (int i = 0; i < csvPaths.Count; i++)
-				loadCharacterDataFile(csvPaths[i].Value, csvPaths[i].Key, disp);
-#if(UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-            csvPaths = Config.GetFiles(csvDir, "Chara*.CSV");
-            for(int i = 0; i < csvPaths.Count; i++)
-                loadCharacterDataFile(csvPaths[i].Value, csvPaths[i].Key, disp);
-            csvPaths = Config.GetFiles(csvDir, "CHARA*.csv");
-            for(int i = 0; i < csvPaths.Count; i++)
-                loadCharacterDataFile(csvPaths[i].Value, csvPaths[i].Key, disp);
-            csvPaths = Config.GetFiles(csvDir, "Chara*.csv");
-            for(int i = 0; i < csvPaths.Count; i++)
-                loadCharacterDataFile(csvPaths[i].Value, csvPaths[i].Key, disp);
-#endif
+			//キャラcsvは千個を超える事があり、読むだけで数秒かかる。
+			//解析している間に次を読んでおく。
+			//1件あたりの解析が軽く待ち側が余るので、ERBより読み手を多くしている
+			{
+				var paths = new List<string>(csvPaths.Count);
+				for (int i = 0; i < csvPaths.Count; i++)
+					paths.Add(csvPaths[i].Value);
+				uEmuera.FilePrefetch.Begin(paths, 8);
+			}
+			try
+			{
+				for (int i = 0; i < csvPaths.Count; i++)
+					loadCharacterDataFile(csvPaths[i].Value, csvPaths[i].Key, disp);
+			}
+			finally
+			{
+				uEmuera.FilePrefetch.End();
+			}
             SortCharacterTmplList();
 
             var count = CharacterTmplList.Count;

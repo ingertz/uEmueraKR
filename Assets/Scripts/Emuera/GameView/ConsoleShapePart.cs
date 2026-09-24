@@ -1,4 +1,4 @@
-﻿using MinorShift._Library;
+using MinorShift._Library;
 using System;
 using System.Collections.Generic;
 //using System.Drawing;
@@ -112,6 +112,14 @@ namespace MinorShift.Emuera.GameView
 	
 	internal sealed class ConsoleRectangleShapePart : ConsoleShapePart
 	{
+		public ConsoleRectangleShapePart(RectangleF theRect, Color color) : this(theRect)
+		{
+			this.Color = color;
+			this.ButtonColor = color;
+			this.colorChanged = true;
+			this.isAbsolute = true;
+		}
+
 		public ConsoleRectangleShapePart(RectangleF theRect)
 		{
 			Str = "";
@@ -128,10 +136,14 @@ namespace MinorShift.Emuera.GameView
 		}
 		private readonly int top;
 		private readonly int bottom;
-		public override int Top { get { return top; } }
-		public override int Bottom { get { return bottom; } }
+		public override int Top { get { return top + YOffset; } }
+		public override int Bottom { get { return bottom + YOffset; } }
+		//Unity側の描画用。WinForms版のDrawToに相当する情報を外へ出す
+		public Rectangle pRect { get { return rect; } }
+		public bool pVisible { get { return visible; } }
 		readonly RectangleF originalRectF;
 		bool visible = false;
+		readonly bool isAbsolute = false;
 		Rectangle rect;
 		public override void DrawTo(Graphics graph, int pointY, bool isSelecting, bool isBackLog, TextDrawingMode mode)
 		{
@@ -156,6 +168,16 @@ namespace MinorShift.Emuera.GameView
 		}
 		public override void SetWidth(StringMeasure sm, float subPixel)
 		{
+			if (isAbsolute)
+			{
+				Width = 0;
+				XsubPixel = 0;
+				rect.X = (int)originalRectF.X;
+				rect.Width = (int)originalRectF.Width;
+				rect.X += Config.DrawingParam_ShapePositionShift;
+				visible = (rect.Width > 0);
+				return;
+			}
 			float widF = (subPixel + WidthF);
 			Width = (int)(widF);
 			XsubPixel = widF - Width;

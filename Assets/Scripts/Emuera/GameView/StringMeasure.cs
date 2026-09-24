@@ -43,10 +43,14 @@ namespace MinorShift.Emuera.GameView
 		{
             if (string.IsNullOrEmpty(s))
             	return 0;
+            //タブを空白8個へ広げてはいけない。
+            //
+            //ERBには「PRINTPLAIN ┃<TAB>」のように引数の末尾へタブが紛れている物があり、
+            //8文字(64px)に化けると枠が8桁伸びて、右側のUIが次の行へ落ちる。
+            //本家はGDIで描いていてタブ位置を持たないので場所を取らない。
+            //幅の計算(Utils.GetDisplayLength)も描画(EmueraBehaviour)も0として扱う
             if (textDrawingMode == TextDrawingMode.GRAPHICS)
             {
-            	if (s.Contains("\t"))
-            		s = s.Replace("\t", "        ");
             //	ranges[0].Length = s.Length;
             //	//CharacterRange[] ranges = new CharacterRange[] { new CharacterRange(0, s.Length) };
             //	sf.SetMeasurableCharacterRanges(ranges);

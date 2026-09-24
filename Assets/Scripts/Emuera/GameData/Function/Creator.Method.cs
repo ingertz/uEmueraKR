@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -129,6 +130,27 @@ namespace MinorShift.Emuera.GameData.Function
 				if (!Config.CompatiSPChara && y != 0)
 					throw new CodeEE("SPキャラ関係の機能は標準では使用できません(互換性オプション「SPキャラを使用する」をONにしてください)");
                 return exm.VEvaluator.GetCharacterStrfromCSVData(x, charaStr, (y != 0), 0);
+            }
+        }
+
+        /// <summary>
+        /// .NET版 GETCSVNOBYNAME / GETCSVNOBYCALLNAME / GETCSVNOBYNICKNAME / GETCSVNOBYMASTERNAME
+        /// 名前からキャラクタ番号を逆引きする。見つからなければ-1
+        /// </summary>
+        private sealed class GetCsvNoByStrMethod : FunctionMethod
+        {
+            readonly CharacterStrData charaStr;
+            public GetCsvNoByStrMethod(CharacterStrData cStr)
+            {
+                ReturnType = typeof(Int64);
+                argumentTypeArray = new Type[] { typeof(string) };
+                charaStr = cStr;
+                CanRestructure = false;
+            }
+            public override long GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                string key = arguments[0].GetStrValue(exm);
+                return exm.VEvaluator.Constant.GetCharacterNoByStrData(charaStr, key);
             }
         }
 
@@ -1036,6 +1058,8 @@ namespace MinorShift.Emuera.GameData.Function
             public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
             {
                 Int64 ret = arguments[0].GetIntValue(exm);
+                if (ret == long.MinValue)
+                    throw new CodeEE("ABS関数の引数に指定可能な最小値が渡されました");
                 return (Math.Abs(ret));
             }
         }
@@ -1443,21 +1467,25 @@ namespace MinorShift.Emuera.GameData.Function
             {
                 if (arguments[0].GetOperandType() == typeof(Int64))
                 {
-                    Int64 baseValue = arguments[0].GetIntValue(exm);
-                    for (int i = 1; i < arguments.Length; i++)
+                    Int64[] valueArray = new Int64[arguments.Length];
+                    for (int i = 0; i < arguments.Length; i++)
                     {
-                        if (baseValue == arguments[i].GetIntValue(exm))
-                            return 0L;
+                        valueArray[i] = arguments[i].GetIntValue(exm);
                     }
+                    var resultArray = valueArray.Distinct();
+                    if (resultArray.Count() != arguments.Length)
+                        return 0L;
                 }
                 else
                 {
-                    string baseValue = arguments[0].GetStrValue(exm);
-                    for (int i = 1; i < arguments.Length; i++)
+                    string[] strArray = new string[arguments.Length];
+                    for (int i = 0; i < arguments.Length; i++)
                     {
-                        if (baseValue == arguments[i].GetStrValue(exm))
-                            return 0L;
+                        strArray[i] = arguments[i].GetStrValue(exm);
                     }
+                    var resultArray = strArray.Distinct();
+                    if (resultArray.Count() != arguments.Length)
+                        return 0L;
                 }
                 return 1L;
             }
@@ -2362,23 +2390,12 @@ namespace MinorShift.Emuera.GameData.Function
                     return (0);
                 else if ((st.Current == '+' || st.Current == '-') && !char.IsDigit(st.Next))
                     return (0);
-                Int64 ret = LexicalAnalyzer.ReadInt64(st, true);
-                if (!st.EOS)
-                {
-                    if (st.Current == '.')
-                    {
-                        st.ShiftNext();
-                        while (!st.EOS)
-                        {
-                            if (!char.IsDigit(st.Current))
-                                return (0);
-                            st.ShiftNext();
-                        }
-                    }
-                    else
-                        return (0);
-                }
-                return ret;
+                
+                if (!LexicalAnalyzer.NumericCheck(st))
+                    return (0);
+
+                st = new StringStream(str);
+                return LexicalAnalyzer.ReadInt64(st, true);
             }
         }
 
@@ -3064,8 +3081,42 @@ namespace MinorShift.Emuera.GameData.Function
 						return g.Width;
 					case "GHEIGHT":
 						return g.Height;
+					case "GGETFONTSIZE":
+						return g.font != null ? (Int64)g.font.Size : Config.FontSize;
+					case "GGETFONTSTYLE":
+						return g.font != null ? (Int64)g.font.Style : 0;
+					case "GGETPEN":
+						return g.pen != null ? (((Int64)g.pen.Color.A) << 24 | ((Int64)g.pen.Color.R) << 16 | ((Int64)g.pen.Color.G) << 8 | ((Int64)g.pen.Color.B)) : 
+                                               (((Int64)Config.ForeColor.A) << 24 | ((Int64)Config.ForeColor.R) << 16 | ((Int64)Config.ForeColor.G) << 8 | ((Int64)Config.ForeColor.B));
+					case "GGETBRUSH":
+						return (g.brush != null && g.brush is SolidBrush sb) ? (((Int64)sb.Color.A) << 24 | ((Int64)sb.Color.R) << 16 | ((Int64)sb.Color.G) << 8 | ((Int64)sb.Color.B)) : 
+                                                                               (((Int64)Config.ForeColor.A) << 24 | ((Int64)Config.ForeColor.R) << 16 | ((Int64)Config.ForeColor.G) << 8 | ((Int64)Config.ForeColor.B));
 				}
 				throw new ExeEE("GraphicsState:" + Name + ":異常な分岐");
+			}
+		}
+
+		public sealed class GraphicsGetStringMethod : FunctionMethod
+		{
+			public GraphicsGetStringMethod()
+			{
+				ReturnType = typeof(string);
+				argumentTypeArray = new Type[] { typeof(Int64) };
+				CanRestructure = false;
+			}
+			public override string GetStrValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				if (Config.TextDrawingMode == TextDrawingMode.WINAPI)
+					throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodGDIPLUSOnly, Name));
+				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+				if (!g.IsCreated)
+					return "";
+				switch (Name)
+				{
+					case "GGETFONT":
+						return g.font != null ? g.font.FontFamily.Name : Config.FontName;
+				}
+				throw new ExeEE("GraphicsGetString:" + Name + ":異常な分岐");
 			}
 		}
 
@@ -3143,9 +3194,19 @@ namespace MinorShift.Emuera.GameData.Function
 			public GraphicsSetFontMethod()
 			{
 				ReturnType = typeof(Int64);
-				argumentTypeArray = new Type[] { typeof(Int64), typeof(string), typeof(Int64) };
+				argumentTypeArray = null;
 				CanRestructure = false;
 			}
+            public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+            {
+                if (arguments.Length < 3) return "Not enough arguments";
+                if (arguments.Length > 4) return "Too many arguments";
+                if (arguments[0].GetOperandType() != typeof(Int64)) return "Argument 0 must be Int64";
+                if (arguments[1].GetOperandType() != typeof(string)) return "Argument 1 must be string";
+                if (arguments[2].GetOperandType() != typeof(Int64)) return "Argument 2 must be Int64";
+                if (arguments.Length == 4 && arguments[3].GetOperandType() != typeof(Int64)) return "Argument 3 must be Int64";
+                return null;
+            }
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
 				if (Config.TextDrawingMode == TextDrawingMode.WINAPI)
@@ -3155,11 +3216,14 @@ namespace MinorShift.Emuera.GameData.Function
 					return 0;
 				string fontname = arguments[1].GetStrValue(exm);
 				Int64 fontsize = arguments[2].GetIntValue(exm);
+                int style = 0;
+                if (arguments.Length == 4)
+                    style = (int)arguments[3].GetIntValue(exm);
 
                 Font styledFont;
                 try
 				{
-					styledFont = new Font(fontname, fontsize, FontStyle.Regular, GraphicsUnit.Pixel);
+					styledFont = new Font(fontname, fontsize, (FontStyle)style, GraphicsUnit.Pixel);
 				}
 				catch
 				{
@@ -3175,9 +3239,18 @@ namespace MinorShift.Emuera.GameData.Function
 			public GraphicsSetPenMethod()
 			{
 				ReturnType = typeof(Int64);
-				argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64) };
+				argumentTypeArray = null;
 				CanRestructure = false;
 			}
+            public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+            {
+                if (arguments.Length < 2) return "Not enough arguments";
+                if (arguments.Length > 3) return "Too many arguments";
+                if (arguments[0].GetOperandType() != typeof(Int64)) return "Argument 0 must be Int64";
+                if (arguments[1].GetOperandType() != typeof(Int64)) return "Argument 1 must be Int64";
+                if (arguments.Length == 3 && arguments[2].GetOperandType() != typeof(Int64)) return "Argument 2 must be Int64";
+                return null;
+            }
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
 				if (Config.TextDrawingMode == TextDrawingMode.WINAPI)
@@ -3186,7 +3259,8 @@ namespace MinorShift.Emuera.GameData.Function
 				if (!g.IsCreated)
 					return 0;
 				Color c = ReadColor(Name, exm, arguments, 1);
-				Int64 width = arguments[2].GetIntValue(exm);
+				Int64 width = 1;
+                if (arguments.Length >= 3) width = arguments[2].GetIntValue(exm);
 				g.GSetPen(new Pen(c,width));
 				return 1;
 			}
@@ -3290,9 +3364,9 @@ namespace MinorShift.Emuera.GameData.Function
 				switch (Name)
 				{
 					case "CLIENTWIDTH":
-						return exm.Console.ClientWidth;
+						return exm.Console.ConsoleWidth;
 					case "CLIENTHEIGHT":
-						return exm.Console.ClientHeight;
+						return exm.Console.ConsoleHeight;
 				}
 				throw new ExeEE("ClientSize:" + Name + ":異常な分岐");
 			}
@@ -3347,18 +3421,46 @@ namespace MinorShift.Emuera.GameData.Function
 				if (g.IsCreated)
 					return 0;
 
-				string filename = arguments[1].GetStrValue(exm);
+				string filename = uEmuera.Utils.NormalizeGamePath(arguments[1].GetStrValue(exm));
                 BitmapTexture bmp = null;
 				try
 				{
 					string filepath = filename;
+
 					if(!System.IO.Path.IsPathRooted(filepath))
-						filepath = Program.ContentDir + filename;
+					{
+						filepath = Program.ExeDir + filename;
+						var undercontent = Program.ContentDir + filename;
+						if (!System.IO.File.Exists(filepath))
+						{
+							if (System.IO.File.Exists(undercontent))
+								filepath = undercontent;
+							else
+							{
+								//綴りの大小が実体と食い違っていてもWindowsでは開けてしまうので、
+								//ERBの綴りをそのまま信じられない。ここまで来た時だけ照合する
+								filepath = uEmuera.Utils.ResolvePath(filepath);
+								if (!System.IO.File.Exists(filepath))
+									filepath = uEmuera.Utils.ResolvePath(undercontent);
+							}
+						}
+					}
+					else if (!System.IO.File.Exists(filepath))
+						filepath = uEmuera.Utils.ResolvePath(filepath);
+
 					if (!System.IO.File.Exists(filepath))
+					{
 						return 0;
+					}
 					bmp = new BitmapTexture(filepath);
 					if (bmp.Width > AbstractImage.MAX_IMAGESIZE || bmp.Height > AbstractImage.MAX_IMAGESIZE)
+					{
 						return 0;
+					}
+					if (bmp.Width <= 0 || bmp.Height <= 0)
+					{
+						return 0;
+					}
 					g.GCreateFromF(bmp, (Config.TextDrawingMode == TextDrawingMode.WINAPI));
 				}
 				catch (Exception e)
@@ -3444,12 +3546,18 @@ namespace MinorShift.Emuera.GameData.Function
 				string imgname = arguments[0].GetStrValue(exm);
 				if (string.IsNullOrEmpty(imgname))
 					return 0;
+					
+				
 				ASprite img = AppContents.GetSprite(imgname);
 				if (img != null && img.IsCreated)
+				{
 					return 0;
+				}
 				GraphicsImage g = ReadGraphics(Name, exm, arguments, 1);
 				if (!g.IsCreated)
+				{
 					return 0;
+				}
 
 				Rectangle rect = new Rectangle(0, 0, g.Width, g.Height);
 				if(arguments.Length == 6)
@@ -3791,8 +3899,9 @@ namespace MinorShift.Emuera.GameData.Function
 				string imgname = arguments[0].GetStrValue(exm);
 				if (string.IsNullOrEmpty(imgname))
 					return 0;
+				//&&だとimgがnullの時にnullのIsCreatedを読んで落ちる
 				SpriteAnime img = AppContents.GetSprite(imgname) as SpriteAnime;
-				if (img == null && !img.IsCreated)
+				if (img == null || !img.IsCreated)
 					return 0;
 				GraphicsImage g = ReadGraphics(Name, exm, arguments, 1);
 				if (!g.IsCreated)
@@ -4139,7 +4248,7 @@ namespace MinorShift.Emuera.GameData.Function
 				{
 					if (arguments[i] == null)
 						return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentNotNullable0, name, i + 1);
-
+					if (i == 1 && arguments[i].GetOperandType() == typeof(string)) continue;
 					if (i < argumentTypeArray.Length && argumentTypeArray[i] != arguments[i].GetOperandType())
 						return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentType0, name, i + 1);
 				}
@@ -4147,16 +4256,31 @@ namespace MinorShift.Emuera.GameData.Function
 			}
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-				string savText = arguments[0].GetStrValue(exm);
-				Int64 i64 = arguments[1].GetIntValue(exm);
-				if (i64 < 0 || i64 > int.MaxValue)
-					return 0;
+				string savText = arguments[0].GetStrValue(exm), filepath;
 				bool forceSavdir = arguments.Length > 2 && (arguments[2].GetIntValue(exm) != 0);
 				bool forceUTF8 = arguments.Length > 3 && (arguments[3].GetIntValue(exm) != 0);
-				int fileIndex = (int)i64;
-				string filepath = forceSavdir ?
-					GetSaveDataPathText(fileIndex, Config.ForceSavDir) :
-					GetSaveDataPathText(fileIndex, Config.SavDir);
+				if (arguments[1].GetOperandType() == typeof(Int64))
+				{
+					Int64 i64 = arguments[1].GetIntValue(exm);
+					if (i64 < 0 || i64 > int.MaxValue)
+						return 0;
+					int fileIndex = (int)i64;
+					filepath = forceSavdir ?
+						GetSaveDataPathText(fileIndex, Config.ForceSavDir) :
+						GetSaveDataPathText(fileIndex, Config.SavDir);
+				}
+				else
+				{
+					string relpath = uEmuera.Utils.NormalizeGamePath(arguments[1].GetStrValue(exm));
+					if (!System.IO.Path.IsPathRooted(relpath))
+					{
+						filepath = Program.ExeDir + relpath;
+					}
+					else
+					{
+						filepath = relpath;
+					}
+				}
 				Encoding encoding = forceUTF8 ?
 					Encoding.GetEncoding("UTF-8") :
 					Config.SaveEncode;
@@ -4166,7 +4290,12 @@ namespace MinorShift.Emuera.GameData.Function
 						Config.ForceCreateSavDir();
 					else
 						Config.CreateSavDir();
+					string dir = System.IO.Path.GetDirectoryName(filepath);
+					if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+						System.IO.Directory.CreateDirectory(dir);
 					System.IO.File.WriteAllText(filepath, savText, encoding);
+					//ENUMFILESが覚えている一覧は古くなった
+					uEmuera.Utils.EnumCacheClear();
 				}
 				catch { return 0; }
 				return 1;
@@ -4194,6 +4323,7 @@ namespace MinorShift.Emuera.GameData.Function
 				{
 					if (arguments[i] == null)
 						return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentNotNullable0, name, i + 1);
+					if (i == 0 && arguments[i].GetOperandType() == typeof(string)) continue;
 					if (i < argumentTypeArray.Length && argumentTypeArray[i] != arguments[i].GetOperandType())
 						return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentType0, name, i + 1);
 				}
@@ -4201,15 +4331,35 @@ namespace MinorShift.Emuera.GameData.Function
 			}
 			public override string GetStrValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-                Int64 i64 = arguments[0].GetIntValue(exm);
-                if (i64 < 0 || i64 > int.MaxValue)
-					return "";
+				string filepath;
 				bool forceSavdir = arguments.Length > 1 && (arguments[1].GetIntValue(exm) != 0);
 				bool forceUTF8 = arguments.Length > 2 && (arguments[2].GetIntValue(exm) != 0);
-				int fileIndex = (int)i64;
-				string filepath = forceSavdir ?
-					GetSaveDataPathText(fileIndex, Config.ForceSavDir) :
-					GetSaveDataPathText(fileIndex, Config.SavDir);
+				if (arguments[0].GetOperandType() == typeof(Int64))
+				{
+					Int64 i64 = arguments[0].GetIntValue(exm);
+					if (i64 < 0 || i64 > int.MaxValue)
+						return "";
+					int fileIndex = (int)i64;
+					filepath = forceSavdir ?
+						GetSaveDataPathText(fileIndex, Config.ForceSavDir) :
+						GetSaveDataPathText(fileIndex, Config.SavDir);
+				}
+				else
+				{
+					string relpath = uEmuera.Utils.NormalizeGamePath(arguments[0].GetStrValue(exm));
+					if (!System.IO.Path.IsPathRooted(relpath))
+					{
+						filepath = Program.ExeDir + relpath;
+						if (!System.IO.File.Exists(filepath) && !string.IsNullOrEmpty(Program.ContentDir))
+						{
+							filepath = Program.ContentDir + relpath;
+						}
+					}
+					else
+					{
+						filepath = relpath;
+					}
+				}
 				Encoding encoding = forceUTF8 ?
 					Encoding.GetEncoding("UTF-8") :
 					Config.SaveEncode;
@@ -4318,5 +4468,100 @@ namespace MinorShift.Emuera.GameData.Function
 		}
 
 		#endregion
+
+		class GraphicsDrawRectangleMethod : FunctionMethod
+		{
+			public GraphicsDrawRectangleMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64), typeof(Int64), typeof(Int64), typeof(Int64) };
+				CanRestructure = false;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+				int x = (int)arguments[1].GetIntValue(exm);
+				int y = (int)arguments[2].GetIntValue(exm);
+				int w = (int)arguments[3].GetIntValue(exm);
+				int h = (int)arguments[4].GetIntValue(exm);
+				if (!g.IsCreated) return 0;
+				g.GDrawRectangle(new uEmuera.Drawing.Rectangle(x, y, w, h));
+				return 1;
+			}
+		}
+
+		class GraphicsDrawTextMethod : FunctionMethod
+		{
+			public GraphicsDrawTextMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = null;
+				CanRestructure = false;
+			}
+			public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+			{
+				if (arguments.Length < 2) return "Not enough arguments";
+                if (arguments[0].GetOperandType() != typeof(Int64)) return "Argument 0 must be Int64";
+                if (arguments[1].GetOperandType() != typeof(string)) return "Argument 1 must be string";
+                if (arguments.Length >= 3 && arguments[2].GetOperandType() != typeof(Int64)) return "Argument 2 must be Int64";
+                if (arguments.Length >= 4 && arguments[3].GetOperandType() != typeof(Int64)) return "Argument 3 must be Int64";
+                if (arguments.Length >= 5 && arguments[4].GetOperandType() != typeof(Int64)) return "Argument 4 must be Int64";
+                if (arguments.Length >= 6 && arguments[5].GetOperandType() != typeof(Int64)) return "Argument 5 must be Int64";
+				return null;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+				if (!g.IsCreated) return 0;
+				string text = arguments[1].GetStrValue(exm);
+				int x = 0;
+				int y = 0;
+                if (arguments.Length >= 3) x = (int)arguments[2].GetIntValue(exm);
+                if (arguments.Length >= 4) y = (int)arguments[3].GetIntValue(exm);
+				
+				if (arguments.Length >= 6) {
+					int w = (int)arguments[4].GetIntValue(exm);
+					int h = (int)arguments[5].GetIntValue(exm);
+					g.GDrawString(text, x, y, w, h);
+				} else {
+					g.GDrawString(text, x, y);
+				}
+				return 1;
+			}
+		}
+
+		class GraphicsDrawGWithRotateMethod : FunctionMethod
+		{
+			public GraphicsDrawGWithRotateMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = null;
+				CanRestructure = false;
+			}
+			public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+			{
+				if (arguments.Length < 3) return "Not enough arguments";
+                if (arguments[0].GetOperandType() != typeof(Int64)) return "Argument 0 must be Int64";
+                if (arguments[1].GetOperandType() != typeof(Int64)) return "Argument 1 must be Int64";
+                if (arguments[2].GetOperandType() != typeof(Int64)) return "Argument 2 must be Int64";
+                if (arguments.Length >= 4 && arguments[3].GetOperandType() != typeof(Int64)) return "Argument 3 must be Int64";
+                if (arguments.Length >= 5 && arguments[4].GetOperandType() != typeof(Int64)) return "Argument 4 must be Int64";
+				return null;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+				GraphicsImage srcG = ReadGraphics(Name, exm, arguments, 1);
+				float angle = (float)arguments[2].GetIntValue(exm) / 1000f;
+				int x = 0;
+				int y = 0;
+                if (arguments.Length >= 4) x = (int)arguments[3].GetIntValue(exm);
+                if (arguments.Length >= 5) y = (int)arguments[4].GetIntValue(exm);
+				
+				if (!g.IsCreated || !srcG.IsCreated) return 0;
+				g.GDrawGWithRotate(srcG, angle, x, y);
+				return 1;
+			}
+		}
 	}
 }

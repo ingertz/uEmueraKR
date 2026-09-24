@@ -125,6 +125,13 @@ namespace MinorShift.Emuera.GameProc
 			argprimitive = null;
 			return ret;
 		}
+		/// <summary>
+		/// 引数primitiveを消費せずに覗く。後段の引数解析パスで改めてPopできる
+		/// </summary>
+		public StringStream PeekArgumentPrimitive()
+		{
+			return argprimitive;
+		}
 		public WordCollection PopAssignmentDestStr()
 		{
 			WordCollection ret = assigndest;

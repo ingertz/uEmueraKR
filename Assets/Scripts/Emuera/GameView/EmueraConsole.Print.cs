@@ -1,4 +1,4 @@
-﻿using MinorShift._Library;
+using MinorShift._Library;
 using MinorShift.Emuera.Sub;
 using System;
 using System.Collections.Generic;
@@ -15,12 +15,13 @@ namespace MinorShift.Emuera.GameView
 	//いつかEmueraConsoleから分離したい
 	internal sealed partial class EmueraConsole : IDisposable
 	{
-        private readonly DisplayLineList displayLineList;
+        internal readonly DisplayLineList displayLineList;
 		public bool noOutputLog = false;
 		public Color bgColor = Config.BackColor;
 
 		private readonly PrintStringBuffer printBuffer;
 		readonly StringMeasure stringMeasure = new StringMeasure();
+		public StringMeasure StrMeasure { get { return stringMeasure; } }
 
 		public void ClearDisplay()
 		{
@@ -350,18 +351,41 @@ namespace MinorShift.Emuera.GameView
 			printBuffer.Append(part);
 		}
 
-		public void PrintHtml(string str)
+		public void PrintHtml(string str, bool noNewline = false)
 		{
 			if (string.IsNullOrEmpty(str))
 				return;
 			if (!this.Enabled)
 				return;
-			if (!printBuffer.IsEmpty)
+
+			if (noNewline)
 			{
-				ConsoleDisplayLine[] dispList = printBuffer.Flush(stringMeasure, force_temporary);
-				addRangeDisplayLine(dispList);
+				var cssList = HtmlManager.Html2DisplayLine(str, stringMeasure, this);
+				if (cssList.Length > 0)
+				{
+					foreach (var button in cssList[0].Buttons)
+						printBuffer.AppendButton(button);
+					
+					for (int i = 1; i < cssList.Length; i++)
+					{
+						if (i == 1)
+						{
+							ConsoleDisplayLine[] dispList = printBuffer.Flush(stringMeasure, force_temporary);
+							addRangeDisplayLine(dispList);
+						}
+						addDisplayLine(cssList[i], false);
+					}
+				}
 			}
-			addRangeDisplayLine(HtmlManager.Html2DisplayLine(str, stringMeasure, this));
+			else
+			{
+				if (!printBuffer.IsEmpty)
+				{
+					ConsoleDisplayLine[] dispList = printBuffer.Flush(stringMeasure, force_temporary);
+					addRangeDisplayLine(dispList);
+				}
+				addRangeDisplayLine(HtmlManager.Html2DisplayLine(str, stringMeasure, this));
+			}
 			RefreshStrings(false);
 		}
 
@@ -537,11 +561,19 @@ namespace MinorShift.Emuera.GameView
 
 		public void printCustomBar(string barStr)
 		{
+			printCustomBar(barStr, false);
+		}
+
+		public void printCustomBar(string barStr, bool isConst)
+		{
 			if (string.IsNullOrEmpty(barStr))
 				throw new CodeEE("空文字列によるDRAWLINEが行われました");
 			StringStyle ss = userStyle;
 			userStyle.FontStyle = FontStyle.Regular;
-			Print(getStBar(barStr));
+			if (isConst)
+				Print(barStr);
+			else
+				Print(getStBar(barStr));
 			userStyle = ss;
 		}
 
