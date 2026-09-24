@@ -85,19 +85,6 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 - 문자 코드 자동 판별에 내장된 레거시 인코딩은 Shift-JIS(CP932)뿐입니다
   - CP949(EUC-KR) 파일은 UTF-8로 변환해서 넣어 주세요
 
-스크린샷
---------
-
-> 원본 uEmuera 시절의 스크린샷입니다.
-
-| 시작 화면 | 게임 화면 | 빠른 버튼 |
-|---|---|---|
-| ![](Screenshot/screenshot1.png) | ![](Screenshot/screenshot2.png) | ![](Screenshot/screenshot3.png) |
-
-| 명령 입력 | 확대/축소 |
-|---|---|
-| ![](Screenshot/screenshot4.png) | ![](Screenshot/screenshot5.png) |
-
 크레딧 / 라이선스
 -----------------
 
