@@ -73,7 +73,23 @@ public class EmueraLine : EmueraBehaviour
         if(ud.extra_fonts != null)
         {
             for(int i = 0; i < ud.extra_fonts.Count; ++i)
-                uEmuera.TMPFonts.Get(ud.extra_fonts[i]);
+            {
+                if(uEmuera.TMPFonts.Get(ud.extra_fonts[i]) != null)
+                    continue;
+                //端末にもゲームのfont/にも無いフォント(Times New Romanなど)。
+                //タグを残すと「<font="Times New Roman">」がそのまま文字で出るので、
+                //タグだけ外して本文のフォント(と連鎖)で描かせる。
+                //区間は入れ子にならないので、開きタグから最初の閉じタグまでを外せばよい
+                if(ud.content != null)
+                {
+                    var open = "<font=\"" + ud.extra_fonts[i] + "\">";
+                    ud.content = System.Text.RegularExpressions.Regex.Replace(ud.content,
+                        System.Text.RegularExpressions.Regex.Escape(open) + "(.*?)</font>",
+                        "$1", System.Text.RegularExpressions.RegexOptions.Singleline);
+                }
+                ud.extra_fonts.RemoveAt(i);
+                --i;
+            }
         }
 
         text.text = ud.content;
