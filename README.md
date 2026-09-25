@@ -21,6 +21,8 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 - **사운드**
   - `PLAYBGM`, `PLAYSOUND` 등을 지원합니다
   - 지원 형식: `.ogg`, `.mp3`, `.wav`, `.mid`/`.midi` (MIDI는 Android 전용)
+- **이미지**
+  - 지원 형식: `.png`, `.jpg`, `.webp`, `.bmp`, `.gif` (GIF는 첫 프레임만)
 
 ### 표시
 - TextMesh Pro 기반으로 글자 렌더링을 새로 만들었습니다

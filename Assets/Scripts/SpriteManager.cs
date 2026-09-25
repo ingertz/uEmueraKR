@@ -257,14 +257,39 @@ internal static class SpriteManager
         }
         else
         {
-            var tex = new Texture2D(4, 4, format, false);
-            if (tex.LoadImage(content))
+            var tex = DecodeTexture(content, format);
+            if (tex != null)
             {
                 ti = new TextureInfo(name, tex);
                 texture_dict[name] = ti;
             }
         }
         return ti;
+    }
+
+    /// <summary>
+    /// PNG/JPGはUnityのLoadImageで、BMP/GIFは自前の復号器で読む。
+    /// LoadImageはBMP/GIFを読めず、失敗すると画像が出なかった。
+    /// 判定はファイル先頭のバイトで行い、拡張子は見ない
+    /// </summary>
+    static Texture2D DecodeTexture(byte[] content, TextureFormat format)
+    {
+        if (uEmuera.LegacyImageDecoder.CanDecode(content))
+        {
+            int w, h;
+            byte[] rgba;
+            if (!uEmuera.LegacyImageDecoder.TryDecode(content, out w, out h, out rgba))
+                return null;
+            var btex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            btex.LoadRawTextureData(rgba);
+            btex.Apply(false, false);
+            return btex;
+        }
+        var tex = new Texture2D(4, 4, format, false);
+        if (tex.LoadImage(content))
+            return tex;
+        UnityEngine.Object.Destroy(tex);
+        return null;
     }
 
     public static void RegisterDynamicTexture(string name, Texture2D tex)
@@ -395,8 +420,8 @@ internal static class SpriteManager
             }
             else
             {
-                var tex = new Texture2D(4, 4, format, false);
-                if (tex.LoadImage(content))
+                var tex = DecodeTexture(content, format);
+                if (tex != null)
                 {
                     ti = new TextureInfo(baseimage.name, tex);
                     texture_dict[baseimage.name] = ti;
