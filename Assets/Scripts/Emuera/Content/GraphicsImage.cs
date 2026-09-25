@@ -151,7 +151,17 @@ namespace MinorShift.Emuera.Content
 
         public void GDrawString(string text, int x, int y)
         {
+            GDrawStringCore(text, x, y, 0, 0);
+        }
+
+        /// <summary>
+        /// boxW/boxHが正なら、その矩形の幅で折り返し、はみ出た部分は描かない
+        /// (GDI+のDrawString(RectangleF)と同じ振る舞い)
+        /// </summary>
+        void GDrawStringCore(string text, int x, int y, int boxW, int boxH)
+        {
             if (this.Bitmap == null || string.IsNullOrEmpty(text)) return;
+            bool boxed = boxW > 0 && boxH > 0;
             var waitHandle = new System.Threading.ManualResetEvent(false);
             SpriteManager.RunOnMainThread(() => {
                 try {
@@ -207,12 +217,12 @@ namespace MinorShift.Emuera.Content
                         uiText.color = new UnityEngine.Color(Config.ForeColor.r, Config.ForeColor.g, Config.ForeColor.b, Config.ForeColor.a);
                     }
 
-                    uiText.horizontalOverflow = UnityEngine.HorizontalWrapMode.Overflow;
+                    uiText.horizontalOverflow = boxed ? UnityEngine.HorizontalWrapMode.Wrap : UnityEngine.HorizontalWrapMode.Overflow;
                     uiText.verticalOverflow = UnityEngine.VerticalWrapMode.Overflow;
                     uiText.alignment = UnityEngine.TextAnchor.UpperLeft;
                     
                     var rtText = uiText.GetComponent<UnityEngine.RectTransform>();
-                    rtText.sizeDelta = new UnityEngine.Vector2(rtWidth, rtHeight);
+                    rtText.sizeDelta = new UnityEngine.Vector2(boxed ? boxW : rtWidth, rtHeight);
                     rtText.pivot = new UnityEngine.Vector2(0, 1);
                     rtText.anchorMin = new UnityEngine.Vector2(0, 1);
                     rtText.anchorMax = new UnityEngine.Vector2(0, 1);
@@ -238,8 +248,16 @@ namespace MinorShift.Emuera.Content
                     // Blend tempTex onto destTex
                     UnityEngine.Color[] srcPixels = tempTex.GetPixels();
                     UnityEngine.Color[] destPixels = destTex.GetPixels();
+                    //矩形指定時の範囲。テクスチャは下の行からなので上下を反転して比べる
+                    int clipL = x, clipR = x + boxW, clipT = y, clipB = y + boxH;
                     for(int i = 0; i < srcPixels.Length; i++) {
                         UnityEngine.Color sC = srcPixels[i];
+                        if (boxed) {
+                            int px = i % rtWidth;
+                            int py = rtHeight - 1 - (i / rtWidth);
+                            if (px < clipL || px >= clipR || py < clipT || py >= clipB)
+                                continue;
+                        }
                         if (sC.a > 0) {
                             UnityEngine.Color dC = destPixels[i];
                             float outA = sC.a + dC.a * (1f - sC.a);
@@ -274,9 +292,7 @@ namespace MinorShift.Emuera.Content
 
         public void GDrawString(string text, int x, int y, int width, int height)
         {
-            // Map the bounding box version to the basic version for now.
-            // Text clipping could be implemented via Mask, but simple overflow is usually sufficient.
-            GDrawString(text, x, y);
+            GDrawStringCore(text, x, y, width, height);
         }
 
         public void GDrawRectangle(Rectangle rect)

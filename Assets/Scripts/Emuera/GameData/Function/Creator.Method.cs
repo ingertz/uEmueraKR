@@ -4530,6 +4530,56 @@ namespace MinorShift.Emuera.GameData.Function
 			}
 		}
 
+		/// <summary>
+		/// int GGETTEXTSIZE str text, str fontName, int fontSize{, int fontStyle}
+		/// 描画した時の幅を返し、高さをRESULT:1へ入れる。
+		/// 幅はコンソールの文字配置と同じ計測(Utils.GetDisplayLength)を使う。
+		/// こうしておかないと、測った幅とGDRAWTEXTで描いた幅が食い違う
+		/// </summary>
+		class GraphicsGetTextSizeMethod : FunctionMethod
+		{
+			public GraphicsGetTextSizeMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = null;
+				CanRestructure = false;
+			}
+			public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+			{
+				if (arguments.Length < 3)
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentNum1, name, 3);
+				if (arguments.Length > 4)
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentNum0, name);
+				if (arguments[0] == null || arguments[0].GetOperandType() != typeof(string))
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentType0, name, 1);
+				if (arguments[1] == null || arguments[1].GetOperandType() != typeof(string))
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentType0, name, 2);
+				if (arguments[2] == null || arguments[2].GetOperandType() != typeof(Int64))
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentType0, name, 3);
+				if (arguments.Length == 4 && arguments[3] != null && arguments[3].GetOperandType() != typeof(Int64))
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentType0, name, 4);
+				return null;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				string text = arguments[0].GetStrValue(exm);
+				string fontName = arguments[1].GetStrValue(exm);
+				Int64 fontSize = arguments[2].GetIntValue(exm);
+				if (fontSize <= 0)
+					fontSize = Config.FontSize;
+				if (string.IsNullOrEmpty(fontName))
+					fontName = Config.FontName;
+				//改行を含む場合は一番長い行の幅と、行数分の高さ
+				string[] lines = (text ?? "").Replace("\r\n", "\n").Split('\n');
+				int width = 0;
+				foreach (string line in lines)
+					width = Math.Max(width, uEmuera.Utils.GetDisplayLength(line, fontName, fontSize));
+				Int64 height = fontSize * lines.Length;
+				exm.VEvaluator.RESULT_ARRAY[1] = height;
+				return width;
+			}
+		}
+
 		class GraphicsDrawGWithRotateMethod : FunctionMethod
 		{
 			public GraphicsDrawGWithRotateMethod()

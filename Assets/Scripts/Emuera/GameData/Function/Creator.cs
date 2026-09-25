@@ -181,6 +181,7 @@ namespace MinorShift.Emuera.GameData.Function
                 ["GGETPEN"] = new GraphicsStateMethod(),
                 ["GGETBRUSH"] = new GraphicsStateMethod(),
                 ["GGETCOLOR"] = new GraphicsGetColorMethod(),
+                ["GGETTEXTSIZE"] = new GraphicsGetTextSizeMethod(),
                 ["SPRITEGETCOLOR"] = new SpriteGetColorMethod(),
 
                 ["GCREATE"] = new GraphicsCreateMethod(),
