@@ -9,11 +9,15 @@ using MinorShift.Emuera.GameView;
 /// エミュレータ側は一覧を持っていたが、Unity側に描く処理が無く、
 /// 命令は成功するのに画面には何も出ていなかった。
 ///
-/// 座標はEmueraと同じく「描画領域の左下が原点、下向きが正」。
-/// x,yは画像の左上の位置(y=-画像の高さ なら下端に接する)。
-/// ボタンマップ(CBGSETBMAPG)は本家と同じく左下に左上を-高さの位置で置いた物として判定する。
+/// 本家(Emuera.NET/EE)のOnPaintと同じ配置にしている。
+/// 座標は「描画領域の左下が原点、下向きが正」で、x,yは画像の左下の位置
+/// (本家は左上を (x, y + 描画領域の高さ - 画像の高さ) に描く)。
 /// zdepthが正なら文字の奥、負なら文字の手前に描き、値が大きいほど奥。
-/// スクロールには付いて行かない(画面に固定)
+/// スクロールには付いて行かない(画面に固定)。
+///
+/// ボタンの判定は本家と同じくボタンマップ(CBGSETBMAPG)だけで行い、
+/// 番号はINPUTMOUSEKEYのRESULT:4へ渡す。マップは左下に接するよう置いた物として扱う。
+/// 通常のINPUT待ちではCBGを押しても入力にならない(本家も同じ)
 /// </summary>
 public class CBGLayer : MonoBehaviour
 {
@@ -31,8 +35,6 @@ public class CBGLayer : MonoBehaviour
         public EmueraConsole.CBGItem item;
     }
     readonly List<Shown> shown_ = new List<Shown>();
-    //手前にある物から順に当たり判定するための一覧
-    readonly List<EmueraConsole.CBGItem> hit_order_ = new List<EmueraConsole.CBGItem>();
     MinorShift.Emuera.Content.GraphicsImage button_map_ = null;
 
     /// <summary>
@@ -113,10 +115,6 @@ public class CBGLayer : MonoBehaviour
             info.Load(item.Img);
             shown_.Add(new Shown { image = image, info = info, item = item });
         }
-        hit_order_.Clear();
-        for (int i = list.Count - 1; i >= 0; --i)
-            if (list[i].IsButton)
-                hit_order_.Add(list[i]);
     }
 
     /// <summary>左下原点・下向き正の座標系での、画像の左上と大きさ</summary>
@@ -124,7 +122,7 @@ public class CBGLayer : MonoBehaviour
     {
         var size = item.Img.DestBaseSize;
         float x = item.X;
-        float y = item.Y;
+        float y = item.Y - size.Height;   //x,yは画像の左下
         //csvで位置のずらしを明示したスプライトはその分だけずらす
         if (item.Img.HasExplicitPosition)
         {
@@ -152,13 +150,11 @@ public class CBGLayer : MonoBehaviour
                 EmueraContent.instance.PushImage(s.image);
         }
         shown_.Clear();
-        hit_order_.Clear();
         button_map_ = null;
     }
 
     /// <summary>
-    /// 画面上の位置にあるCBGのボタン番号。無ければ-1。
-    /// ボタン画像(手前の物から)→ボタンマップの順に調べる
+    /// 画面上の位置にあるCBGのボタン番号(ボタンマップの色)。無ければ-1
     /// </summary>
     public static int HitTest(Vector2 screen_position, Camera camera)
     {
@@ -169,7 +165,7 @@ public class CBGLayer : MonoBehaviour
 
     int HitTestInternal(Vector2 screen_position, Camera camera)
     {
-        if (hit_order_.Count == 0 && button_map_ == null)
+        if (button_map_ == null)
             return -1;
         Vector2 local;
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(back_, screen_position, camera, out local))
@@ -177,16 +173,6 @@ public class CBGLayer : MonoBehaviour
         //左下原点・下向き正へ
         float cx = local.x;
         float cy = -local.y;
-
-        for (int i = 0; i < hit_order_.Count; ++i)
-        {
-            var item = hit_order_[i];
-            if (item.Img == null || !item.Img.IsCreated)
-                continue;
-            var r = ItemRect(item);
-            if (cx >= r.x && cx < r.x + r.width && cy >= r.y && cy < r.y + r.height)
-                return item.ButtonValue;
-        }
 
         var map = button_map_;
         if (map != null && map.IsCreated)
@@ -204,29 +190,20 @@ public class CBGLayer : MonoBehaviour
     }
 
     /// <summary>
-    /// タップをCBGのボタンとして処理したらtrue。
-    /// INPUT待ちならボタン番号を入力し、INPUTMOUSEKEY待ちならRESULT:4に番号を載せる
+    /// INPUTMOUSEKEY待ちならタップをマウス入力として渡してtrue。
+    /// RESULT:4にはボタンマップの番号(無ければ-1)を載せる
     /// </summary>
     public static bool TryHandleTap(UnityEngine.EventSystems.PointerEventData e)
     {
         var console = GlobalStatic.Console;
-        if (console == null || e == null)
+        if (console == null || e == null || !console.IsWaitingPrimitive)
             return false;
         int button = HitTest(e.position, e.pressEventCamera);
-        if (console.IsWaitingPrimitive)
-        {
-            EmueraThread.instance.InputMouse(
-                (int)e.position.x,
-                (int)(Screen.height - e.position.y),//左上基準へ
-                0x100000,//MouseButtons.Left
-                button);
-            return true;
-        }
-        if (button < 0)
-            return false;
-        if (!console.IsWaitingInput)
-            return false;
-        EmueraThread.instance.Input(button.ToString(), true);
+        EmueraThread.instance.InputMouse(
+            (int)e.position.x,
+            (int)(Screen.height - e.position.y),//左上基準へ
+            0x100000,//MouseButtons.Left
+            button);
         return true;
     }
 }

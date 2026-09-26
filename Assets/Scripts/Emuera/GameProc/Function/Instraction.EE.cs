@@ -353,7 +353,17 @@ private sealed class VARI_Instruction : AbstractInstruction
 			}
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				// Dummy implementation
+				//本家(Emuera.NET)と同じく、ログにも流れにも入らない独立したHTMLとして
+				//画面の上端から重ねて表示する。描画はUnity側のIslandLayer
+				if (GlobalStatic.Process.SkipPrint)
+					return;
+				var arg = (ExpressionsArgument)func.Argument;
+				string str;
+				if (arg.ArgumentArray[0] is SingleTerm st)
+					str = st.Str;
+				else
+					str = arg.ArgumentArray[0].GetStrValue(exm);
+				exm.Console.PrintHTMLIsland(str);
 			}
 		}
 
@@ -366,7 +376,7 @@ private sealed class VARI_Instruction : AbstractInstruction
 			}
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				// Dummy implementation
+				exm.Console.ClearHTMLIsland();
 			}
 		}
 

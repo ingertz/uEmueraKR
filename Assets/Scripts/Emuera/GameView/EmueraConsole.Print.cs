@@ -26,6 +26,7 @@ namespace MinorShift.Emuera.GameView
 		public void ClearDisplay()
 		{
 			displayLineList.Clear();
+			ClearHTMLIsland();//本家もClearDisplayで一緒に消す
 			logicalLineCount = 0;
 			lineNo = 0;
 			lastDrawnLineNo = -1;

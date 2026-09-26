@@ -24,7 +24,9 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
   - `GSETCOLOR`가 실제로 점을 찍고, `GGETCOLOR`/`SPRITEGETCOLOR`가 올바른 위치의 색을 읽습니다
 - **화면 배경 그래픽(CBG)**
   - `CBGSETG`, `CBGSETSPRITE`로 설정한 그림을 화면에 고정해서 표시합니다 (zdepth 양수는 글자 뒤, 음수는 글자 앞)
-  - `CBGSETBUTTONSPRITE`, `CBGSETBMAPG`로 만든 버튼을 터치하면 해당 번호가 입력됩니다
+  - `CBGSETBMAPG` 버튼 맵을 터치하면 `INPUTMOUSEKEY`의 `RESULT:4`로 번호가 전달됩니다 (PC판과 같음)
+- **`HTML_PRINT_ISLAND` / `HTML_PRINT_ISLAND_CLEAR`**
+  - 로그에 남지 않는 HTML을 화면 위쪽에 고정해서 겹쳐 표시합니다 (Emuera.NET과 같은 동작)
 - **문자 코드 자동 판별**
   - BOM → UTF-8 → Shift-JIS(CP932) 순서로 판별합니다
   - 이제 파일을 UTF-8로 변환하지 않아도 되고, Shift-JIS 원본도 그대로 읽힙니다
@@ -97,7 +99,6 @@ Unity를 켜 둔 채로 실행해도 되고, 받아온 뒤 자동으로 다시 �
 
 - 앱 안에서 게임 설정(`emuera.config`)을 바꿀 수 없습니다
 - 디버그 모드는 지원하지 않습니다
-- `HTML_PRINT_ISLAND`, `HTML_PRINT_ISLAND_CLEAR`는 아무 동작도 하지 않습니다
 - CBG 버튼의 "선택됐을 때 이미지"는 표시하지 않습니다 (터치 화면에는 마우스를 올리는 동작이 없으므로)
 - 모바일에서 쓸 일이 없는 PC 전용 입력은 지원하지 않습니다
   - `GETKEY`/`GETKEYTRIGGERED`, `MOUSEX`/`MOUSEY`, 툴팁

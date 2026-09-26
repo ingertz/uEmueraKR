@@ -41,6 +41,41 @@ namespace MinorShift.Emuera.GameView
             //ERB側は左下基準の座標を受け取る。RESULT:4はCBGのボタン番号(無ければ-1)
             InputMouseKey(1, button, x, y - ClientHeight, cbgButton);
         }
+        #region HTML_PRINT_ISLAND
+        //本家(Emuera.NET)の_htmlElementList。ログに残らず、画面の上端から1行ずつ重ねて描く
+        readonly System.Collections.Generic.List<ConsoleDisplayLine> islandLines =
+            new System.Collections.Generic.List<ConsoleDisplayLine>();
+        volatile int islandVersion = 0;
+        internal int IslandVersion { get { return islandVersion; } }
+
+        public void PrintHTMLIsland(string html)
+        {
+            var lines = HtmlManager.Html2DisplayLine(html, StrMeasure, this);
+            lock (islandLines)
+            {
+                if (lines != null)
+                    islandLines.AddRange(lines);
+                ++islandVersion;
+            }
+        }
+        public void ClearHTMLIsland()
+        {
+            lock (islandLines)
+            {
+                if (islandLines.Count == 0)
+                    return;
+                islandLines.Clear();
+                ++islandVersion;
+            }
+        }
+        /// <summary>Unity側へ渡す写し。ワーカースレッドで書き換わるのでロックして取る</summary>
+        internal ConsoleDisplayLine[] GetIslandSnapshot()
+        {
+            lock (islandLines)
+                return islandLines.ToArray();
+        }
+        #endregion
+
         #region CBG(クライアント背景)をUnity側へ渡す
         /// <summary>
         /// CBGの内容が変わるたびに増える。Unity側はこれを見て作り直す
