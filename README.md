@@ -20,6 +20,11 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
     (마우스 입력이 켜지면 탭한 버튼이 `RESULT:1`/`RESULTS:1`로 들어감)
   - `BINPUT` 계열은 화면에 있는 버튼 값만 입력으로 받음
   - `PRINT_IMG 이미지, 버튼이미지, 마스크, 폭, 높이, 세로위치`와 `PRINT_RECT`/`PRINT_SPACE`의 `px` 단위
+- **ERD (EE와 같은 방식)**
+  - `#DIM`으로 만든 변수와 이름이 같은 `.erd`(ERB 폴더 아래 전체) 또는 `.csv`(CSV 폴더)가 있으면,
+    그 변수의 요소를 `변수:이름`처럼 이름으로 쓸 수 있습니다 (다차원은 `변수명@1.erd`, `변수명@2.erd` …)
+  - `GETNUM`의 세 번째 인자(차원), `ERDNAME`, `GETNUMB` 지원
+  - `emuera.config`의 `ERD機能を利用する`로 끌 수 있습니다 (기본값은 켜짐)
 - **Emuera1824+v10+v3의 `CHECK_OVERFLOW` 지원**
   - `CHECK_OVERFLOW 1`이면 정수 계산이 넘칠 때 INT64 최댓값/최솟값에서 멈춥니다
 - **그래픽 명령**

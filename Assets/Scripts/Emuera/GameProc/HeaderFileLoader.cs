@@ -35,21 +35,13 @@ namespace MinorShift.Emuera.GameProc
 		{
 			//Config.GetFilesが大文字小文字を区別しないので、綴り違いの二度読みは要らない
 			List<KeyValuePair<string, string>> headerFiles = Config.GetFiles(headerDir, "*.ERH");
-			List<KeyValuePair<string, string>> erdFiles = Config.GetFiles(headerDir, "*.ERD");
             bool noError = true;
 			dimlines = new Queue<DimLineWC>();
+			//EE_ERD ERD読み込み
+			if (Config.UseERD)
+				PrepareERDFileNames();
 			try
 			{
-				for (int i = 0; i < erdFiles.Count; i++)
-				{
-					string filename = erdFiles[i].Key;
-					string file = erdFiles[i].Value;
-					if (displayReport)
-						output.PrintSystemLine(filename + "読み込み中・・・");
-					noError = loadErdFile(file, filename);
-					if (!noError)
-						break;
-				}
 				for (int i = 0; i < headerFiles.Count; i++)
 				{
 					string filename = headerFiles[i].Key;
@@ -73,6 +65,7 @@ namespace MinorShift.Emuera.GameProc
 			finally
 			{
 				ParserMediator.FlushWarningList();
+				erdFileNames = null;
 			}
 			return noError;
 		}
@@ -132,67 +125,6 @@ namespace MinorShift.Emuera.GameProc
 							break;
 						default:
 							throw new CodeEE("#" + sharpID + "は解釈できないプリプロセッサです", position);
-					}
-				}
-			}
-			catch (CodeEE e)
-			{
-				if (e.Position != null)
-					position = e.Position;
-				ParserMediator.Warn(e.Message, position, 2);
-				return false;
-			}
-			finally
-			{
-				eReader.Close();
-			}
-			return true;
-		}
-
-		private bool loadErdFile(string filepath, string filename)
-		{
-			StringStream st;
-			ScriptPosition position = null;
-			EraStreamReader eReader = new EraStreamReader(true);
-
-			if (!eReader.Open(filepath, filename))
-			{
-				throw new CodeEE(eReader.Filename + "のオープンに失敗しました");
-			}
-			try
-			{
-				while ((st = eReader.ReadEnabledLine()) != null)
-				{
-					if (!noError)
-						return false;
-					position = new ScriptPosition(filename, eReader.LineNo);
-					
-					string[] tokens = st.RowString.Split(',');
-					if (tokens.Length >= 2)
-					{
-						if (long.TryParse(tokens[0].Trim(), out long val))
-						{
-							string id = tokens[1].Trim();
-							if (!string.IsNullOrEmpty(id))
-							{
-								if (Config.ICVariable)
-									id = id.ToUpper();
-								
-								string errMes = "";
-								int errLevel = -1;
-								idDic.CheckUserMacroName(ref errMes, ref errLevel, id);
-								if (errLevel >= 0)
-								{
-									// ERD files might have duplicated definitions or conflicts.
-									// Just ignore them instead of failing, as they are globally loaded here.
-									continue;
-								}
-								WordCollection wc = new WordCollection();
-								wc.Add(new LiteralIntegerWord(val));
-								DefineMacro macro = new DefineMacro(id, wc, 0);
-								idDic.AddErdMacro(macro);
-							}
-						}
 					}
 				}
 			}
@@ -335,6 +267,37 @@ namespace MinorShift.Emuera.GameProc
 		//}
 
 		//1822 #DIMだけまとめておいて後で処理
+		#region EE_ERD
+		Dictionary<string, List<string>> erdFileNames;
+
+		/// <summary>
+		/// ERBフォルダ以下の*.erdとCSVフォルダ直下の*.csvを、拡張子を除いた名前(大文字)ごとにまとめる
+		/// </summary>
+		private void PrepareERDFileNames()
+		{
+			erdFileNames = new Dictionary<string, List<string>>();
+			foreach (var pair in Config.GetFiles(Program.ErbDir, "*.erd", false))
+				addErdFileName(pair.Value);
+			foreach (var pair in Config.GetFiles(Program.CsvDir, "*.csv", true))
+				addErdFileName(pair.Value);
+		}
+
+		void addErdFileName(string path)
+		{
+			var key = System.IO.Path.GetFileNameWithoutExtension(path).ToUpper();
+			if (!erdFileNames.TryGetValue(key, out var list))
+				erdFileNames[key] = list = new List<string>();
+			list.Add(path);
+		}
+
+		void loadErd(string key, string varname, long length, ScriptPosition sc)
+		{
+			if (erdFileNames == null || !erdFileNames.TryGetValue(key, out var files))
+				return;
+			GlobalStatic.ConstantData.UserDefineLoadData(files, varname, (int)length, Config.DisplayReport, sc);
+		}
+		#endregion
+
 		private bool analyzeSharpDimLines()
 		{
 			bool noError = true;
@@ -356,6 +319,17 @@ namespace MinorShift.Emuera.GameProc
 						else
 							var = parentProcess.VEvaluator.VariableData.CreateUserDefVariable(data);
 						idDic.AddUseDefinedVariable(var);
+						//EE_ERD 変数名と同じ名前のERD(またはCSV)があれば、要素を名前で指定できるようにする
+						if (Config.UseERD)
+						{
+							if (data.Dimension == 1)
+								loadErd(data.Name.ToUpper(), data.Name, data.Lengths[0], dimline.SC);
+							else
+							{
+								for (int dim = 1; dim <= data.Dimension; dim++)
+									loadErd(data.Name.ToUpper() + "@" + dim, data.Name + "@" + dim, data.Lengths[dim - 1], dimline.SC);
+							}
+						}
 					}
 					catch (IdentifierNotFoundCodeEE e)
 					{

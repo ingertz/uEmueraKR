@@ -1679,7 +1679,7 @@ namespace MinorShift.Emuera.GameData.Function
 					else if (dt.Rows.Find(arguments[1].GetIntValue(exm)) is DataRow row)
 						rows = new System.Data.DataRow[] { row };
 					else return 0;
-					foreach (var row in rows) dt.Rows.Remove(row);
+					foreach (var r in rows) dt.Rows.Remove(r);
 					return rows.Length;
 				}
 			}
@@ -2244,12 +2244,12 @@ namespace MinorShift.Emuera.GameData.Function
 				{
 					VariableTerm vToken = (VariableTerm)arguments[0];
 					string varname = "";
-					if (arguments.Length > 2)
+					if (arguments.Length > 2 && arguments[2] != null)
 						varname = vToken.Identifier.Name + "@" + arguments[2].GetIntValue(exm);
 					else
 						varname = vToken.Identifier.Name;
 					long value = arguments[1].GetIntValue(exm);
-					string ret = ""; if (false)
+					if (exm.VEvaluator.Constant.TryIntegerToKeyword(out string ret, value, varname))
 						return ret;
 					else
 						return "";

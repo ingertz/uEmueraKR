@@ -193,7 +193,15 @@ namespace MinorShift.Emuera.GameData.Expression
 
 		public static IOperandTerm ReduceVariableArgument(WordCollection wc, VariableCode varCode)
 		{
-			IOperandTerm ret = reduceTerm(wc, false, TermEndWith.EoL, varCode);
+			return ReduceVariableArgument(wc, varCode, null);
+		}
+
+		/// <summary>
+		/// EE_ERD: idはERDの名前を引く変数。ユーザー定義変数なら要素を名前で書ける
+		/// </summary>
+		public static IOperandTerm ReduceVariableArgument(WordCollection wc, VariableCode varCode, VariableToken id)
+		{
+			IOperandTerm ret = reduceTerm(wc, false, TermEndWith.EoL, varCode, id);
 			if(ret == null)
                 throw new CodeEE("変数の:の後に引数がありません");
 			return ret;
@@ -222,7 +230,7 @@ namespace MinorShift.Emuera.GameData.Expression
 		/// <param name="idStr">識別子文字列</param>
 		/// <param name="varCode">変数の引数の場合はその変数のCode。連想配列的につかう</param>
 		/// <returns></returns>
-		private static IOperandTerm reduceIdentifier(WordCollection wc, string idStr, VariableCode varCode)
+		private static IOperandTerm reduceIdentifier(WordCollection wc, string idStr, VariableCode varCode, VariableToken varId = null)
 		{
 			wc.ShiftNext();
 			SymbolWord symbol = wc.Current as SymbolWord;
@@ -265,20 +273,38 @@ namespace MinorShift.Emuera.GameData.Expression
 						return VariableParser.ReduceVariable(id, wc);
 				}
 				//idStrが変数名でない場合、
-				MinorShift.Emuera.GameData.DefineMacro erdMacro = GlobalStatic.IdentifierDictionary.GetErdMacro(idStr);
-				if (erdMacro != null && erdMacro.Statement.Collection.Count == 1)
-				{
-					if (erdMacro.Statement.Collection[0] is LiteralIntegerWord liw)
-						return new SingleTerm(liw.Int);
-					else if (erdMacro.Statement.Collection[0] is LiteralStringWord lsw)
-						return new SingleTerm(lsw.Str);
-				}
-
 				IOperandTerm refToken = GlobalStatic.IdentifierDictionary.GetFunctionMethod(GlobalStatic.LabelDictionary, idStr, null, false);
 				if (refToken != null)//関数参照と名前が一致したらそれを返す。実際に使うとエラー
 					return refToken;
 				if (varCode != VariableCode.__NULL__ && GlobalStatic.ConstantData.isDefined(varCode, idStr))//連想配列的な可能性アリ
 					return new SingleTerm(idStr);
+				#region EE_ERD
+				else if (varId != null)
+				{
+					switch (varId.Code)
+					{
+						case VariableCode.VAR:
+						case VariableCode.VARS:
+						case VariableCode.CVAR:
+						case VariableCode.CVARS:
+							if (GlobalStatic.ConstantData.isUserDefined(varId.Name, idStr, 1))//ユーザー定義変数は名前付けられるようになったので通す
+								return new SingleTerm(idStr);
+							break;
+						case VariableCode.VAR2D:
+						case VariableCode.VARS2D:
+						case VariableCode.CVAR2D:
+						case VariableCode.CVARS2D:
+							if (GlobalStatic.ConstantData.isUserDefined(varId.Name, idStr, 2))
+								return new SingleTerm(idStr);
+							break;
+						case VariableCode.VAR3D:
+						case VariableCode.VARS3D:
+							if (GlobalStatic.ConstantData.isUserDefined(varId.Name, idStr, 3))
+								return new SingleTerm(idStr);
+							break;
+					}
+				}
+				#endregion
 				GlobalStatic.IdentifierDictionary.ThrowException(idStr, false);
 			}
 			throw new ExeEE("エラー投げ損ねた");//ここまででthrowかreturnのどちらかをするはず。
@@ -340,7 +366,7 @@ namespace MinorShift.Emuera.GameData.Expression
 		/// <param name="allowKeywordTo">TOキーワードが見つかっても良いか</param>
 		/// <param name="endWith">終端記号</param>
 		/// <returns></returns>
-        private static IOperandTerm reduceTerm(WordCollection wc, bool allowKeywordTo, TermEndWith endWith, VariableCode varCode)
+        private static IOperandTerm reduceTerm(WordCollection wc, bool allowKeywordTo, TermEndWith endWith, VariableCode varCode, VariableToken varId = null)
         {
             TermStack stack = new TermStack();
             //int termCount = 0;
@@ -379,7 +405,7 @@ namespace MinorShift.Emuera.GameData.Expression
 								&& idStr.Equals("px", StringComparison.OrdinalIgnoreCase)
 								&& (wc.Next.Type == ',' || wc.Next.Type == '\0'))
 								goto end;
-							stack.Add(reduceIdentifier(wc, idStr, varCode));
+							stack.Add(reduceIdentifier(wc, idStr, varCode, varId));
 							continue;
 						}
 

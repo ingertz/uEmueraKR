@@ -152,5 +152,7 @@ namespace MinorShift.Emuera
 
 		//EM/EE: LOADTEXTとSAVETEXTで使える拡張子
 		ValidExtension = 163,
+		//EE: ERD機能を利用する
+		UseERD = 164,
 	}
 }

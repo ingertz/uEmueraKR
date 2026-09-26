@@ -81,7 +81,10 @@ namespace MinorShift.Emuera.GameData
 		public Int64[] CharacterStrArray2DLength;
 
 		//private readonly GameBase gamebase;
-		private readonly string[][] names = new string[(int)VariableCode.__COUNT_CSV_STRING_ARRAY_1D__][];
+		//EE_ERD 名前配列を1つ増やし、最後をERDの読み込み用に使う
+		private const int ERD_NAMES_INDEX = (int)VariableCode.__COUNT_CSV_STRING_ARRAY_1D__;
+		private readonly string[][] names = new string[(int)VariableCode.__COUNT_CSV_STRING_ARRAY_1D__ + 1][];
+		private readonly Dictionary<string, Dictionary<string, int>> erdNameToIntDics = new Dictionary<string, Dictionary<string, int>>();
 		private readonly Dictionary<string, int>[] nameToIntDics = new Dictionary<string, int>[(int)VariableCode.__COUNT_CSV_STRING_ARRAY_1D__];
 		private readonly Dictionary<string, int> relationDic = new Dictionary<string, int>();
 		public string[] GetCsvNameList(VariableCode code)
@@ -613,7 +616,7 @@ check1break:
 			loadDataTo(csvDir + "GLOBAL.CSV", globalIndex, null, disp);
 			loadDataTo(csvDir + "GLOBALS.CSV", globalsIndex, null, disp);
 			//逆引き辞書を作成
-			for (int i = 0; i < names.Length; i++)
+			for (int i = 0; i < countNameCsv; i++)
 			{
 				if (i == 10)//Strは逆引き無用
 					continue;
@@ -662,20 +665,118 @@ check1break:
 
         
 		public bool TryKeywordToInteger(out int ret, VariableCode code, string key, int index)
-        {
-            ret = 0;
-            if (string.IsNullOrEmpty(key))
-                return false;
-            Dictionary<string, int> dic;
-            try
-            {
-                dic = GetKeywordDictionary(out string errPos, code, index);
-				if (dic == null)
-					return false;
-            }
-            catch { return false; }
-            return (dic.TryGetValue(key, out ret));
-        }
+		{
+			return TryKeywordToInteger(out ret, code, key, index, null);
+		}
+
+		public bool TryKeywordToInteger(out int ret, VariableCode code, string key, int index, string varname)
+		{
+			ret = 0;
+			if (string.IsNullOrEmpty(key))
+				return false;
+			//ここで見つからなかったら下の処理でも通す
+			try
+			{
+				Dictionary<string, int> dic = GetKeywordDictionary(out string errPos, code, index);
+				if (dic != null && dic.TryGetValue(key, out ret))
+					return true;
+			}
+			catch { }
+			if (string.IsNullOrEmpty(varname))
+				return false;
+			if (!erdNameToIntDics.TryGetValue(varname, out Dictionary<string, int> erd))
+				return false;
+			return erd.TryGetValue(key, out ret);
+		}
+
+		#region EE_ERD
+		private struct ErdDictInfo
+		{
+			public int num;
+			public string path;
+		}
+
+		/// <summary>
+		/// ERDファイル(またはCSV)を読み込み、ユーザー定義変数varnameの名前→番号の辞書を作る
+		/// </summary>
+		public void UserDefineLoadData(List<string> filepaths, string varname, int varlength, bool disp, ScriptPosition sc)
+		{
+			Dictionary<string, ErdDictInfo> preDict = new Dictionary<string, ErdDictInfo>();
+			foreach (var filepath in filepaths)
+			{
+				string[] nameArray = new string[varlength];
+				names[ERD_NAMES_INDEX] = nameArray;
+				loadDataTo(filepath, ERD_NAMES_INDEX, null, disp);
+				names[ERD_NAMES_INDEX] = null;
+				//逆引き辞書を作成
+				for (int j = 0; j < nameArray.Length; j++)
+				{
+					if (string.IsNullOrEmpty(nameArray[j]))
+						continue;
+					if (!preDict.ContainsKey(nameArray[j]))
+						preDict[nameArray[j]] = new ErdDictInfo() { num = j, path = filepath };
+					else
+						throw new CodeEE("変数" + varname + "のキー\"" + nameArray[j] + "\"が" + preDict[nameArray[j]].path + "と" + filepath + "で重複して定義されています");
+				}
+			}
+			if (erdNameToIntDics.ContainsKey(varname))
+				throw new CodeEE("変数" + varname + "はすでに定義されています", sc);
+			var dict = new Dictionary<string, int>();
+			foreach (var pair in preDict)
+				dict.Add(pair.Key, pair.Value.num);
+			erdNameToIntDics.Add(varname, dict);
+		}
+
+		/// <summary>
+		/// 変数名がどこかのERDのキーと同じなら警告する
+		/// </summary>
+		public void isDefinedErd(string varname, ScriptPosition sc)
+		{
+			foreach (var pair in erdNameToIntDics)
+			{
+				if (pair.Value.ContainsKey(varname))
+					ParserMediator.Warn("変数名" + varname + "は" + pair.Key + "のERDで定義されたキーと同じです", sc, 1);
+			}
+		}
+
+		public bool isUserDefined(string varname, string str, int dim)
+		{
+			if (string.IsNullOrEmpty(str))
+				return false;
+			if (dim == 1 && !erdHasKey(varname, str))
+				throw new CodeEE("変数" + varname + "のERDに\"" + str + "\"の定義がありません");
+			if (dim == 2 && !erdHasKey(varname + "@1", str) && !erdHasKey(varname + "@2", str))
+				throw new CodeEE("変数" + varname + "のERDに\"" + str + "\"の定義がありません");
+			if (dim == 3 && !erdHasKey(varname + "@1", str) && !erdHasKey(varname + "@2", str) && !erdHasKey(varname + "@3", str))
+				throw new CodeEE("変数" + varname + "のERDに\"" + str + "\"の定義がありません");
+			return true;
+		}
+
+		bool erdHasKey(string dicname, string key)
+		{
+			return erdNameToIntDics.TryGetValue(dicname, out var dic) && dic.ContainsKey(key);
+		}
+
+		public bool TryIntegerToKeyword(out string ret, long value, string varname)
+		{
+			ret = "";
+			if (value < 0)
+				return false;
+			if (string.IsNullOrEmpty(varname))
+				return false;
+			if (!erdNameToIntDics.TryGetValue(varname, out Dictionary<string, int> dic))
+				return false;
+			foreach (var pair in dic)
+			{
+				if (pair.Value == value)
+				{
+					ret = pair.Key;
+					return !string.IsNullOrEmpty(ret);
+				}
+			}
+			return false;
+		}
+		#endregion
 
 		public int KeywordToInteger(VariableCode code, string key, int index)
 		{
@@ -691,6 +792,11 @@ check1break:
 		}
 
 		public Dictionary<string, int> GetKeywordDictionary(out string errPos, VariableCode code, int index)
+		{
+			return GetKeywordDictionary(out errPos, code, index, null);
+		}
+
+		public Dictionary<string, int> GetKeywordDictionary(out string errPos, VariableCode code, int index, string varname)
 		{
 			errPos = null;
 			int allowIndex = -1;
@@ -876,6 +982,61 @@ check1break:
 					break;
 
 			}
+			#region EE_ERD
+			if (ret == null && Config.UseERD && !string.IsNullOrEmpty(varname))
+			{
+				switch (code)
+				{
+					case VariableCode.VAR:
+					case VariableCode.VARS:
+					case VariableCode.CVAR:
+					case VariableCode.CVARS:
+						if (!erdNameToIntDics.ContainsKey(varname))
+							return ret;
+						ret = erdNameToIntDics[varname];
+						errPos = varname + ".csv";
+						allowIndex = 0;
+						if (code == VariableCode.CVAR || code == VariableCode.CVARS)
+							allowIndex = 1;
+						break;
+					case VariableCode.VAR2D:
+					case VariableCode.VARS2D:
+					case VariableCode.CVAR2D:
+					case VariableCode.CVARS2D:
+						{
+							string varnamed;
+							if ((code == VariableCode.VAR2D || code == VariableCode.VARS2D) && index == 0)
+							{
+								varnamed = varname + "@1";
+								allowIndex = 0;
+							}
+							else
+							{
+								varnamed = varname + "@2";
+								allowIndex = 1;
+								if (code == VariableCode.CVAR2D || code == VariableCode.CVARS2D)
+									allowIndex = 2;
+							}
+							if (!erdNameToIntDics.ContainsKey(varnamed))
+								return ret;
+							ret = erdNameToIntDics[varnamed];
+							errPos = varnamed + ".csv";
+							break;
+						}
+					case VariableCode.VAR3D:
+					case VariableCode.VARS3D:
+						{
+							string varname3d = varname + "@" + (index + 1);
+							if (!erdNameToIntDics.ContainsKey(varname3d))
+								return ret;
+							ret = erdNameToIntDics[varname3d];
+							errPos = varname3d + ".csv";
+							allowIndex = index;
+							break;
+						}
+				}
+			}
+			#endregion
 			if (index < 0)
 				return ret;
 			if (ret == null)

@@ -121,6 +121,7 @@ namespace MinorShift.Emuera
 			SystemIgnoreTripleSymbol = instance.GetConfigValue<bool>(ConfigCode.SystemIgnoreTripleSymbol);
 			SystemIgnoreStringSet = instance.GetConfigValue<bool>(ConfigCode.SystemIgnoreStringSet);
 			ValidExtension = instance.GetConfigValue<List<string>>(ConfigCode.ValidExtension) ?? new List<string> { "txt" };
+			UseERD = instance.GetConfigValue<bool>(ConfigCode.UseERD);
 			
 			CompatiFuncArgAutoConvert = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgAutoConvert);
 			CompatiFuncArgOptional = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgOptional);
@@ -350,6 +351,14 @@ namespace MinorShift.Emuera
 		public static List<KeyValuePair<string, string>> GetFiles(string rootdir, string pattern)
 		{
 			return getFiles(rootdir, rootdir, pattern, !SearchSubdirectory, SortWithFilename);
+		}
+
+		/// <summary>
+		/// サブフォルダを辿るかどうかを設定ではなく呼び出し側が決める版(ERDの収集用)
+		/// </summary>
+		public static List<KeyValuePair<string, string>> GetFiles(string rootdir, string pattern, bool toponly)
+		{
+			return getFiles(rootdir, rootdir, pattern, toponly, SortWithFilename);
 		}
 
 		/// <summary>
@@ -733,6 +742,8 @@ namespace MinorShift.Emuera
 		public static bool SystemIgnoreStringSet { get; private set; }
 		/// <summary>LOADTEXT/SAVETEXTでファイル名を指定した時に使える拡張子</summary>
 		public static List<string> ValidExtension { get; private set; } = new List<string> { "txt" };
+		/// <summary>EE: ERD機能を利用する</summary>
+		public static bool UseERD { get; private set; } = true;
 
 		public static int Language { get; private set; }
 

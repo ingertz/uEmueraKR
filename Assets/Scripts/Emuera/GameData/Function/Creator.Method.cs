@@ -1647,30 +1647,24 @@ namespace MinorShift.Emuera.GameData.Function
             public GetnumMethod()
             {
                 ReturnType = typeof(Int64);
-                argumentTypeArray = null;
+                //EE_ERD 3番目の引数は、ERDを引く次元(変数名@次元)
+                argumentTypeArrayEx = new ArgTypeList[] {
+                    new ArgTypeList { ArgTypesEnum = new List<ArgType> { ArgType.RefAny | ArgType.AllowConstRef, ArgType.String, ArgType.Int }, OmitStart = 2 },
+                };
                 CanRestructure = true;
                 HasUniqueRestructure = true;
-            }
-            public override string CheckArgumentType(string name, IOperandTerm[] arguments)
-            {
-                if (arguments.Length != 2)
-                    return name + "関数には2つの引数が必要です";
-                if (arguments[0] == null)
-                    return name + "関数の1番目の引数は省略できません";
-                if (!(arguments[0] is VariableTerm))
-                    return name + "関数の1番目の引数の型が正しくありません";
-                if (arguments[1] == null)
-                    return name + "関数の2番目の引数は省略できません";
-                if (arguments[1].GetOperandType() != typeof(string))
-                    return name + "関数の2番目の引数の型が正しくありません";
-                return null;
             }
             public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
             {
                 VariableTerm vToken = (VariableTerm)arguments[0];
                 VariableCode varCode = vToken.Identifier.Code;
+                string varname;
+                if (arguments.Length > 2 && arguments[2] != null)
+                    varname = vToken.Identifier.Name + "@" + arguments[2].GetIntValue(exm);
+                else
+                    varname = vToken.Identifier.Name;
                 string key = arguments[1].GetStrValue(exm);
-                if (exm.VEvaluator.Constant.TryKeywordToInteger(out int ret, varCode, key, -1))
+                if (exm.VEvaluator.Constant.TryKeywordToInteger(out int ret, varCode, key, -1, varname))
                     return ret;
                 else
                     return -1;
@@ -1682,6 +1676,9 @@ namespace MinorShift.Emuera.GameData.Function
             }
         }
 
+		/// <summary>
+		/// 本家(EE): GETNUMB 変数名の文字列, キーワード。GETNUMと違い変数を文字列で渡す
+		/// </summary>
 		private sealed class GetnumBMethod : FunctionMethod
 		{
 			public GetnumBMethod()
@@ -1690,32 +1687,19 @@ namespace MinorShift.Emuera.GameData.Function
 				argumentTypeArray = new Type[] { typeof(string), typeof(string) };
 				CanRestructure = true;
 			}
-			public override string CheckArgumentType(string name, IOperandTerm[] arguments)
-			{
-				string errStr = base.CheckArgumentType(name, arguments);
-				if (errStr != null)
-					return errStr;
-				if (arguments[0] == null)
-					return name + "関数の1番目の引数は省略できません";
-				if (arguments[0] is SingleTerm)
-				{
-					string varName = ((SingleTerm)arguments[0]).Str;
-					if (GlobalStatic.IdentifierDictionary.GetVariableToken(varName, null, true) == null)
-						return name + "関数の1番目の引数が変数名ではありません";
-				}
-				return null;
-			}
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 			{
-				VariableToken var = GlobalStatic.IdentifierDictionary.GetVariableToken(arguments[0].GetStrValue(exm), null, true);
+				string varName = arguments[0].GetStrValue(exm);
+				VariableToken var = GlobalStatic.IdentifierDictionary.GetVariableToken(varName, null, true);
 				if (var == null)
-					throw new CodeEE("GETNUMBの1番目の引数(\"" + arguments[0].GetStrValue(exm) + "\")が変数名ではありません");
+					throw new CodeEE("GETNUMBの1番目の引数(\"" + varName + "\")が変数名ではありません");
 				string key = arguments[1].GetStrValue(exm);
-                if (exm.VEvaluator.Constant.TryKeywordToInteger(out int ret, var.Code, key, -1))
-                    return ret;
-                else
-                    return -1;
-            }
+				//EE_ERD
+				if (exm.VEvaluator.Constant.TryKeywordToInteger(out int ret, var.Code, key, -1, varName))
+					return ret;
+				else
+					return -1;
+			}
 		}
 
         private sealed class GetPalamLVMethod : FunctionMethod
@@ -2521,30 +2505,6 @@ namespace MinorShift.Emuera.GameData.Function
                     }
                 }
                 return reg.Replace(baseString, arguments[2].GetStrValue(exm));
-            }
-        }
-
-        /// <summary>
-        /// 本家(EE): GETNUMB 変数名の文字列, キーワード。GETNUMと違い変数を文字列で渡す
-        /// </summary>
-        private sealed class GetnumBMethod : FunctionMethod
-        {
-            public GetnumBMethod()
-            {
-                ReturnType = typeof(Int64);
-                argumentTypeArray = new Type[] { typeof(string), typeof(string) };
-                CanRestructure = true;
-            }
-            public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
-            {
-                VariableToken var = GlobalStatic.IdentifierDictionary.GetVariableToken(arguments[0].GetStrValue(exm), null, true);
-                if (var == null)
-                    throw new CodeEE("GETNUMBの1番目の引数(\"" + arguments[0].GetStrValue(exm) + "\")が変数名ではありません");
-                string key = arguments[1].GetStrValue(exm);
-                if (exm.VEvaluator.Constant.TryKeywordToInteger(out int ret, var.Code, key, -1))
-                    return ret;
-                else
-                    return -1;
             }
         }
 
