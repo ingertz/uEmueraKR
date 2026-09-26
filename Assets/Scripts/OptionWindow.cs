@@ -358,6 +358,15 @@ public class OptionWindow : MonoBehaviour
         menu_pad.SetActive(false);
     }
 
+    /// <summary>
+    /// ゲーム側(UPDATECHECKなど)から確認を求める。メインスレッドで呼ぶこと
+    /// </summary>
+    public void ShowConfirm(string title, string content,
+        System.Action confirm_callback, System.Action cancel_callback)
+    {
+        ShowMessageBox(title, content, confirm_callback, cancel_callback);
+    }
+
     void ShowMessageBox(string title, string content,
         System.Action confirm_callback = null,
         System.Action cancel_callback = null)

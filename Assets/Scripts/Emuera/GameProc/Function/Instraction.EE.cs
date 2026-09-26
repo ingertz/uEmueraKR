@@ -508,30 +508,133 @@ private sealed class VARI_Instruction : AbstractInstruction
 		}
 	}
 
+	internal sealed partial class FunctionIdentifier
+	{
+		//EE_SKIPLOG: 0以外ならメッセージスキップ(WAITなどを飛ばす)を始め、0なら止める
 		internal sealed class SKIPLOG_Instruction : AbstractInstruction
-	{
-		public SKIPLOG_Instruction() { ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION); flag = 0x00020 | 0x00002; }
-		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 		{
-			// Dummy: Ignore SKIPLOG in Android Emuera
+			public SKIPLOG_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+				flag = METHOD_SAFE | EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				Int64 iValue = func.Argument.IsConst ? func.Argument.ConstInt : ((ExpressionArgument)func.Argument).Term.GetIntValue(exm);
+				exm.Console.MesSkip = iValue != 0;
+			}
 		}
-	}
-	internal sealed class QUIT_AND_RESTART_Instruction : AbstractInstruction
-	{
-		public QUIT_AND_RESTART_Instruction() { ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID); }
-		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+
+		//EE_FORCE_QUIT系
+		//QUIT_AND_RESTART: QUITと同じく入力を待ち、その後ゲームを再起動する
+		internal sealed class QUIT_AND_RESTART_Instruction : AbstractInstruction
 		{
-			exm.Console.PrintSingleLine("QUIT_AND_RESTART called, stopping execution.");
-			state.SystemState = SystemStateCode.Title_Begin;
+			public QUIT_AND_RESTART_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID);
+				flag = 0;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				Program.rebootFlag = true;
+				exm.Console.Quit();
+			}
 		}
-	}
-	internal sealed class FORCE_QUIT_AND_RESTART_Instruction : AbstractInstruction
-	{
-		public FORCE_QUIT_AND_RESTART_Instruction() { ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID); }
-		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+
+		//FORCE_QUIT: 入力を待たずに終了する
+		internal sealed class FORCE_QUIT_Instruction : AbstractInstruction
 		{
-			exm.Console.PrintSingleLine("FORCE_QUIT_AND_RESTART called, stopping execution.");
-			state.SystemState = SystemStateCode.Title_Begin;
+			public FORCE_QUIT_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID);
+				flag = 0;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				exm.Console.ForceQuit();
+			}
+		}
+
+		//FORCE_QUIT_AND_RESTART: 入力を待たずに再起動する
+		internal sealed class FORCE_QUIT_AND_RESTART_Instruction : AbstractInstruction
+		{
+			public FORCE_QUIT_AND_RESTART_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID);
+				flag = 0;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				Program.rebootFlag = true;
+				exm.Console.ForceQuit();
+			}
+		}
+
+		//EE_INPUTANY: 数値でも文字列でも受け付ける。スキップ不可
+		internal sealed class INPUTANY_Instruction : AbstractInstruction
+		{
+			public INPUTANY_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID);
+				flag = EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				InputRequest req = new InputRequest();
+				req.InputType = InputType.AnyValue;
+				exm.Console.WaitInput(req);
+			}
+		}
+
+		//EE_BREAKBUTTON: それまでに表示したボタンを押せなくする
+		internal sealed class BREAKBUTTON_Instruction : AbstractInstruction
+		{
+			public BREAKBUTTON_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.EXPRESSION_NULLABLE);
+				flag = METHOD_SAFE | EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				exm.Console.forceUpdateGeneration();
+			}
+		}
+
+		//EE: どの状態からでも使えるBEGIN
+		internal sealed class FORCE_BEGIN_Instruction : AbstractInstruction
+		{
+			public FORCE_BEGIN_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.STR);
+				flag = FLOW_CONTROL;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				string keyword = func.Argument.ConstStr;
+				if (Config.ICFunction)
+					keyword = keyword.ToUpper();
+				state.SetBegin(keyword, true);
+				state.Return(0);
+				exm.Console.ResetStyle();
+			}
+		}
+
+		/// <summary>
+		/// EE_UPDATECHECK: GAMEBASE.CSVの「バージョン情報URL」からバージョン名とリンクの2行を読み、
+		/// 「バージョン名」と違えば開くかどうか尋ねる。
+		/// RESULT 0:最新 1:新版あり(開かない) 2:新版あり(開いた) 3:取得失敗 4:禁止設定 5:ネットワーク無し
+		/// </summary>
+		internal sealed class UPDATECHECK_Instruction : AbstractInstruction
+		{
+			public UPDATECHECK_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID);
+				flag = METHOD_SAFE | EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				exm.VEvaluator.RESULT = uEmuera.UpdateCheck.Run(GlobalStatic.GameBaseData.UpdateCheckURL, GlobalStatic.GameBaseData.VersionName);
+			}
 		}
 	}
 }

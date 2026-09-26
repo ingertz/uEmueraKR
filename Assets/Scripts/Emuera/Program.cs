@@ -195,6 +195,8 @@ namespace MinorShift.Emuera
 		public static string ExeName { get; private set; }
 
 		public static bool Reboot = false;
+		/// <summary>EE: QUIT_AND_RESTART/FORCE_QUIT_AND_RESTARTで、終了の代わりに再起動する</summary>
+		public static bool rebootFlag = false;
 		//public static int RebootClientX = 0;
 		public static int RebootClientY = 0;
         public static FormWindowState RebootWinState = FormWindowState.Normal;

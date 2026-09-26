@@ -418,10 +418,17 @@ namespace MinorShift.Emuera.GameView
 		{
 			get
 			{
+				//EE_連続FORCE_QUIT_AND_RESTART対策: 入力待ちに来たら連続ではない
 				if ((state == ConsoleState.Quit) || (state == ConsoleState.Error))
+				{
+					GlobalStatic.ForceQuitAndRestart = false;
 					return true;
+				}
 				if(state == ConsoleState.WaitInput)
+				{
+					GlobalStatic.ForceQuitAndRestart = false;
 					return (inputReq.InputType == InputType.AnyKey || inputReq.InputType == InputType.EnterKey);
+				}
 				return false;
 			}
 		}
@@ -470,9 +477,15 @@ namespace MinorShift.Emuera.GameView
 					return selectingButton.Inputs;
 				if (state != ConsoleState.WaitInput)
 					return null;
-				if (inputReq.InputType == InputType.IntValue && (selectingButton.IsInteger))
+				//EE_BINPUT
+				if ((inputReq.InputType == InputType.IntValue || inputReq.InputType == InputType.IntButton) && (selectingButton.IsInteger))
 					return selectingButton.Input.ToString();
-				if (inputReq.InputType == InputType.StrValue)
+				if (inputReq.InputType == InputType.StrValue || inputReq.InputType == InputType.StrButton)
+					return selectingButton.Inputs;
+				//EE_INPUTANY
+				if (inputReq.InputType == InputType.AnyValue && selectingButton.IsInteger)
+					return selectingButton.Input.ToString();
+				if (inputReq.InputType == InputType.AnyValue)
 					return selectingButton.Inputs;
 				return null;
 			}
@@ -504,6 +517,28 @@ namespace MinorShift.Emuera.GameView
 		
 
         public void Quit() { state = ConsoleState.Quit; }
+
+		/// <summary>
+		/// EE: FORCE_QUIT/FORCE_QUIT_AND_RESTART。入力を待たずに終了(または再起動)する。
+		/// 本家は再起動が入力待ちを挟まず続くと、終了するかどうか尋ねる。
+		/// ここでは尋ねずに、終了を選んだ時と同じくエラーにして止める
+		/// </summary>
+		public void ForceQuit()
+		{
+			if (Program.rebootFlag && GlobalStatic.ForceQuitAndRestart)
+			{
+				Program.rebootFlag = false;
+				throw new CodeEE("FORCE_QUIT_AND_RESTARTが連続実行されました");
+			}
+			state = ConsoleState.Quit;
+			if (Program.rebootFlag)
+			{
+				GlobalStatic.ForceQuitAndRestart = true;
+				window.Reboot();
+			}
+			else
+				window.Close();
+		}
 		public void ThrowTitleError(bool error)
 		{
 			state = ConsoleState.Error;
@@ -558,7 +593,7 @@ namespace MinorShift.Emuera.GameView
 					lastButtonGeneration = newButtonGeneration;
 				lastButtonIsInput = true;
 			}
-			if (inputReq.InputType == InputType.StrValue || inputReq.InputType == InputType.StrButton)
+			if (inputReq.InputType == InputType.StrValue || inputReq.InputType == InputType.StrButton || inputReq.InputType == InputType.AnyValue)
 			{
 				if (lastButtonGeneration == newButtonGeneration)
 					unchecked { newButtonGeneration++; }
@@ -909,6 +944,20 @@ namespace MinorShift.Emuera.GameView
 						}
 						emuera.InputString(str);
 						break;
+					//EE_INPUTANY: 数値として読めれば数値、そうでなければ文字列
+					case InputType.AnyValue:
+						if (str == null)
+							str = "";
+						if (Int64.TryParse(str, out inputValue))
+						{
+							if (inputReq.IsSystemInput)
+								emuera.InputSystemInteger(inputValue);
+							else
+								emuera.InputInteger(inputValue);
+						}
+						else
+							emuera.InputString(str);
+						break;
 				}
 				stopTimer();
 			}
@@ -1001,7 +1050,11 @@ namespace MinorShift.Emuera.GameView
 				return;
 			else if ((state == ConsoleState.Quit))
 			{
-				window.Close();
+				//EE: QUIT_AND_RESTARTなら終了の代わりに再起動
+				if (Program.rebootFlag)
+					window.Reboot();
+				else
+					window.Close();
 				return;
 			}
 			else if (state == ConsoleState.Error)

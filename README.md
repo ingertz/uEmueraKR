@@ -25,6 +25,11 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
     그 변수의 요소를 `변수:이름`처럼 이름으로 쓸 수 있습니다 (다차원은 `변수명@1.erd`, `변수명@2.erd` …)
   - `GETNUM`의 세 번째 인자(차원), `ERDNAME`, `GETNUMB` 지원
   - `emuera.config`의 `ERD機能を利用する`로 끌 수 있습니다 (기본값은 켜짐)
+- **EE 명령 추가**
+  - `INPUTANY`(숫자·문자열 모두 입력), `BREAKBUTTON`, `FORCE_BEGIN`, `SKIPLOG`
+  - `QUIT_AND_RESTART`/`FORCE_QUIT_AND_RESTART`는 메뉴의 "다시 읽기"와 같은 방식으로 게임을 다시 시작하고, `FORCE_QUIT`은 입력을 기다리지 않고 끝냅니다
+  - `UPDATECHECK`와 `GAMEBASE_URL`/`GAMEBASE_VERSIONNAME` (`GAMEBASE.CSV`의 `バージョン情報URL`, `バージョン名`)
+  - EE처럼 `BEGIN`을 어느 상태에서든 쓸 수 있습니다
 - **Emuera1824+v10+v3의 `CHECK_OVERFLOW` 지원**
   - `CHECK_OVERFLOW 1`이면 정수 계산이 넘칠 때 INT64 최댓값/최솟값에서 멈춥니다
 - **그래픽 명령**

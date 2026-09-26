@@ -131,7 +131,8 @@ namespace MinorShift.Emuera.GameView
                           (inputReq.InputType == GameProc.InputType.IntValue || 
                           inputReq.InputType == GameProc.InputType.StrValue ||
                           inputReq.InputType == GameProc.InputType.IntButton ||
-                          inputReq.InputType == GameProc.InputType.StrButton);
+                          inputReq.InputType == GameProc.InputType.StrButton ||
+                          inputReq.InputType == GameProc.InputType.AnyValue);
             }
         }
 

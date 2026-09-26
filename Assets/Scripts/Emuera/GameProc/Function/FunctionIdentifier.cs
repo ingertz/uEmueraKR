@@ -346,6 +346,11 @@ namespace MinorShift.Emuera.GameProc.Function
 		addFunction(FunctionCode.ONEBINPUTS, new ONEBINPUTS_Instruction());
 		addFunction(FunctionCode.QUIT_AND_RESTART, new QUIT_AND_RESTART_Instruction());
 		addFunction(FunctionCode.FORCE_QUIT_AND_RESTART, new FORCE_QUIT_AND_RESTART_Instruction());
+		addFunction(FunctionCode.FORCE_QUIT, new FORCE_QUIT_Instruction());
+		addFunction(FunctionCode.FORCE_BEGIN, new FORCE_BEGIN_Instruction());
+		addFunction(FunctionCode.INPUTANY, new INPUTANY_Instruction());
+		addFunction(FunctionCode.BREAKBUTTON, new BREAKBUTTON_Instruction());
+		addFunction(FunctionCode.UPDATECHECK, new UPDATECHECK_Instruction());
 			addFunction(FunctionCode.PLAYBGM, new PLAYBGM_Instruction());
 			addFunction(FunctionCode.STOPBGM, new STOPBGM_Instruction());
 			addFunction(FunctionCode.SETBGMVOLUME, new SETBGMVOLUME_Instruction());

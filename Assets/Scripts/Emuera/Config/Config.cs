@@ -122,6 +122,7 @@ namespace MinorShift.Emuera
 			SystemIgnoreStringSet = instance.GetConfigValue<bool>(ConfigCode.SystemIgnoreStringSet);
 			ValidExtension = instance.GetConfigValue<List<string>>(ConfigCode.ValidExtension) ?? new List<string> { "txt" };
 			UseERD = instance.GetConfigValue<bool>(ConfigCode.UseERD);
+			ForbidUpdateCheck = instance.GetConfigValue<bool>(ConfigCode.ForbidUpdateCheck);
 			
 			CompatiFuncArgAutoConvert = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgAutoConvert);
 			CompatiFuncArgOptional = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgOptional);
@@ -744,6 +745,8 @@ namespace MinorShift.Emuera
 		public static List<string> ValidExtension { get; private set; } = new List<string> { "txt" };
 		/// <summary>EE: ERD機能を利用する</summary>
 		public static bool UseERD { get; private set; } = true;
+		/// <summary>EE: UPDATECHECKを許可しない</summary>
+		public static bool ForbidUpdateCheck { get; private set; } = false;
 
 		public static int Language { get; private set; }
 

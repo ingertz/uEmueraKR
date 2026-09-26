@@ -27,6 +27,11 @@ namespace MinorShift.Emuera
 		public static Process Process;
 		//Config.RenameDic
 		public static GameBase GameBaseData;
+		/// <summary>
+		/// EE: FORCE_QUIT_AND_RESTARTで再起動した後、まだ入力待ちを挟んでいない。
+		/// 再起動をまたいで持ち越すのでResetでは消さない
+		/// </summary>
+		public static bool ForceQuitAndRestart = false;
 		public static ConstantData ConstantData;
 		public static VariableData VariableData;
 		//StrForm

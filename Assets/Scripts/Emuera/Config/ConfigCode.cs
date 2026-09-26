@@ -154,5 +154,7 @@ namespace MinorShift.Emuera
 		ValidExtension = 163,
 		//EE: ERD機能を利用する
 		UseERD = 164,
+		//EE: UPDATECHECKを許可しない
+		ForbidUpdateCheck = 165,
 	}
 }

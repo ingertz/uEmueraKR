@@ -179,28 +179,38 @@ namespace MinorShift.Emuera.GameProc
 		}
 
 		public void SetBegin(string keyword)
+		{
+			SetBegin(keyword, false);
+		}
+
+		public void SetBegin(string keyword, bool force)
 		{//TrimとToUpper済みのはず
 			switch (keyword)
 			{
 				case "SHOP":
-					SetBegin(BeginType.SHOP); return;
+					SetBegin(BeginType.SHOP, force); return;
 				case "TRAIN":
-					SetBegin(BeginType.TRAIN); return;
+					SetBegin(BeginType.TRAIN, force); return;
 				case "AFTERTRAIN":
-					SetBegin(BeginType.AFTERTRAIN); return;
+					SetBegin(BeginType.AFTERTRAIN, force); return;
 				case "ABLUP":
-					SetBegin(BeginType.ABLUP); return;
+					SetBegin(BeginType.ABLUP, force); return;
 				case "TURNEND":
-					SetBegin(BeginType.TURNEND); return;
+					SetBegin(BeginType.TURNEND, force); return;
 				case "FIRST":
-					SetBegin(BeginType.FIRST); return;
+					SetBegin(BeginType.FIRST, force); return;
 				case "TITLE":
-					SetBegin(BeginType.TITLE); return;
+					SetBegin(BeginType.TITLE, force); return;
 			}
 			throw new CodeEE("BEGINのキーワード\"" + keyword + "\"は未定義です");
 		}
 
 		public void SetBegin(BeginType type)
+		{
+			SetBegin(type, false);
+		}
+
+		public void SetBegin(BeginType type, bool force)
 		{
 			string errmes;
 			switch (type)
@@ -211,6 +221,8 @@ namespace MinorShift.Emuera.GameProc
 				case BeginType.ABLUP:
 				case BeginType.TURNEND:
 				case BeginType.FIRST:
+					if (force)
+						break;
 					if ((sysStateCode & SystemStateCode.__CAN_BEGIN__) != SystemStateCode.__CAN_BEGIN__)
 					{
 						errmes = "BEGIN";

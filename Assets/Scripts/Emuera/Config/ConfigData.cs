@@ -32,7 +32,7 @@ static ConfigData() { }
 		private ConfigData() { setDefault(); }
 
 		//適当に大き目の配列を作っておく。
-		private AConfigItem[] configArray = new AConfigItem[72];
+		private AConfigItem[] configArray = new AConfigItem[73];
 		private AConfigItem[] replaceArray = new AConfigItem[50];
 		private AConfigItem[] debugArray = new AConfigItem[20];
 
@@ -119,6 +119,7 @@ static ConfigData() { }
 			configArray[i++] = new ConfigItem<List<string>>(ConfigCode.ValidExtension, "LOADTEXTとSAVETEXTで使える拡張子", new List<string> { "txt" });
 			//EE由来。ユーザー定義変数の要素をERDファイルの名前で指定できるようにする
 			configArray[i++] = new ConfigItem<bool>(ConfigCode.UseERD, "ERD機能を利用する", true);
+			configArray[i++] = new ConfigItem<bool>(ConfigCode.ForbidUpdateCheck, "UPDATECHECKを許可しない", false);
 
 			i = 0;
 			debugArray[i++] = new ConfigItem<bool>(ConfigCode.DebugShowWindow, "起動時にデバッグウインドウを表示する", true);
@@ -150,7 +151,7 @@ static ConfigData() { }
 
         public void Clear()
         {
-            configArray = new AConfigItem[72];
+            configArray = new AConfigItem[73];
             replaceArray = new AConfigItem[50];
             debugArray = new AConfigItem[20];
             setDefault();

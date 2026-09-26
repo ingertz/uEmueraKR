@@ -1797,7 +1797,8 @@ namespace MinorShift.Emuera.GameProc.Function
 				string keyword = func.Argument.ConstStr;
 				if (Config.ICFunction)//1756 BEGINのキーワードは関数扱いらしい
 					keyword = keyword.ToUpper();
-				state.SetBegin(keyword);
+				//EE: BEGINも状態を問わず使える(FORCE_BEGINと同じ)
+				state.SetBegin(keyword, true);
 				state.Return(0);
 				exm.Console.ResetStyle();
 			}

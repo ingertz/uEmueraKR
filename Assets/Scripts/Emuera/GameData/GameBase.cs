@@ -23,6 +23,9 @@ namespace MinorShift.Emuera.GameData
 
 		//1.727 追加。Form.Text
 		public string ScriptWindowTitle = null;
+		//EE_UPDATECHECK
+		public string UpdateCheckURL = "";
+		public string VersionName = "";
 		public string ScriptVersionText
 		{
 			get
@@ -141,6 +144,13 @@ namespace MinorShift.Emuera.GameData
 							break;
 						case "ウィンドウタイトル":
 							ScriptWindowTitle = tokens[1];
+							break;
+						//EE_UPDATECHECK
+						case "バージョン情報URL":
+							UpdateCheckURL = tokens[1];
+							break;
+						case "バージョン名":
+							VersionName = tokens[1];
 							break;
 							
                         case "動作に必要なEmueraのバージョン":

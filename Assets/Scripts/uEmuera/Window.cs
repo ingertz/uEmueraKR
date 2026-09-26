@@ -70,10 +70,19 @@ namespace uEmuera.Window
             //throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// EE: QUIT_AND_RESTART/FORCE_QUIT_AND_RESTART。メニューの「다시 읽기」と同じ再起動をする
+        /// </summary>
         internal void Reboot()
         {
             uEmuera.Logger.Info("MainWindow.Reboot");
-            //throw new NotImplementedException();
+            MinorShift.Emuera.Program.rebootFlag = false;
+            SpriteManager.RunOnMainThread(() =>
+            {
+                var main = UnityEngine.Object.FindObjectOfType<EmueraMain>();
+                if (main != null)
+                    main.restart = true;
+            });
         }
 
         internal void ShowConfigDialog()
