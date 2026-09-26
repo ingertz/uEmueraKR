@@ -423,20 +423,10 @@ namespace MinorShift.Emuera.GameData.Function
 			}
             public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
             {
-                //string str = arguments[0].GetStrValue(exm);
-                //System.Drawing.Text.InstalledFontCollection ifc = new System.Drawing.Text.InstalledFontCollection();
-                //Int64 isInstalled = 0;
-                //foreach (System.Drawing.FontFamily ff in ifc.Families)
-                //{
-                //    if (ff.Name == str)
-                //    {
-                //        isInstalled = 1;
-                //        break;
-                //    }
-                //}
-                //return (isInstalled);
-                //TODO
-                return 1;
+                //本家は端末に入っているフォントとゲーム同梱フォントを調べる。
+                //Unityでは端末のフォント一覧が取れないので、ゲームのfont/とアプリ埋め込みを調べる。
+                //以前は常に1を返していた
+                return uEmuera.FontProvider.HasFont(arguments[0].GetStrValue(exm)) ? 1 : 0;
             }
 
         }
@@ -2391,11 +2381,24 @@ namespace MinorShift.Emuera.GameData.Function
                 else if ((st.Current == '+' || st.Current == '-') && !char.IsDigit(st.Next))
                     return (0);
                 
-                if (!LexicalAnalyzer.NumericCheck(st))
-                    return (0);
-
-                st = new StringStream(str);
-                return LexicalAnalyzer.ReadInt64(st, true);
+                //本家(EE)と同じく、小数点以下の数字は切り捨てて受け付ける("12.5"→12)
+                Int64 ret = LexicalAnalyzer.ReadInt64(st, true);
+                if (!st.EOS)
+                {
+                    if (st.Current == '.')
+                    {
+                        st.ShiftNext();
+                        while (!st.EOS)
+                        {
+                            if (!char.IsDigit(st.Current))
+                                return 0;
+                            st.ShiftNext();
+                        }
+                    }
+                    else
+                        return 0;
+                }
+                return ret;
             }
         }
 
@@ -3219,11 +3222,18 @@ namespace MinorShift.Emuera.GameData.Function
                 int style = 0;
                 if (arguments.Length == 4)
                     style = (int)arguments[3].GetIntValue(exm);
+                //ERBの値は 1:太字 2:斜体 4:打ち消し線 8:下線 (本家と同じ)。
+                //FontStyleは4が下線・8が打ち消し線なので、そのままキャストすると入れ替わる
+                FontStyle fs = FontStyle.Regular;
+                if ((style & 1) != 0) fs |= FontStyle.Bold;
+                if ((style & 2) != 0) fs |= FontStyle.Italic;
+                if ((style & 4) != 0) fs |= FontStyle.Strikeout;
+                if ((style & 8) != 0) fs |= FontStyle.Underline;
 
                 Font styledFont;
                 try
 				{
-					styledFont = new Font(fontname, fontsize, (FontStyle)style, GraphicsUnit.Pixel);
+					styledFont = new Font(fontname, fontsize, fs, GraphicsUnit.Pixel);
 				}
 				catch
 				{
@@ -3347,7 +3357,8 @@ namespace MinorShift.Emuera.GameData.Function
 					return -1;
 				Color c = img.SpriteGetColor(p.X, p.Y);
 				//Color.ToArgb()はInt32の負の値をとることがあり、Int64にうまく変換できない？（と思ったが気のせいだった
-				return ((Int64)c.A) << 24 + c.R << 16 + c.G << 8 + c.B;
+				//以前は A << 24 + R << 16 … と書かれており、+が<<より先に計算されて値が壊れていた
+				return c.ToArgb() & 0xFFFFFFFFL;
 			}
 		}
 
@@ -3563,7 +3574,8 @@ namespace MinorShift.Emuera.GameData.Function
 				if(arguments.Length == 6)
 				{//四角形は正でも負でもよいが親画像の外を指してはいけない
 					rect = ReadRectangle(Name, exm, arguments, 2);
-					if (rect.X + rect.Width < 0 || rect.X + rect.Width > g.Width || rect.Y + rect.Height < 0 || rect.Y + rect.Height > g.Height)
+					//本家(EE)は元画像と少しでも重なっていれば許す
+					if (!rect.IntersectsWith(new Rectangle(0, 0, g.Width, g.Height)))
 						throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodCIMGCreateOutOfRange0, Name));
 				}
 				AppContents.CreateSpriteG(imgname, g, rect);
@@ -4271,15 +4283,13 @@ namespace MinorShift.Emuera.GameData.Function
 				}
 				else
 				{
-					string relpath = uEmuera.Utils.NormalizeGamePath(arguments[1].GetStrValue(exm));
-					if (!System.IO.Path.IsPathRooted(relpath))
-					{
-						filepath = Program.ExeDir + relpath;
-					}
-					else
-					{
-						filepath = relpath;
-					}
+					//本家(EM/EE)と同じ: ゲームフォルダ外は不可、使えない拡張子は.txtへ変え、UTF-8で書く
+					filepath = GetValidTextPath(arguments[1].GetStrValue(exm));
+					if (filepath == null)
+						return 0;
+					if (!IsValidTextExtension(filepath))
+						filepath = System.IO.Path.ChangeExtension(filepath, "txt");
+					forceUTF8 = true;
 				}
 				Encoding encoding = forceUTF8 ?
 					Encoding.GetEncoding("UTF-8") :
@@ -4346,31 +4356,24 @@ namespace MinorShift.Emuera.GameData.Function
 				}
 				else
 				{
-					string relpath = uEmuera.Utils.NormalizeGamePath(arguments[0].GetStrValue(exm));
-					if (!System.IO.Path.IsPathRooted(relpath))
-					{
-						filepath = Program.ExeDir + relpath;
-						if (!System.IO.File.Exists(filepath) && !string.IsNullOrEmpty(Program.ContentDir))
-						{
-							filepath = Program.ContentDir + relpath;
-						}
-					}
-					else
-					{
-						filepath = relpath;
-					}
+					//本家(EM/EE)と同じ: ゲームフォルダ外と、使えない拡張子は読まない
+					filepath = GetValidTextPath(arguments[0].GetStrValue(exm));
+					if (filepath == null || !IsValidTextExtension(filepath))
+						return "";
+					if (!System.IO.File.Exists(filepath))
+						filepath = uEmuera.Utils.ResolvePath(filepath);
 				}
-				Encoding encoding = forceUTF8 ?
-					Encoding.GetEncoding("UTF-8") :
-					Config.SaveEncode;
 				if (!System.IO.File.Exists(filepath))
 					return "";
                 string ret;
                 try
                 {
-                    ret = System.IO.File.ReadAllText(filepath, encoding);
+                    //本家は文字コードを判別して読む(forceUTF8は読み込みには効かない)
+                    ret = uEmuera.TextFileReader.ReadAllText(filepath);
                 }
                 catch { return ""; }
+                if (ret == null)
+                    return "";
                 //一貫性の観点で\rには死んでもらう
                 return ret.Replace("\r","");
 			}
@@ -4379,6 +4382,34 @@ namespace MinorShift.Emuera.GameData.Function
 
 
 		private static string GetSaveDataPathText(int index, string dir) { return string.Format("{0}txt{1:00}.txt", dir, index); }
+
+		/// <summary>
+		/// LOADTEXT/SAVETEXTのファイル名。本家のUtils.GetValidPathと同じく、
+		/// 絶対パスは拒否し「../」を取り除いてゲームフォルダ内に限る。不可ならnull
+		/// </summary>
+		private static string GetValidTextPath(string path)
+		{
+			if (string.IsNullOrEmpty(path))
+				return null;
+			path = uEmuera.Utils.NormalizeGamePath(path).Replace("../", "");
+			try
+			{
+				if (System.IO.Path.IsPathRooted(path))
+					return null;
+			}
+			catch
+			{
+				return null;
+			}
+			return Program.ExeDir + path;
+		}
+
+		/// <summary>拡張子がConfig.ValidExtension(既定はtxt)に含まれるか</summary>
+		private static bool IsValidTextExtension(string filepath)
+		{
+			string ext = System.IO.Path.HasExtension(filepath) ? System.IO.Path.GetExtension(filepath).ToLower().Substring(1) : "";
+			return Config.ValidExtension != null && Config.ValidExtension.Contains(ext);
+		}
 		private static string GetSaveDataPathGraphics(int index) { return string.Format("{0}img{1:0000}.png", Config.SavDir, index); }
 
 		/// <summary>
@@ -4446,7 +4477,11 @@ namespace MinorShift.Emuera.GameData.Function
 				{
 					if (!System.IO.File.Exists(filepath))
 						return 0;
-					bmp = new Bitmap(filepath);
+					//BitmapTextureは読み込んで大きさを確定させる。素のBitmapだと大きさが0のままで、
+					//0x0のGraphicsができていた(GCREATEFROMFILEと同じ読み方にする)
+					bmp = new BitmapTexture(filepath);
+					if (bmp.Width <= 0 || bmp.Height <= 0)
+						return 0;
 					if (bmp.Width > AbstractImage.MAX_IMAGESIZE || bmp.Height > AbstractImage.MAX_IMAGESIZE)
 						return 0;
 					g.GCreateFromF(bmp, (Config.TextDrawingMode == TextDrawingMode.WINAPI));
@@ -4612,14 +4647,28 @@ namespace MinorShift.Emuera.GameData.Function
 			{
 				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
 				GraphicsImage srcG = ReadGraphics(Name, exm, arguments, 1);
-				float angle = (float)arguments[2].GetIntValue(exm) / 1000f;
-				int x = 0;
-				int y = 0;
-                if (arguments.Length >= 4) x = (int)arguments[3].GetIntValue(exm);
-                if (arguments.Length >= 5) y = (int)arguments[4].GetIntValue(exm);
-				
 				if (!g.IsCreated || !srcG.IsCreated) return 0;
-				g.GDrawGWithRotate(srcG, angle, x, y);
+				//本家(EE)と同じ意味にする:
+				//  角度は度(時計回り)。srcを描画先の(0,0)に置き、点(x,y)を中心に回す。
+				//  x,yを省略した時はsrcの中心が回転の中心。
+				//以前は角度を1/1000ラジアン、(x,y)を「srcの中心を置く位置」として扱っていた
+				double deg = arguments[2].GetIntValue(exm);
+				double px = srcG.Width / 2.0;
+				double py = srcG.Height / 2.0;
+				if (arguments.Length >= 5)
+				{
+					px = arguments[3].GetIntValue(exm);
+					py = arguments[4].GetIntValue(exm);
+				}
+				double rad = deg * Math.PI / 180.0;
+				double cos = Math.Cos(rad), sin = Math.Sin(rad);
+				//回転後のsrcの中心 = p + R(c - p)
+				double dx = srcG.Width / 2.0 - px;
+				double dy = srcG.Height / 2.0 - py;
+				int cx = (int)Math.Round(px + dx * cos - dy * sin);
+				int cy = (int)Math.Round(py + dx * sin + dy * cos);
+				//GDrawGWithRotateは「srcの中心を(cx,cy)に置いてラジアンで回す」
+				g.GDrawGWithRotate(srcG, (float)rad, cx, cy);
 				return 1;
 			}
 		}

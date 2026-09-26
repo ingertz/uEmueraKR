@@ -54,6 +54,8 @@ namespace MinorShift.Emuera.GameProc
 
 		Dictionary<string, List<FunctionLabelLine>[]> eventLabelDic = new Dictionary<string, List<FunctionLabelLine>[]>();
 		Dictionary<string, FunctionLabelLine> noneventLabelDic = new Dictionary<string, FunctionLabelLine>();
+		/// <summary>イベント以外の関数名の一覧(ENUMFUNC系で使う)</summary>
+		public string[] NoneventKeys { get { return new List<string>(noneventLabelDic.Keys).ToArray(); } }
 
 		public void SortLabels()
 		{

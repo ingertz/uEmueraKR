@@ -24,6 +24,20 @@ public static class FontUtils
         {"ぉんFont半角", "xonFontH"}
     };
 
+    /// <summary>
+    /// アプリに埋め込んだフォントが実在するか。GetFontと違い既定フォントへ逃げない。
+    /// Resources.Loadを使うのでメインスレッドから呼ぶこと
+    /// </summary>
+    public static bool HasEmbeddedFont(string name)
+    {
+        if(string.IsNullOrEmpty(name))
+            return false;
+        string path;
+        if(!name_path_map.TryGetValue(name, out path))
+            path = name;
+        return Resources.Load<Font>("Fonts/" + path) != null;
+    }
+
     public static void SetDefaultFont(string fontname)
     {
         default_font = GetFont(fontname);

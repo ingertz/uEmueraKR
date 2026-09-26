@@ -120,6 +120,7 @@ namespace MinorShift.Emuera
 			SystemSaveInBinary = instance.GetConfigValue<bool>(ConfigCode.SystemSaveInBinary);
 			SystemIgnoreTripleSymbol = instance.GetConfigValue<bool>(ConfigCode.SystemIgnoreTripleSymbol);
 			SystemIgnoreStringSet = instance.GetConfigValue<bool>(ConfigCode.SystemIgnoreStringSet);
+			ValidExtension = instance.GetConfigValue<List<string>>(ConfigCode.ValidExtension) ?? new List<string> { "txt" };
 			
 			CompatiFuncArgAutoConvert = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgAutoConvert);
 			CompatiFuncArgOptional = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgOptional);
@@ -730,6 +731,8 @@ namespace MinorShift.Emuera
 		public static bool SystemIgnoreTripleSymbol { get; private set; }
 		public static bool SystemNoTarget { get; private set; }
 		public static bool SystemIgnoreStringSet { get; private set; }
+		/// <summary>LOADTEXT/SAVETEXTでファイル名を指定した時に使える拡張子</summary>
+		public static List<string> ValidExtension { get; private set; } = new List<string> { "txt" };
 
 		public static int Language { get; private set; }
 

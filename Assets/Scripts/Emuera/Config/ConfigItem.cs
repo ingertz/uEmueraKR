@@ -95,6 +95,11 @@ namespace MinorShift.Emuera
 				Color c = ((ConfigItem<Color>)(AConfigItem)this).Value;
 				return string.Format("{0},{1},{2}", c.R, c.G, c.B);
 			}
+			if (this is ConfigItem<List<string>>)
+			{
+				//設定の保存時にカンマ区切りへ戻す(本家と同じ)
+				return string.Join(",", ((ConfigItem<List<string>>)(AConfigItem)this).Value.ToArray());
+			}
 			return val.ToString();
 		}
 		
@@ -179,8 +184,12 @@ namespace MinorShift.Emuera
             }
             else if (this is ConfigItem<List<string>>)
             {
+                //本家(EM/EE)と同じくカンマ区切りで読み、既定値は置き換える
                 ret = true;
-                ((ConfigItem<List<string>>)(AConfigItem)this).Value.Add(str);
+                var list = ((ConfigItem<List<string>>)(AConfigItem)this).Value;
+                list.Clear();
+                foreach (var token in str.Split(','))
+                    list.Add(token.Trim());
             }
             else if (this is ConfigItem<TextDrawingMode>)
             {

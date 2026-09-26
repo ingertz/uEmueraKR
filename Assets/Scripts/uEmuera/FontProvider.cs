@@ -157,6 +157,35 @@ namespace uEmuera
         }
 
         /// <summary>
+        /// CHKFONT用。ゲームフォルダのfont/か、アプリに埋め込んだフォントに実在するか。
+        /// FontUtils.GetFontは見つからないと既定フォントを返すので、存在確認には使えない。
+        /// 埋め込みの確認(Resources.Load)はメインスレッドで行う
+        /// </summary>
+        public static bool HasFont(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return false;
+            if (GetGameFontPath(name) != null)
+                return true;
+            bool found = false;
+            var mapped = MapToFileName(name);
+            using (var done = new System.Threading.ManualResetEvent(false))
+            {
+                SpriteManager.RunOnMainThread(() =>
+                {
+                    try
+                    {
+                        found = FontUtils.HasEmbeddedFont(name)
+                            || (mapped != name && FontUtils.HasEmbeddedFont(mapped));
+                    }
+                    finally { done.Set(); }
+                });
+                done.WaitOne();
+            }
+            return found;
+        }
+
+        /// <summary>
         /// 実測の送り幅。まだ計測していない文字や、フォントが見つからない場合はfalse。
         /// 呼び出し元は従来の半角/全角判定へ退避すること
         /// </summary>

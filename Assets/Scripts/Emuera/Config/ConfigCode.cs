@@ -149,5 +149,8 @@ namespace MinorShift.Emuera
         RelationDef = 115,
 
 		UseKeyMacro = 162,
+
+		//EM/EE: LOADTEXTとSAVETEXTで使える拡張子
+		ValidExtension = 163,
 	}
 }

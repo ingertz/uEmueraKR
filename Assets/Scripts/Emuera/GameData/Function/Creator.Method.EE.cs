@@ -246,13 +246,13 @@ namespace MinorShift.Emuera.GameData.Function
 					switch (type)
 					{
 						case EType.Function:
-							array = new string[0]; // GlobalStatic.Process.LabelDictionary.NoneventKeys;
+							array = GlobalStatic.LabelDictionary.NoneventKeys;
 							break;
 						case EType.Variable:
-							array = new string[0]; // GlobalStatic.IdentifierDictionary.VarKeys;
+							array = GlobalStatic.IdentifierDictionary.VarKeys;
 							break;
 						case EType.Macro:
-							array = new string[0]; // GlobalStatic.IdentifierDictionary.MacroKeys;
+							array = GlobalStatic.IdentifierDictionary.MacroKeys;
 							break;
 					}
 					List<string> strs = new List<string>();
@@ -2542,22 +2542,40 @@ namespace MinorShift.Emuera.GameData.Function
 		}
 		public override long GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
 		{
+			//本家(EE)と同じ:
+			//  0:無し 1:通常の関数 2:#FUNCTION 3:#FUNCTIONS
+			//  第2引数が非0なら大文字小文字を無視して探す
+			//以前は第2引数でイベント関数を探しており、2/3も返していなかった
 			string functionname = arguments[0].GetStrValue(exm);
+			FunctionLabelLine func = null;
 			if (arguments.Length == 1 || arguments[1].GetIntValue(exm) == 0)
 			{
-				FunctionLabelLine func;
-				func = GlobalStatic.LabelDictionary.GetNonEventLabel(functionname);
-				if (func != null)
-					return 1;
-				return 0;
+				if (Config.SCFunction == StringComparison.OrdinalIgnoreCase)
+					func = GlobalStatic.LabelDictionary.GetNonEventLabel(functionname.ToUpper());
+				else
+					func = GlobalStatic.LabelDictionary.GetNonEventLabel(functionname);
 			}
 			else
 			{
-				bool isEvent = GlobalStatic.LabelDictionary.GetEventLabels(functionname) != null;
-				if (isEvent)
-					return 1;
-				return 0;
+				foreach (string funcname in GlobalStatic.LabelDictionary.NoneventKeys)
+				{
+					if (funcname.ToUpper() == functionname.ToUpper())
+					{
+						func = GlobalStatic.LabelDictionary.GetNonEventLabel(funcname);
+						break;
+					}
+				}
 			}
+			if (func == null)
+				return 0;
+			if (func.IsMethod)
+			{
+				if (func.MethodType == typeof(string))
+					return 3;
+				else if (func.MethodType == typeof(long))
+					return 2;
+			}
+			return 1;
 		}
 	}
 }

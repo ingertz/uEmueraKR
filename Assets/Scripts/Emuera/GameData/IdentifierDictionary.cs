@@ -435,6 +435,19 @@ namespace MinorShift.Emuera
 		#region header.erb
 		//1807 ErbLoaderに移動
 		Dictionary<string, DefineMacro> macroDic = new Dictionary<string, DefineMacro>();
+		/// <summary>変数名の一覧(ENUMVAR系で使う)</summary>
+		public string[] VarKeys { get { return new List<string>(varTokenDic.Keys).ToArray(); } }
+		/// <summary>マクロ名の一覧(ENUMMACRO系で使う)</summary>
+		public string[] MacroKeys
+		{
+			get
+			{
+				var ret = new List<string>();
+				foreach (var m in macroDic.Values)
+					ret.Add(m.Keyword);
+				return ret.ToArray();
+			}
+		}
 
 		internal void AddUseDefinedVariable(VariableToken var)
 		{
