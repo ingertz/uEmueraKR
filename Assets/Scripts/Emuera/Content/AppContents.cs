@@ -16,6 +16,8 @@ namespace MinorShift.Emuera.Content
 		}
 		static readonly Dictionary<string, AContentFile> resourceDic = new Dictionary<string, AContentFile>();
 		static readonly Dictionary<string, ASprite> imageDictionary = new Dictionary<string, ASprite>();
+		//resourcesのcsvで作られたスプライト(SPRITEDISPOSEALLで残す分)
+		static readonly Dictionary<string, ASprite> resourceImageDictionary = new Dictionary<string, ASprite>();
 		static readonly Dictionary<int, GraphicsImage> gList;
 
 		//static public T GetContent<T>(string name)where T :AContentItem
@@ -61,6 +63,26 @@ namespace MinorShift.Emuera.Content
                 sprite.Dispose();
                 imageDictionary.Remove(name);
             }
+		}
+
+		/// <summary>
+		/// SPRITEDISPOSEALL。delCsvImageが0ならresourcesのcsvで作ったスプライトは残す。
+		/// 本家(EE)と同じく、消した数を返す
+		/// </summary>
+		static public long SpriteDisposeAll(bool delCsvImage)
+		{
+			int sprites = imageDictionary.Count;
+			int csprites = resourceImageDictionary.Count;
+			if (delCsvImage)
+			{
+				imageDictionary.Clear();
+				resourceImageDictionary.Clear();
+				return sprites;
+			}
+			imageDictionary.Clear();
+			foreach (var pair in resourceImageDictionary)
+				imageDictionary[pair.Key] = pair.Value;
+			return sprites - csprites;
 		}
 
 		static public void CreateSpriteG(string imgName, GraphicsImage parent,Rectangle rect)
@@ -122,7 +144,10 @@ namespace MinorShift.Emuera.Content
 						{
 							currentAnime = item as SpriteAnime;
 							if (!imageDictionary.ContainsKey(item.Name))
+							{
 								imageDictionary.Add(item.Name, item);
+								resourceImageDictionary.Add(item.Name, item);
+							}
 							else
 							{
 								ParserMediator.Warn("同名のリソースがすでに作成されています:"+item.Name, sp, 0);
@@ -147,6 +172,7 @@ namespace MinorShift.Emuera.Content
 				iter.Current.Dispose();
 			resourceDic.Clear();
 			imageDictionary.Clear();
+			resourceImageDictionary.Clear();
 			foreach (var graph in gList.Values)
 				graph.GDispose();
 			gList.Clear();

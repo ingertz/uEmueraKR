@@ -380,6 +380,117 @@ namespace MinorShift.Emuera.Content
             waitHandle.WaitOne();
         }
 
+        /// <summary>
+        /// GDI+の破線パターン(線幅を1とした長さ。描く,空ける,描く,...)
+        /// </summary>
+        static float[] DashPattern(long style)
+        {
+            switch (style)
+            {
+                case 1: return new float[] { 3, 1 };
+                case 2: return new float[] { 1, 1 };
+                case 3: return new float[] { 3, 1, 1, 1 };
+                case 4: return new float[] { 3, 1, 1, 1, 1, 1 };
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// GDRAWLINE(int ID, int fromX, int fromY, int forX, int forY)
+        /// ペン(未設定なら文字色、幅1)で直線を引く。GDASHSTYLEの破線も反映する
+        /// </summary>
+        public void GDrawLine(int fromX, int fromY, int forX, int forY)
+        {
+            if (this.Bitmap == null)
+                throw new NullReferenceException();
+            uEmuera.Drawing.Color pc = pen != null ? pen.Color : Config.ForeColor;
+            int penWidth = pen != null ? Math.Max(1, (int)pen.Width) : 1;
+            float[] pattern = pen != null ? DashPattern(pen.DashStyle) : null;
+            var waitHandle = new System.Threading.ManualResetEvent(false);
+            SpriteManager.RunOnMainThread(() => {
+                try {
+                    var destTi = SpriteManager.GetTextureInfo(this.Bitmap.name, this.Bitmap.path);
+                    if (destTi == null) return;
+                    var tex = destTi.texture;
+                    int texW = tex.width;
+                    int texH = tex.height;
+                    UnityEngine.Color uc = new UnityEngine.Color(pc.r, pc.g, pc.b, pc.a);
+                    UnityEngine.Color[] pixels = tex.GetPixels();
+                    bool[] done = new bool[pixels.Length];
+                    float patternLen = 0;
+                    if (pattern != null)
+                        foreach (var v in pattern) patternLen += v * penWidth;
+                    int dx = forX - fromX;
+                    int dy = forY - fromY;
+                    int steps = Math.Max(Math.Abs(dx), Math.Abs(dy));
+                    float length = (float)Math.Sqrt((double)dx * dx + (double)dy * dy);
+                    int half = (penWidth - 1) / 2;
+                    for (int i = 0; i <= steps; i++)
+                    {
+                        float t = steps == 0 ? 0f : (float)i / steps;
+                        if (pattern != null)
+                        {
+                            //線の始点からの距離で、パターンの描く区間か空ける区間かを決める
+                            float pos = (t * length) % patternLen;
+                            bool draw = true;
+                            for (int k = 0; k < pattern.Length; k++)
+                            {
+                                float seg = pattern[k] * penWidth;
+                                if (pos < seg) { draw = (k % 2) == 0; break; }
+                                pos -= seg;
+                            }
+                            if (!draw)
+                                continue;
+                        }
+                        int cx = fromX + (int)Math.Round(dx * t);
+                        int cy = fromY + (int)Math.Round(dy * t);
+                        for (int oy = -half; oy < penWidth - half; oy++)
+                        {
+                            for (int ox = -half; ox < penWidth - half; ox++)
+                            {
+                                int x = cx + ox;
+                                int y = cy + oy;
+                                if (x < 0 || y < 0 || x >= texW || y >= texH)
+                                    continue;
+                                int idx = (texH - 1 - y) * texW + x;//Unityのテクスチャは下から上
+                                if (done[idx])
+                                    continue;
+                                done[idx] = true;
+                                UnityEngine.Color dC = pixels[idx];
+                                float outA = uc.a + dC.a * (1f - uc.a);
+                                if (outA > 0f)
+                                    pixels[idx] = new UnityEngine.Color(
+                                        (uc.r * uc.a + dC.r * dC.a * (1f - uc.a)) / outA,
+                                        (uc.g * uc.a + dC.g * dC.a * (1f - uc.a)) / outA,
+                                        (uc.b * uc.a + dC.b * dC.a * (1f - uc.a)) / outA,
+                                        outA);
+                            }
+                        }
+                    }
+                    tex.SetPixels(pixels);
+                    tex.Apply(false, false);
+                } catch(System.Exception e) {
+                    UnityEngine.Debug.LogError(e);
+                } finally {
+                    waitHandle.Set();
+                }
+            });
+            waitHandle.WaitOne();
+        }
+
+        /// <summary>
+        /// GDASHSTYLE(int ID, int style, int cap)
+        /// </summary>
+        public void GDashStyle(long style, long cap)
+        {
+            if (this.Bitmap == null)
+                throw new NullReferenceException();
+            if (pen == null)
+                pen = new Pen(Config.ForeColor, 1);
+            pen.DashStyle = style;
+            pen.DashCap = cap;
+        }
+
         public void GFillRectangle(Rectangle rect)
         {
             if (this.Bitmap == null) return;

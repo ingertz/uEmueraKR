@@ -179,6 +179,7 @@ namespace MinorShift.Emuera.GameData.Function
                 ["GGETFONTSIZE"] = new GraphicsStateMethod(),
                 ["GGETFONTSTYLE"] = new GraphicsStateMethod(),
                 ["GGETPEN"] = new GraphicsStateMethod(),
+                ["GGETPENWIDTH"] = new GraphicsStateMethod(),
                 ["GGETBRUSH"] = new GraphicsStateMethod(),
                 ["GGETCOLOR"] = new GraphicsGetColorMethod(),
                 ["GGETTEXTSIZE"] = new GraphicsGetTextSizeMethod(),
@@ -195,6 +196,8 @@ namespace MinorShift.Emuera.GameData.Function
                 ["GDRAWTEXT"] = new GraphicsDrawTextMethod(),
                 ["GDRAWGWITHROTATE"] = new GraphicsDrawGWithRotateMethod(),
                 ["GDRAWG"] = new GraphicsDrawGMethod(),
+                ["GDRAWLINE"] = new GraphicsDrawLineMethod(),
+                ["GDASHSTYLE"] = new GraphicsSetDashStyleMethod(),
                 ["GDRAWGWITHMASK"] = new GraphicsDrawGWithMaskMethod(),
 
                 ["GSETBRUSH"] = new GraphicsSetBrushMethod(),
@@ -203,6 +206,7 @@ namespace MinorShift.Emuera.GameData.Function
 
                 ["SPRITECREATE"] = new SpriteCreateMethod(),
                 ["SPRITEDISPOSE"] = new SpriteDisposeMethod(),
+                ["SPRITEDISPOSEALL"] = new SpriteDisposeAllMethod(),
 
                 ["CBGSETG"] = new CBGSetGraphicsMethod(),
                 ["CBGSETSPRITE"] = new CBGSetCIMGMethod(),

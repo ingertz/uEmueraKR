@@ -3111,6 +3111,8 @@ namespace MinorShift.Emuera.GameData.Function
 					case "GGETPEN":
 						return g.pen != null ? (((Int64)g.pen.Color.A) << 24 | ((Int64)g.pen.Color.R) << 16 | ((Int64)g.pen.Color.G) << 8 | ((Int64)g.pen.Color.B)) : 
                                                (((Int64)Config.ForeColor.A) << 24 | ((Int64)Config.ForeColor.R) << 16 | ((Int64)Config.ForeColor.G) << 8 | ((Int64)Config.ForeColor.B));
+					case "GGETPENWIDTH":
+						return g.pen != null ? g.pen.Width : 1;
 					case "GGETBRUSH":
 						return (g.brush != null && g.brush is SolidBrush sb) ? (((Int64)sb.Color.A) << 24 | ((Int64)sb.Color.R) << 16 | ((Int64)sb.Color.G) << 8 | ((Int64)sb.Color.B)) : 
                                                                                (((Int64)Config.ForeColor.A) << 24 | ((Int64)Config.ForeColor.R) << 16 | ((Int64)Config.ForeColor.G) << 8 | ((Int64)Config.ForeColor.B));
@@ -3590,6 +3592,71 @@ namespace MinorShift.Emuera.GameData.Function
 						throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodCIMGCreateOutOfRange0, Name));
 				}
 				AppContents.CreateSpriteG(imgname, g, rect);
+				return 1;
+			}
+		}
+
+		/// <summary>
+		/// SPRITEDISPOSEALL(int delCsvImage)
+		/// </summary>
+		public sealed class SpriteDisposeAllMethod : FunctionMethod
+		{
+			public SpriteDisposeAllMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = new Type[] { typeof(Int64) };
+				CanRestructure = false;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				return AppContents.SpriteDisposeAll(arguments[0].GetIntValue(exm) != 0);
+			}
+		}
+
+		/// <summary>
+		/// GDRAWLINE(int ID, int fromX, int fromY, int forX, int forY)
+		/// </summary>
+		public sealed class GraphicsDrawLineMethod : FunctionMethod
+		{
+			public GraphicsDrawLineMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64), typeof(Int64), typeof(Int64), typeof(Int64) };
+				CanRestructure = false;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				if (Config.TextDrawingMode == TextDrawingMode.WINAPI)
+					throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodGDIPLUSOnly, Name));
+				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+				if (!g.IsCreated)
+					return 0;
+				Point fromP = ReadPoint(Name, exm, arguments, 1);
+				Point forP = ReadPoint(Name, exm, arguments, 3);
+				g.GDrawLine(fromP.X, fromP.Y, forP.X, forP.Y);
+				return 1;
+			}
+		}
+
+		/// <summary>
+		/// GDASHSTYLE(int ID, int style, int cap)
+		/// </summary>
+		public sealed class GraphicsSetDashStyleMethod : FunctionMethod
+		{
+			public GraphicsSetDashStyleMethod()
+			{
+				ReturnType = typeof(Int64);
+				argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64), typeof(Int64) };
+				CanRestructure = false;
+			}
+			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				if (Config.TextDrawingMode == TextDrawingMode.WINAPI)
+					throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodGDIPLUSOnly, Name));
+				GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+				if (!g.IsCreated)
+					return 0;
+				g.GDashStyle(arguments[1].GetIntValue(exm), arguments[2].GetIntValue(exm));
 				return 1;
 			}
 		}

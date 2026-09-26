@@ -31,6 +31,7 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
   - `GGETTEXTSIZE`: 글자를 그렸을 때의 폭을 돌려주고, 높이를 `RESULT:1`에 넣습니다
   - `GDRAWTEXT`는 PC판처럼 그린 글자의 폭/높이를 `RESULT:1`/`RESULT:2`에 넣습니다
   - `GSETCOLOR`가 실제로 점을 찍고, `GGETCOLOR`/`SPRITEGETCOLOR`가 올바른 위치의 색을 읽습니다
+  - `GDRAWLINE`(펜 색·굵기, `GDASHSTYLE`의 점선 반영), `GGETPENWIDTH`, `SPRITEDISPOSEALL`
 - **화면 배경 그래픽(CBG)**
   - `CBGSETG`, `CBGSETSPRITE`로 설정한 그림을 화면에 고정해서 표시합니다 (zdepth 양수는 글자 뒤, 음수는 글자 앞)
   - `CBGSETBMAPG` 버튼 맵을 터치하면 `INPUTMOUSEKEY`의 `RESULT:4`로 번호가 전달됩니다 (PC판과 같음)

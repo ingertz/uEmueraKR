@@ -235,6 +235,10 @@ namespace uEmuera.Drawing
         }
         public Color Color { get; set; }
         public Int64 Width { get; set; } = 1;
+        /// <summary>GDI+のDashStyle (0:実線 1:破線 2:点線 3:一点鎖線 4:二点鎖線)</summary>
+        public Int64 DashStyle { get; set; } = 0;
+        /// <summary>GDI+のDashCap。見た目には反映しない</summary>
+        public Int64 DashCap { get; set; } = 0;
     }
 
     public enum FontStyle
