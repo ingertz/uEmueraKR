@@ -220,7 +220,7 @@ namespace MinorShift.Emuera.GameProc.Function
 
 			addFunction(FunctionCode.PUTFORM, argb[FunctionArgType.FORM_STR_NULLABLE], METHOD_SAFE);//@SAVEINFO関数でのみ使用可能。PRINTFORMと同様の書式でセーブデータに概要をつける。
 			addFunction(FunctionCode.QUIT, argb[FunctionArgType.VOID]);//ゲームを終了
-			addFunction(FunctionCode.OUTPUTLOG, argb[FunctionArgType.VOID]);
+			//OUTPUTLOGは本家(EE)と同じく関数(ファイル名, 情報を隠す)を命令として使う
 
 			addFunction(FunctionCode.BEGIN, new BEGIN_Instruction());//システム関数の実行。実行するとCALLの呼び出し元などを忘れてしまう。
 
@@ -385,21 +385,8 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.FUNC, argb[FunctionArgType.SP_CALLFORM], EXTENDED | FLOW_CONTROL | PARTIAL | FORCE_SETARG);
 			addFunction(FunctionCode.ENDFUNC, new ENDIF_Instruction(), EXTENDED);
 
-			addFunction(FunctionCode.GCREATE, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GCREATEFROMFILE, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GDISPOSE, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GCLEAR, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GDRAWGWITHROTATE, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GDRAWG, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GDRAWTEXT, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GSETBRUSH, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GSETFONT, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GSETPEN, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GGETTEXTSIZE, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GSETCOLOR, new DummyGraphics_Instruction());
+			//G*やSPRITE*は本家と同じく、式中関数を命令として使う一般の経路(METHOD)で扱う。
 			//GSETBGCOLORは本家(Emuera.NET/EE)に存在しない命令なので登録しない
-			addFunction(FunctionCode.SPRITECREATED, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.SPRITEDISPOSE, new DummyGraphics_Instruction());
 
 			addFunction(FunctionCode.DEBUGPRINT, new DEBUGPRINT_Instruction(false, false));
 			addFunction(FunctionCode.DEBUGPRINTL, new DEBUGPRINT_Instruction(false, true));

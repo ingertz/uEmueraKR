@@ -2523,7 +2523,7 @@ namespace MinorShift.Emuera.GameData.Function
 						hideInfo = arguments[1].GetIntValue(exm) == 1;
 		
 			
-					exm.Console.OutputLog(filename);
+					exm.Console.OutputLog(filename, hideInfo);
 					return 1;
 				}
 		

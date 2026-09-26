@@ -647,6 +647,64 @@ namespace MinorShift.Emuera.GameView
 		}
 
 
+		/// <summary>
+		/// EE_OUTPUTLOG: スクリプトから呼ぶ版。filenameは実行フォルダからの相対パス(空ならemuera.log)。
+		/// hideInfoでなければ、先頭に環境情報とバリアント名を書く
+		/// </summary>
+		public bool OutputLog(string filename, bool hideInfo)
+		{
+			if (string.IsNullOrEmpty(filename))
+				filename = Program.ExeDir + "emuera.log";
+			else
+				filename = Program.ExeDir + filename;
+			if (filename.IndexOf("../", StringComparison.Ordinal) >= 0)
+			{
+				MessageBox.Show("ログ出力先に親ディレクトリは指定できません", "ログ出力失敗");
+				return false;
+			}
+			if (!filename.StartsWith(Program.ExeDir, StringComparison.OrdinalIgnoreCase))
+			{
+				MessageBox.Show("ログファイルは実行ファイル以下のディレクトリにのみ保存できます", "ログ出力失敗");
+				return false;
+			}
+			try
+			{
+				var builder = new StringBuilder();
+				if (!hideInfo)
+				{
+					builder.AppendLine("# 環境情報");
+					builder.AppendLine("Emuera " + window.EmueraVerText);
+					builder.AppendLine();
+					builder.AppendLine("# バリアント");
+					var gamebase = GlobalStatic.GameBaseData;
+					if (gamebase == null || string.IsNullOrEmpty(gamebase.ScriptTitle))
+						builder.AppendLine("GameBase未定義");
+					else
+						builder.AppendLine(gamebase.ScriptTitle + " " + gamebase.ScriptVersionText);
+					builder.AppendLine();
+					builder.AppendLine("# ログ");
+					builder.AppendLine();
+				}
+				foreach (ConsoleDisplayLine line in displayLineList)
+					builder.AppendLine(line.ToString());
+				string dir = Path.GetDirectoryName(filename);
+				if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+					Directory.CreateDirectory(dir);
+				File.WriteAllText(filename, builder.ToString(), new UTF8Encoding(true));
+			}
+			catch (Exception)
+			{
+				MessageBox.Show("ログの出力に失敗しました", "ログ出力失敗");
+				return false;
+			}
+			if (window.Created)
+			{
+				PrintSystemLine("※※※ログファイルを" + filename.Replace(Program.ExeDir, "") + "に出力しました※※※");
+				RefreshStrings(true);
+			}
+			return true;
+		}
+
 		public bool OutputLog(string filename)
 		{
             if (filename == null)
