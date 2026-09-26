@@ -17,7 +17,8 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
   - EE 추가 명령과 함수 다수
 - **EE 확장 인자 지원**
   - `INPUT`/`INPUTS`/`ONEINPUT`/`ONEINPUTS`/`TINPUT`/`TINPUTS`의 마우스 입력·스킵 인자
-    (마우스 입력이 켜지면 탭한 버튼이 `RESULT:1`/`RESULTS:1`로 들어감)
+    (마우스 입력이 켜지면 탭한 버튼이 `RESULTS:1`로, 마스크 이미지에서 누른 위치의 색이 `RESULT:3`으로 들어감)
+  - `INPUTMOUSEKEY`에서 탭한 버튼의 값이 `RESULT:5`(숫자) 또는 `RESULTS`(문자열)로 들어감
   - `BINPUT` 계열은 화면에 있는 버튼 값만 입력으로 받음
   - `PRINT_IMG 이미지, 버튼이미지, 마스크, 폭, 높이, 세로위치`와 `PRINT_RECT`/`PRINT_SPACE`의 `px` 단위
 - **ERD (EE와 같은 방식)**
@@ -116,7 +117,6 @@ Unity를 켜 둔 채로 실행해도 되고, 받아온 뒤 자동으로 다시 �
 
 - 앱 안에서 게임 설정(`emuera.config`)을 바꿀 수 없습니다
 - 디버그 모드는 지원하지 않습니다
-- `PRINT_IMG`의 마스크 이미지로 구하는 `RESULT:3`(누른 위치의 색)은 항상 0입니다
 - CBG 버튼의 "선택됐을 때 이미지"는 표시하지 않습니다 (터치 화면에는 마우스를 올리는 동작이 없으므로)
 - 모바일에서 쓸 일이 없는 PC 전용 입력은 지원하지 않습니다
   - `GETKEY`/`GETKEYTRIGGERED`, `MOUSEX`/`MOUSEY`, 툴팁

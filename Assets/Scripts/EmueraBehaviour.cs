@@ -401,17 +401,12 @@ public abstract class EmueraBehaviour : MonoBehaviour
         public List<UnitDesc> units = null;
     }
 
-    public static void OnClick(UnityEngine.EventSystems.PointerEventData e)
+    /// <summary>押されたオブジェクトから、それを持つ行(ユニット)を探す</summary>
+    static EmueraBehaviour FindBehaviour(UnityEngine.EventSystems.PointerEventData e)
     {
-        //INPUTMOUSEKEY待ちの間はボタン入力ではなくマウスイベントを返す。
-        //PressEnterKeyではこの待ちを解けない
-        //INPUTMOUSEKEY待ち(RESULT:4にCBGのボタン番号を載せる)と、
-        //行の上に重なったCBGのボタンはここで処理する
-        if(CBGLayer.TryHandleTap(e))
-            return;
         var obj = e.rawPointerPress;
         if(obj == null)
-            return;
+            return null;
         var behaviour = obj.GetComponent<EmueraBehaviour>();
         if(behaviour == null)
         {
@@ -419,6 +414,55 @@ public abstract class EmueraBehaviour : MonoBehaviour
             //divが中身のボタンはテキストが空で、判定を子オブジェクトに任せている
             behaviour = obj.GetComponentInParent<EmueraBehaviour>();
         }
+        return behaviour;
+    }
+
+    /// <summary>押したのが今選べるボタンならその元のボタン、違えばnull(本家のselectingButton)</summary>
+    static MinorShift.Emuera.GameView.ConsoleButtonString SelectableButton(EmueraBehaviour behaviour)
+    {
+        if(behaviour == null)
+            return null;
+        var ud = behaviour.unit_desc;
+        if(ud == null || !ud.isbutton || ud.generation < EmueraContent.instance.button_generation)
+            return null;
+        var line = behaviour.line_desc.console_line as MinorShift.Emuera.GameView.ConsoleDisplayLine;
+        if(line == null || behaviour.UnitIdx < 0 || behaviour.UnitIdx >= line.Buttons.Length)
+            return null;
+        return line.Buttons[behaviour.UnitIdx];
+    }
+
+    /// <summary>
+    /// 押した位置のマスク画像の色(INPUT系のマウス入力でRESULT:3へ入る)。
+    /// 位置は描画領域の左端からと、行の上端からの値に直して本家と同じ式に渡す
+    /// </summary>
+    static long MappedColor(EmueraBehaviour behaviour,
+        MinorShift.Emuera.GameView.ConsoleButtonString button,
+        UnityEngine.EventSystems.PointerEventData e)
+    {
+        if(behaviour == null || button == null)
+            return 0;
+        var rt = behaviour.rect_transform;
+        Vector3 world;
+        if(!RectTransformUtility.ScreenPointToWorldPointInRectangle(rt, e.position, e.pressEventCamera, out world))
+            return 0;
+        var corners = new Vector3[4];
+        rt.GetWorldCorners(corners);
+        //ユニットの左上からの位置(下向き正)
+        var v = rt.InverseTransformVector(world - corners[1]);
+        int x = behaviour.unit_desc.posx + Mathf.FloorToInt(v.x);
+        int y = Mathf.FloorToInt(-v.y + (behaviour.logic_y - behaviour.line_desc.position_y));
+        return button.GetMappedColor(x, y);
+    }
+
+    public static void OnClick(UnityEngine.EventSystems.PointerEventData e)
+    {
+        var behaviour = FindBehaviour(e);
+        //INPUTMOUSEKEY待ちの間はボタン入力ではなくマウスイベントを返す。
+        //PressEnterKeyではこの待ちを解けない
+        //INPUTMOUSEKEY待ち(RESULT:4にCBGのボタン番号、RESULT:5/RESULTSに押したボタンを載せる)は
+        //ここで処理する
+        if(CBGLayer.TryHandleTap(e, SelectableButton(behaviour)))
+            return;
         if(behaviour == null)
         {
             EmueraThread.instance.Input("", false);
@@ -435,7 +479,13 @@ public abstract class EmueraBehaviour : MonoBehaviour
         if(unit_desc.generation < EmueraContent.instance.button_generation)
             EmueraThread.instance.Input("", false);
         else
-            EmueraThread.instance.Input(unit_desc.code, true);
+        {
+            long mapped_color = 0;
+            var console = MinorShift.Emuera.GlobalStatic.Console;
+            if(console != null && console.IsWaitingInputWithMouse)
+                mapped_color = MappedColor(behaviour, SelectableButton(behaviour), e);
+            EmueraThread.instance.Input(unit_desc.code, true, false, mapped_color);
+        }
     }
 
     public abstract void UpdateContent();

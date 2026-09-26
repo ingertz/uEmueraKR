@@ -34,12 +34,21 @@ namespace MinorShift.Emuera.GameView
         /// <param name="x">クライアント左上基準のX</param>
         /// <param name="y">クライアント左上基準のY</param>
         /// <param name="button">WinFormsのMouseButtons値(左=0x100000)</param>
-        internal void MouseDownFromUnity(int x, int y, int button, int cbgButton = -1)
+        internal void MouseDownFromUnity(int x, int y, int button, int cbgButton = -1, ConsoleButtonString tapped = null)
         {
             if(!IsWaitingPrimitive)
                 return;
             //ERB側は左下基準の座標を受け取る。RESULT:4はCBGのボタン番号(無ければ-1)
-            InputMouseKey(1, button, x, y - ClientHeight, cbgButton);
+            //EE_INPUTMOUSEKEY拡張: 押したボタンが数値ならRESULT:5へ、文字列ならRESULTSへ(RESULT:5は0)
+            long result5 = 0;
+            if (tapped != null)
+            {
+                if (!tapped.IsInteger)
+                    GlobalStatic.VEvaluator.RESULTS = tapped.Inputs;
+                else
+                    result5 = tapped.Input;
+            }
+            InputMouseKey(1, button, x, y - ClientHeight, cbgButton, result5);
         }
         #region HTML_PRINT_ISLAND
         //本家(Emuera.NET)の_htmlElementList。ログに残らず、画面の上端から1行ずつ重ねて描く

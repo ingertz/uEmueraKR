@@ -193,7 +193,8 @@ public class CBGLayer : MonoBehaviour
     /// INPUTMOUSEKEY待ちならタップをマウス入力として渡してtrue。
     /// RESULT:4にはボタンマップの番号(無ければ-1)を載せる
     /// </summary>
-    public static bool TryHandleTap(UnityEngine.EventSystems.PointerEventData e)
+    internal static bool TryHandleTap(UnityEngine.EventSystems.PointerEventData e,
+        MinorShift.Emuera.GameView.ConsoleButtonString tapped = null)
     {
         var console = GlobalStatic.Console;
         if (console == null || e == null || !console.IsWaitingPrimitive)
@@ -203,7 +204,8 @@ public class CBGLayer : MonoBehaviour
             (int)e.position.x,
             (int)(Screen.height - e.position.y),//左上基準へ
             0x100000,//MouseButtons.Left
-            button);
+            button,
+            tapped);
         return true;
     }
 }

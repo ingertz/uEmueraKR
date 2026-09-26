@@ -1020,9 +1020,9 @@ namespace MinorShift.Emuera.GameView
 		}
 
 		//1823 Key入力を捕まえる
-		internal void InputMouseKey(int type, int result1, int result2, int result3, int result4)
+		internal void InputMouseKey(int type, int result1, int result2, int result3, int result4, long result5 = 0)
 		{
-			emuera.InputResult5(type, result1, result2, result3, result4);
+			emuera.InputResult5(type, result1, result2, result3, result4, result5);
 
 			inProcess = true;
 			try

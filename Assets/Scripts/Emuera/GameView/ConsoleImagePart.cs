@@ -133,6 +133,29 @@ namespace MinorShift.Emuera.GameView
 			}
 		}
 
+        /// <summary>
+        /// EM_私家版_imgマースク: マスク画像上の色(RGBのみ)。pointX,pointYは表示した画像の左上からの位置
+        /// </summary>
+        public long GetMappingColor(int pointX, int pointY)
+        {
+            if (MappingGraphName == null)
+                return 0;
+            ASprite cImageM = AppContents.GetSprite(MappingGraphName);
+            if (cImageM == null || !cImageM.IsCreated)
+                return 0;
+            Size spriteSize;
+            if (cImageM is SpriteF || cImageM is SpriteG)
+                spriteSize = cImageM.DestBaseSize;
+            else
+                return 0;
+            if (destRect.Width == 0 || destRect.Height == 0)
+                return 0;
+            pointX = pointX * spriteSize.Width / destRect.Width;
+            pointY = pointY * spriteSize.Height / destRect.Height;
+            var c = cImageM.SpriteGetColor(pointX, pointY);
+            return c.ToArgb() & 0xFFFFFF;
+        }
+
         public ASprite Image { get { return cImage; } }
         public ASprite ImageBackground { get { return cImageB; } }
         public Rectangle rect { get { return cImage.Rectangle; } }

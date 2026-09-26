@@ -242,6 +242,32 @@ namespace MinorShift.Emuera.GameView
                 strArray[i].PointX += shiftX;
 		}
 
+		/// <summary>
+		/// EM_私家版_imgマースク: 押した位置のマスク画像(PRINT_IMGの第3引数/srcm)の色。
+		/// pointXは描画領域の左端から、pointYは行の上端からの位置。
+		/// 本家と同じく、ボタン内の最後の画像をマスクとして扱い、同じ式で位置を出す
+		/// </summary>
+		public long GetMappedColor(int pointX, int pointY)
+		{
+			ConsoleImagePart mask = null;
+			for (int i = strArray.Length - 1; i > -1; i--)
+			{
+				if (strArray[i] is ConsoleImagePart img)
+				{
+					mask = img;
+					break;
+				}
+			}
+			if (mask != null)
+			{
+				var offsetX = pointX - PointX - mask.PointX - Config.DrawingParam_ShapePositionShift;
+				var offsetY = pointY - mask.Top;
+				if (offsetX > 0 && offsetX < mask.Width && offsetY > 0 && offsetY < mask.Bottom - mask.Top)
+					return mask.GetMappingColor(offsetX, offsetY);
+			}
+			return 0;
+		}
+
 		public void DrawTo(Graphics graph, int pointY, bool isBackLog, TextDrawingMode mode)
 		{
 			bool isSelecting = (IsButton) && (parent.ButtonIsSelected(this));

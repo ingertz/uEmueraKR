@@ -247,7 +247,8 @@ namespace MinorShift.Emuera.GameProc
             return (callFunction("CALLTRAINEND", false, false));
         }
 
-		public void InputResult5(int r0, int r1, int r2, int r3, int r4)
+		//EE_INPUTMOUSEKEY拡張: RESULT:5に押したボタンの値
+		public void InputResult5(int r0, int r1, int r2, int r3, int r4, long r5)
 		{
 			long[] result = vEvaluator.RESULT_ARRAY;
 			result[0] = r0;
@@ -255,6 +256,7 @@ namespace MinorShift.Emuera.GameProc
 			result[2] = r2;
 			result[3] = r3;
 			result[4] = r4;
+			result[5] = r5;
 		}
 		public void InputInteger(Int64 i)
 		{
