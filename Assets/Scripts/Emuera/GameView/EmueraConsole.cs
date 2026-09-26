@@ -211,58 +211,74 @@ namespace MinorShift.Emuera.GameView
 		}
 		public void CBG_Clear()
 		{
-			for(var i=0; i<cbgList.Count; ++i)
+			lock (cbgList)
 			{
+				++cbgVersion;
+				for(var i=0; i<cbgList.Count; ++i)
+				{
                 ClientBackGroundImage cimg = cbgList[i];
                 //使い捨て無名Imageを一応disposeしておく
                 if (cimg.Img != null && cimg.Img.Name.Length == 0)
-					cimg.Img.Dispose();
+						cimg.Img.Dispose();
+				}
+				cbgList.Clear();
+				CBG_ClearBMap();
+				cbgList.Add(new ClientBackGroundImage(0));
 			}
-			cbgList.Clear();
-			CBG_ClearBMap();
-			cbgList.Add(new ClientBackGroundImage(0));
 		}
 
 		public void CBG_ClearRange(int zmin, int zmax)
 		{
-			if (zmin > zmax)
-				return;
-			for (int i = 0; i < cbgList.Count;i++)
+			lock (cbgList)
 			{
-				ClientBackGroundImage cimg = cbgList[i];
-				if (cimg.zdepth < zmin || cimg.zdepth > zmax || cimg.zdepth == 0)//0はダミーなので削除しない
-					continue;
+				++cbgVersion;
+				if (zmin > zmax)
+					return;
+				for (int i = 0; i < cbgList.Count;i++)
+				{
+					ClientBackGroundImage cimg = cbgList[i];
+					if (cimg.zdepth < zmin || cimg.zdepth > zmax || cimg.zdepth == 0)//0はダミーなので削除しない
+						continue;
 
-				//使い捨て無名Imageを一応disposeしておく
-				if (cimg.Img != null && cimg.Img.Name.Length == 0)
-					cimg.Img.Dispose();
-				cbgList.RemoveAt(i);
-				i--;
+					//使い捨て無名Imageを一応disposeしておく
+					if (cimg.Img != null && cimg.Img.Name.Length == 0)
+						cimg.Img.Dispose();
+					cbgList.RemoveAt(i);
+					i--;
+				}
 			}
 		}
 
 		public void CBG_ClearButton()
 		{
-			for (int i = 0; i < cbgList.Count; i++)
+			lock (cbgList)
 			{
-				ClientBackGroundImage cimg = cbgList[i];
-				if (!cimg.isButton)
-					continue;
+				++cbgVersion;
+				for (int i = 0; i < cbgList.Count; i++)
+				{
+					ClientBackGroundImage cimg = cbgList[i];
+					if (!cimg.isButton)
+						continue;
 
-				//使い捨て無名Imageを一応disposeしておく
-				if (cimg.Img != null && cimg.Img.Name.Length == 0)
-					cimg.Img.Dispose();
-				cbgList.RemoveAt(i);
-				i--;
+					//使い捨て無名Imageを一応disposeしておく
+					if (cimg.Img != null && cimg.Img.Name.Length == 0)
+						cimg.Img.Dispose();
+					cbgList.RemoveAt(i);
+					i--;
+				}
+				CBG_ClearBMap();
 			}
-			CBG_ClearBMap();
 		}
 
 		public void CBG_ClearBMap()
 		{
-			cbgButtonMap = null;
-			selectingCBGButtonInt = -1;
-			lastSelectingCBGButtonInt = -1;
+			lock (cbgList)
+			{
+				++cbgVersion;
+				cbgButtonMap = null;
+				selectingCBGButtonInt = -1;
+				lastSelectingCBGButtonInt = -1;
+			}
 		}
 
 		public bool CBG_SetGraphics(GraphicsImage gra, int x, int y, int zdepth)
@@ -273,48 +289,60 @@ namespace MinorShift.Emuera.GameView
 		}
 		public bool CBG_SetImage(ASprite image, int x, int y, int zdepth)
 		{
-			if (image == null || !image.IsCreated)
-				return false;
-			if (zdepth == 0)
-				throw new ArgumentOutOfRangeException();
-			ClientBackGroundImage cbg = new ClientBackGroundImage(zdepth);
-			cbg.Img = image;
-			cbg.x = x;
-			cbg.y = y;
-			//cbg.zdepth = zdepth;
-			cbgList.Add(cbg);
-			cbgList.Sort();
-			return true;
+			lock (cbgList)
+			{
+				++cbgVersion;
+				if (image == null || !image.IsCreated)
+					return false;
+				if (zdepth == 0)
+					throw new ArgumentOutOfRangeException();
+				ClientBackGroundImage cbg = new ClientBackGroundImage(zdepth);
+				cbg.Img = image;
+				cbg.x = x;
+				cbg.y = y;
+				//cbg.zdepth = zdepth;
+				cbgList.Add(cbg);
+				cbgList.Sort();
+				return true;
+			}
 		}
 
 		public bool CBG_SetButtonMap(GraphicsImage gra)
 		{
-			if (gra == null || !gra.IsCreated)
-				return false;
-			if (cbgButtonMap == gra)
-				return false;
-			cbgButtonMap = gra;
-			selectingCBGButtonInt = -1;
-			lastSelectingCBGButtonInt = -1;
-			return true;
+			lock (cbgList)
+			{
+				++cbgVersion;
+				if (gra == null || !gra.IsCreated)
+					return false;
+				if (cbgButtonMap == gra)
+					return false;
+				cbgButtonMap = gra;
+				selectingCBGButtonInt = -1;
+				lastSelectingCBGButtonInt = -1;
+				return true;
+			}
 		}
 
 		public bool CBG_SetButtonImage(int buttonValue, ASprite imageN, ASprite imageB, int x, int y, int zdepth, string tooltip = null)
 		{
-			if (zdepth == 0)
-				throw new ArgumentOutOfRangeException();
-			ClientBackGroundImage cbg = new ClientBackGroundImage(zdepth);
-			cbg.Img = imageN;
-			cbg.ImgB = imageB;
-			cbg.x = x;
-			cbg.y = y;
-			//cbg.zdepth = zdepth;
-			cbg.isButton = true;
-			cbg.buttonValue = buttonValue;
-			cbg.tooltipString = tooltip;
-			cbgList.Add(cbg);
-			cbgList.Sort();
-			return true;
+			lock (cbgList)
+			{
+				++cbgVersion;
+				if (zdepth == 0)
+					throw new ArgumentOutOfRangeException();
+				ClientBackGroundImage cbg = new ClientBackGroundImage(zdepth);
+				cbg.Img = imageN;
+				cbg.ImgB = imageB;
+				cbg.x = x;
+				cbg.y = y;
+				//cbg.zdepth = zdepth;
+				cbg.isButton = true;
+				cbg.buttonValue = buttonValue;
+				cbg.tooltipString = tooltip;
+				cbgList.Add(cbg);
+				cbgList.Sort();
+				return true;
+			}
 		}
 		//マウス座標の変換に使う。Unityの入力と同じデバイス座標で返す
 		public int ClientWidth { get { return UnityEngine.Screen.width; } }

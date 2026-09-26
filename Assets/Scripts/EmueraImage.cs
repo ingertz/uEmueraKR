@@ -6,7 +6,7 @@ using MinorShift.Emuera.Content;
 
 public class EmueraImage : EmueraBehaviour
 {
-    class ImageInfo : MonoBehaviour
+    internal class ImageInfo : MonoBehaviour
     {
         static void OnLoadImageCallback(object obj, SpriteManager.SpriteInfo spriteinfo)
         {

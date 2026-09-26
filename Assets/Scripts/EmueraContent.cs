@@ -76,6 +76,8 @@ public class EmueraContent : MonoBehaviour
         {
             image_content.SetAsFirstSibling();
         }
+        //CBGの層。奥の層は行内画像よりさらに奥へ置くので、image_contentの後で作る
+        CBGLayer.Create(rect_transform);
 
         SetIntentBox(PlayerPrefs.GetInt("IntentBox_L", 0),
                     PlayerPrefs.GetInt("IntentBox_R", 0),
@@ -421,8 +423,11 @@ public class EmueraContent : MonoBehaviour
         drag_begin_position = Vector2.zero;
         drag_curr_position = Vector2.zero;
     }
-    void OnClick()
+    void OnClick(UnityEngine.EventSystems.PointerEventData e)
     {
+        //CBGのボタン(画像・ボタンマップ)とINPUTMOUSEKEY待ちは先に処理する
+        if(CBGLayer.TryHandleTap(e))
+            return;
         var nowtick = MinorShift._Library.WinmmTimer.TickCount;
         var skipflag = (nowtick - last_click_tic < 200);
         EmueraThread.instance.Input("", false, skipflag);

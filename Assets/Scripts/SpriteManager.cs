@@ -121,6 +121,27 @@ internal static class SpriteManager
             mainThreadActions.Enqueue(action);
         }
     }
+    /// <summary>
+    /// SetPixelで書き換えたテクスチャ。次のフレームの頭でまとめてApplyする
+    /// </summary>
+    static readonly HashSet<Texture2D> pending_apply_ = new HashSet<Texture2D>();
+    public static void RequestApply(Texture2D tex)
+    {
+        if (tex != null)
+            pending_apply_.Add(tex);
+    }
+    static void FlushPendingApply()
+    {
+        if (pending_apply_.Count == 0)
+            return;
+        foreach (var tex in pending_apply_)
+        {
+            if (tex != null)
+                tex.Apply(false, false);
+        }
+        pending_apply_.Clear();
+    }
+
     static IEnumerator UpdateMainThread()
     {
         if (mainThreadId == -1) mainThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
@@ -130,6 +151,7 @@ internal static class SpriteManager
         {
             //アニメスプライトが参照する時刻。ここで進めないと止まったままになる
             MinorShift._Library.WinmmTimer.FrameStart();
+            FlushPendingApply();
             bool processedAny = false;
             swTotal.Restart();
             while (mainThreadActions.TryDequeue(out Action action))

@@ -405,15 +405,10 @@ public abstract class EmueraBehaviour : MonoBehaviour
     {
         //INPUTMOUSEKEY待ちの間はボタン入力ではなくマウスイベントを返す。
         //PressEnterKeyではこの待ちを解けない
-        var console = MinorShift.Emuera.GlobalStatic.Console;
-        if(console != null && console.IsWaitingPrimitive)
-        {
-            EmueraThread.instance.InputMouse(
-                (int)e.position.x,
-                (int)(Screen.height - e.position.y),//左上基準へ
-                0x100000);//MouseButtons.Left
+        //INPUTMOUSEKEY待ち(RESULT:4にCBGのボタン番号を載せる)と、
+        //行の上に重なったCBGのボタンはここで処理する
+        if(CBGLayer.TryHandleTap(e))
             return;
-        }
         var obj = e.rawPointerPress;
         if(obj == null)
             return;

@@ -116,7 +116,9 @@ namespace MinorShift.Emuera.GameView
                 else
                 {
                     cImageB = AppContents.GetSprite(ButtonResourceName);
-                    if(cImageB != null)
+                    //本家と同じく、作成できていない時だけ捨てる。
+                    //以前は条件が逆で、見つかった画像を必ず捨てていた
+                    if(cImageB != null && !cImageB.IsCreated)
                         cImageB = null;
                 }
 			}

@@ -967,8 +967,8 @@ namespace MinorShift.Emuera.Content
         {
         	if (Bitmap == null)
         		throw new NullReferenceException();
-            //	//UnlockGraphics();
-            //	Bitmap.SetPixel(x, y, c);
+            //以前は中身が無く、GSETCOLORは何もしていなかった
+            Bitmap.SetPixel(c, x, y);
         }
 
         /// <summary>

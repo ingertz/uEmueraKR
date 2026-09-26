@@ -83,7 +83,7 @@ public class EmueraThread
     /// INPUTMOUSEKEY待ちへクリックを渡す。
     /// コンソールの操作はワーカー側で行う必要があるので、ここでは予約だけする
     /// </summary>
-    public void InputMouse(int x, int y, int button)
+    public void InputMouse(int x, int y, int button, int cbg_button = -1)
     {
         var console = MinorShift.Emuera.GlobalStatic.Console;
         if(console == null || !console.IsWaitingPrimitive)
@@ -91,6 +91,7 @@ public class EmueraThread
         mouse_x_ = x;
         mouse_y_ = y;
         mouse_button_ = button;
+        mouse_cbg_button_ = cbg_button;
         mouse_pending_ = true;
         from_button_ = false;
         input = "";//ワーカーを起こす
@@ -100,6 +101,7 @@ public class EmueraThread
     int mouse_x_ = 0;
     int mouse_y_ = 0;
     int mouse_button_ = 0;
+    int mouse_cbg_button_ = -1;
 
     /// <summary>予約されたマウス入力があれば処理する。ワーカー側から呼ぶ</summary>
     bool ConsumeMouseInput(MinorShift.Emuera.GameView.EmueraConsole console)
@@ -107,7 +109,7 @@ public class EmueraThread
         if(!mouse_pending_)
             return false;
         mouse_pending_ = false;
-        console.MouseDownFromUnity(mouse_x_, mouse_y_, mouse_button_);
+        console.MouseDownFromUnity(mouse_x_, mouse_y_, mouse_button_, mouse_cbg_button_);
         return true;
     }
     public bool IsSkipFlag { get { return skipflag; } }

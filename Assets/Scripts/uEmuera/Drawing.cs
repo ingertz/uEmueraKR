@@ -49,16 +49,60 @@ namespace uEmuera.Drawing
             get { return size.Height; }
         }
         public Size Size { get { return size; } }
+        /// <summary>
+        /// 1画素を読む。x,yはEmueraと同じ左上基準。
+        ///
+        /// Unityのテクスチャは下の行から並ぶので上下を反転する。
+        /// 反転していなかったため、GGETCOLOR/SPRITEGETCOLORは上下逆の位置の色を返していた。
+        /// またTexture2Dはメインスレッド以外から触れないので、メインスレッドで読む
+        /// </summary>
         public Color GetPixel(int x, int y)
         {
-            var ti = SpriteManager.GetTextureInfo(name, path);
-            var uc = ti.texture.GetPixel(x, y);
-            return new Color(uc.r, uc.g, uc.b, uc.a);
+            Color ret = new Color();
+            RunSync(() =>
+            {
+                var ti = SpriteManager.GetTextureInfo(name, path);
+                if (ti == null || ti.texture == null)
+                    return;
+                var tex = ti.texture;
+                if (x < 0 || y < 0 || x >= tex.width || y >= tex.height)
+                    return;
+                var uc = tex.GetPixel(x, tex.height - 1 - y);
+                ret = new Color(uc.r, uc.g, uc.b, uc.a);
+            });
+            return ret;
         }
+        /// <summary>
+        /// 1画素を書く(GSETCOLOR)。x,yは左上基準。
+        /// 1画素ごとにApplyするとGPUへの転送が画素数分走るので、
+        /// 反映はフレームの終わりにまとめて行う(SpriteManager.FlushPendingApply)
+        /// </summary>
         public void SetPixel(Color c, int x, int y)
         {
-            var ti = SpriteManager.GetTextureInfo(name, path);
-            ti.texture.SetPixel(x, y, new UnityEngine.Color(c.r, c.g, c.b, c.a));
+            RunSync(() =>
+            {
+                var ti = SpriteManager.GetTextureInfo(name, path);
+                if (ti == null || ti.texture == null)
+                    return;
+                var tex = ti.texture;
+                if (x < 0 || y < 0 || x >= tex.width || y >= tex.height)
+                    return;
+                tex.SetPixel(x, tex.height - 1 - y, new UnityEngine.Color(c.r, c.g, c.b, c.a));
+                SpriteManager.RequestApply(tex);
+            });
+        }
+        static void RunSync(Action action)
+        {
+            //メインスレッドから呼ばれた時はRunOnMainThreadがその場で実行するので待ちで詰まらない
+            using (var done = new System.Threading.ManualResetEvent(false))
+            {
+                SpriteManager.RunOnMainThread(() =>
+                {
+                    try { action(); }
+                    finally { done.Set(); }
+                });
+                done.WaitOne();
+            }
         }
         public void Save(string path)
         {
