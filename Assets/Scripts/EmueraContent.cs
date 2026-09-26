@@ -78,6 +78,8 @@ public class EmueraContent : MonoBehaviour
         }
         //CBGの層。奥の層は行内画像よりさらに奥へ置くので、image_contentの後で作る
         CBGLayer.Create(rect_transform);
+        //SETBGIMAGEの層。CBGの奥の層よりさらに奥(最背面)へ置くので、CBGの後で作る
+        BGImageLayer.Create(rect_transform);
         //HTML_PRINT_ISLANDの層。CBGより後に作って最前面に置く
         IslandLayer.Create(this);
 

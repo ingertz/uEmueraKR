@@ -83,6 +83,74 @@ namespace MinorShift.Emuera.GameView
         volatile int cbgVersion = 0;
         internal int CBGVersion { get { return cbgVersion; } }
 
+        #region EE_BGIMAGE
+        /// <summary>
+        /// SETBGIMAGEで設定した背景画像1枚分。
+        /// 本家は深さの大きい物から順に、描画領域の幅(足りなければ高さ)に合わせて拡大し、
+        /// 上端を揃えて左右中央に置き、文字やCBGより奥に描く
+        /// </summary>
+        internal struct BGImageItem
+        {
+            public long Depth;
+            public Content.ASprite Sprite;
+            public float Opacity;
+        }
+        readonly System.Collections.Generic.List<BGImageItem> backgroundList = new System.Collections.Generic.List<BGImageItem>();
+        int bgImageVersion = 0;
+        internal int BGImageVersion { get { return bgImageVersion; } }
+
+        public void AddBackgroundImage(string name, long depth, float opacity)
+        {
+            //本家はresourcesのcsvで作った1枚物のスプライトだけ受け付ける
+            var spr = Content.AppContents.GetSprite(name) as Content.SpriteF;
+            if (spr == null)
+                return;
+            lock (backgroundList)
+            {
+                //深さの大きい物(奥)から順に並べる
+                int index = backgroundList.Count;
+                for (int i = 0; i < backgroundList.Count; i++)
+                {
+                    if (backgroundList[i].Depth < depth)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+                backgroundList.Insert(index, new BGImageItem { Depth = depth, Sprite = spr, Opacity = opacity });
+                ++bgImageVersion;
+            }
+        }
+
+        public void ClearBackgroundImage()
+        {
+            lock (backgroundList)
+            {
+                backgroundList.Clear();
+                ++bgImageVersion;
+            }
+        }
+
+        public void RemoveBackground(string key)
+        {
+            lock (backgroundList)
+            {
+                int index = backgroundList.FindIndex(v => v.Sprite.Name == key);
+                //本家はRemoveAt(-1)で例外になる
+                if (index < 0)
+                    throw new Sub.CodeEE("背景画像" + key + "は設定されていません");
+                backgroundList.RemoveAt(index);
+                ++bgImageVersion;
+            }
+        }
+
+        internal BGImageItem[] GetBackgroundSnapshot()
+        {
+            lock (backgroundList)
+                return backgroundList.ToArray();
+        }
+        #endregion
+
         /// <summary>Unity側へ渡すCBG1枚分の写し</summary>
         internal struct CBGItem
         {

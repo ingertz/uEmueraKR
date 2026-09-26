@@ -40,6 +40,8 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 - **화면 배경 그래픽(CBG)**
   - `CBGSETG`, `CBGSETSPRITE`로 설정한 그림을 화면에 고정해서 표시합니다 (zdepth 양수는 글자 뒤, 음수는 글자 앞)
   - `CBGSETBMAPG` 버튼 맵을 터치하면 `INPUTMOUSEKEY`의 `RESULT:4`로 번호가 전달됩니다 (PC판과 같음)
+- **배경 이미지 (`SETBGIMAGE`/`REMOVEBGIMAGE`/`CLEARBGIMAGE`)**
+  - EE처럼 화면 폭(모자라면 높이)에 맞춰 늘리고, 위쪽에 붙여 가운데에 두며, 글자와 CBG 뒤에 표시합니다
 - **`HTML_PRINT_ISLAND` / `HTML_PRINT_ISLAND_CLEAR`**
   - 로그에 남지 않는 HTML을 화면 위쪽에 고정해서 겹쳐 표시합니다 (Emuera.NET과 같은 동작)
 - **문자 코드 자동 판별**

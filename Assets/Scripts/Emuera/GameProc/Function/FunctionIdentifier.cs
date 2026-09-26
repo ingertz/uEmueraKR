@@ -351,6 +351,9 @@ namespace MinorShift.Emuera.GameProc.Function
 		addFunction(FunctionCode.INPUTANY, new INPUTANY_Instruction());
 		addFunction(FunctionCode.BREAKBUTTON, new BREAKBUTTON_Instruction());
 		addFunction(FunctionCode.UPDATECHECK, new UPDATECHECK_Instruction());
+		addFunction(FunctionCode.SETBGIMAGE, new SETBGIMAGE_Instruction());
+		addFunction(FunctionCode.REMOVEBGIMAGE, new REMOVEBGIMAGE_Instruction());
+		addFunction(FunctionCode.CLEARBGIMAGE, new CLEARBGIMAGE_Instruction());
 			addFunction(FunctionCode.PLAYBGM, new PLAYBGM_Instruction());
 			addFunction(FunctionCode.STOPBGM, new STOPBGM_Instruction());
 			addFunction(FunctionCode.SETBGMVOLUME, new SETBGMVOLUME_Instruction());

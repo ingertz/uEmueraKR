@@ -600,6 +600,55 @@ private sealed class VARI_Instruction : AbstractInstruction
 			}
 		}
 
+		//EE_BGIMAGE: SETBGIMAGE スプライト名(, 深さ(, 不透明度0～255))
+		internal sealed class SETBGIMAGE_Instruction : AbstractInstruction
+		{
+			public SETBGIMAGE_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.FORM_STR_ANY);
+				flag = METHOD_SAFE | EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				ExpressionArrayArgument arg = (ExpressionArrayArgument)func.Argument;
+				string bgName = arg.TermList[0].GetStrValue(exm);
+				long bgDepth = 0;
+				float opacity = 1.0f;
+				if (arg.TermList.Length >= 2)
+					bgDepth = long.Parse(arg.TermList[1].GetStrValue(exm));
+				if (arg.TermList.Length >= 3)
+					opacity = long.Parse(arg.TermList[2].GetStrValue(exm)) / 255.0f;
+				exm.Console.AddBackgroundImage(bgName, bgDepth, opacity);
+			}
+		}
+
+		internal sealed class REMOVEBGIMAGE_Instruction : AbstractInstruction
+		{
+			public REMOVEBGIMAGE_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.FORM_STR_ANY);
+				flag = METHOD_SAFE | EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				ExpressionArrayArgument arg = (ExpressionArrayArgument)func.Argument;
+				exm.Console.RemoveBackground(arg.TermList[0].GetStrValue(exm));
+			}
+		}
+
+		internal sealed class CLEARBGIMAGE_Instruction : AbstractInstruction
+		{
+			public CLEARBGIMAGE_Instruction()
+			{
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.VOID);
+				flag = METHOD_SAFE | EXTENDED;
+			}
+			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
+			{
+				exm.Console.ClearBackgroundImage();
+			}
+		}
+
 		//EE: どの状態からでも使えるBEGIN
 		internal sealed class FORCE_BEGIN_Instruction : AbstractInstruction
 		{

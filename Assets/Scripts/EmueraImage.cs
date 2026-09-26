@@ -53,12 +53,13 @@ public class EmueraImage : EmueraBehaviour
             else
             {
                 image.sprite = spriteinfo.sprite;
-                image.color = Color.white;
+                image.color = new Color(1, 1, 1, alpha);
             }
             this.spriteinfo = spriteinfo;
         }
         public void Clear()
         {
+            alpha = 1;
             anime_ = null;
             anime_frame_ = -1;
             SpriteManager.GivebackSpriteInfo(spriteinfo);
@@ -67,6 +68,8 @@ public class EmueraImage : EmueraBehaviour
         }
         SpriteAnime anime_ = null;
         int anime_frame_ = -1;
+        /// <summary>読み込み後に付ける不透明度(SETBGIMAGEの第3引数)</summary>
+        public float alpha = 1;
         
         public SpriteManager.SpriteInfo spriteinfo = null;
         UnityEngine.UI.Image image
