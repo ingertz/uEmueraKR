@@ -413,7 +413,7 @@ public class EmueraContent : MonoBehaviour
             drag_begin_position = Vector2.zero;
             drag_curr_position = Vector2.zero;
             drag_delta = Vector2.zero;
-            OnClick();
+            OnClick(e);
             return;
         }
 
