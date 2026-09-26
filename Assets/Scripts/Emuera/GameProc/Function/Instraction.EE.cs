@@ -256,15 +256,18 @@ private sealed class VARI_Instruction : AbstractInstruction
         {
             public PLAYSOUND_Instruction()
             {
-                ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.STR_EXPRESSION);
+                //本家(EE): PLAYSOUND ファイル名(, 回数)
+                ArgBuilder = new HTML_PRINT_ArgumentBuilder();
                 flag = 0x00002 | 0x00004; // EXTENDED | METHOD_SAFE
             }
             public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
             {
-                string filename = func.Argument.ConstStr;
-                if (!func.Argument.IsConst)
-                    filename = ((MinorShift.Emuera.GameProc.Function.ExpressionArgument)func.Argument).Term.GetStrValue(exm);
-                uEmuera.SoundManager.Instance?.PlaySound(filename);
+                var arg = (ExpressionsArgument)func.Argument;
+                string filename = arg.ArgumentArray[0].GetStrValue(exm);
+                int repeat = 1;
+                if (arg.ArgumentArray.Length > 1 && arg.ArgumentArray[1] != null)
+                    repeat = (int)Math.Max(arg.ArgumentArray[1].GetIntValue(exm), 1);
+                uEmuera.SoundManager.Instance?.PlaySound(filename, repeat);
             }
         }
 

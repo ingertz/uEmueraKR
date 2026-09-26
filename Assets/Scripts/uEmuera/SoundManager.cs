@@ -100,11 +100,27 @@ namespace uEmuera
 
         public void PlaySound(string filename)
         {
+            PlaySound(filename, 1);
+        }
+
+        /// <summary>
+        /// PLAYSOUND 名前, 回数(EE)。回数だけ続けて鳴らす(1未満は1)
+        /// </summary>
+        public void PlaySound(string filename, int repeat)
+        {
+            if (repeat < 1)
+                repeat = 1;
             lock (executeOnMainThread)
             {
-                executeOnMainThread.Enqueue(() => StartCoroutine(LoadAndPlayClip(filename, seSource, true)));
+                executeOnMainThread.Enqueue(() =>
+                {
+                    var co = StartCoroutine(LoadAndPlayClip(filename, seSource, true, repeat));
+                    soundCoroutines.Add(co);
+                });
             }
         }
+        /// <summary>繰り返し再生中の効果音。STOPSOUNDで止める</summary>
+        private readonly System.Collections.Generic.List<Coroutine> soundCoroutines = new System.Collections.Generic.List<Coroutine>();
 
         public void StopSound()
         {
@@ -112,6 +128,10 @@ namespace uEmuera
             {
                 executeOnMainThread.Enqueue(() =>
                 {
+                    foreach (var co in soundCoroutines)
+                        if (co != null)
+                            StopCoroutine(co);
+                    soundCoroutines.Clear();
                     if (seSource.isPlaying)
                         seSource.Stop();
                     if (midiPlayer != null && midiPlayer.IsPlaying())
@@ -134,7 +154,7 @@ namespace uEmuera
             }
         }
 
-        private IEnumerator LoadAndPlayClip(string filename, AudioSource source, bool playOneShot)
+        private IEnumerator LoadAndPlayClip(string filename, AudioSource source, bool playOneShot, int repeat = 1)
         {
             string fullPath = Path.GetFullPath(MinorShift.Emuera.Program.ExeDir + "sound/" + filename);
             if (!File.Exists(fullPath))
@@ -196,7 +216,13 @@ namespace uEmuera
                     {
                         if (playOneShot)
                         {
-                            source.PlayOneShot(clip);
+                            //本家は同じ音を回数分続けて鳴らす
+                            for (int i = 0; i < repeat; ++i)
+                            {
+                                source.PlayOneShot(clip);
+                                if (i + 1 < repeat)
+                                    yield return new WaitForSeconds(clip.length);
+                            }
                         }
                         else
                         {

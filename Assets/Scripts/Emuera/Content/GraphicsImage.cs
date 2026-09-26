@@ -149,6 +149,38 @@ namespace MinorShift.Emuera.Content
             waitHandle.WaitOne();
         }
 
+        /// <summary>
+        /// EM: GCLEAR ID, 色, x, y, 幅, 高さ。矩形の中だけをその色で塗り替える(合成しない)
+        /// </summary>
+        public void GClear(uEmuera.Drawing.Color c, int x, int y, int w, int h)
+        {
+            if (this.Bitmap == null) return;
+            var waitHandle = new System.Threading.ManualResetEvent(false);
+            SpriteManager.RunOnMainThread(() => {
+                try {
+                    var destTi = SpriteManager.GetTextureInfo(this.Bitmap.name, this.Bitmap.path);
+                    if (destTi == null) return;
+                    var destTex = destTi.texture;
+                    //左上基準の矩形を描画先の範囲に収める
+                    int x0 = System.Math.Max(0, x), y0 = System.Math.Max(0, y);
+                    int x1 = System.Math.Min(destTex.width, x + w), y1 = System.Math.Min(destTex.height, y + h);
+                    if (x1 <= x0 || y1 <= y0) return;
+                    int cw = x1 - x0, ch = y1 - y0;
+                    UnityEngine.Color uc = new UnityEngine.Color(c.r, c.g, c.b, c.a);
+                    UnityEngine.Color[] px = new UnityEngine.Color[cw * ch];
+                    for (int i = 0; i < px.Length; i++) px[i] = uc;
+                    //Unityのテクスチャは下の行から
+                    destTex.SetPixels(x0, destTex.height - y1, cw, ch, px);
+                    destTex.Apply(false, false);
+                } catch(System.Exception e) {
+                    UnityEngine.Debug.LogError(e);
+                } finally {
+                    waitHandle.Set();
+                }
+            });
+            waitHandle.WaitOne();
+        }
+
         public void GDrawString(string text, int x, int y)
         {
             GDrawStringCore(text, x, y, 0, 0);
@@ -290,10 +322,6 @@ namespace MinorShift.Emuera.Content
             waitHandle.WaitOne();
         }
 
-        public void GDrawString(string text, int x, int y, int width, int height)
-        {
-            GDrawStringCore(text, x, y, width, height);
-        }
 
         public void GDrawRectangle(Rectangle rect)
         {

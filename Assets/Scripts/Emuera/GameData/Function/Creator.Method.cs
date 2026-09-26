@@ -2466,25 +2466,85 @@ namespace MinorShift.Emuera.GameData.Function
 
         private sealed class ReplaceMethod : FunctionMethod
         {
+            //本家(EE): REPLACE 対象, 検索, 置換(, 種類)
+            //  種類 0:正規表現で置換 1:一致した順に第3引数の文字列配列の要素で置換 2:正規表現を使わず文字列で置換
             public ReplaceMethod()
             {
                 ReturnType = typeof(string);
-                argumentTypeArray = new Type[] { typeof(string), typeof(string), typeof(string) };
-                CanRestructure = true;
+                argumentTypeArrayEx = new ArgTypeList[] {
+                    new ArgTypeList { ArgTypesEnum = new List<ArgType> { ArgType.String, ArgType.String, ArgType.String, ArgType.Int }, OmitStart = 3 },
+                    new ArgTypeList { ArgTypesEnum = new List<ArgType> { ArgType.String, ArgType.String, ArgType.RefString1D | ArgType.AllowConstRef, ArgType.Int } },
+                };
+                HasUniqueRestructure = true;
+                CanRestructure = false;
+            }
+            public override bool UniqueRestructure(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                return arguments.Length < 4 || arguments[3].GetIntValue(exm) != 1;
             }
             public override string GetStrValue(ExpressionMediator exm, IOperandTerm[] arguments)
             {
                 string baseString = arguments[0].GetStrValue(exm);
-                Regex reg;
-                try
+                Regex reg = null;
+                int type = arguments.Length == 4 ? (int)arguments[3].GetIntValue(exm) : 0;
+                if (type != 2)
                 {
-                    reg = new Regex(arguments[1].GetStrValue(exm));
+                    try
+                    {
+                        reg = RegexFactory.GetRegex(arguments[1].GetStrValue(exm));
+                    }
+                    catch (ArgumentException e)
+                    {
+                        throw new CodeEE("第２引数が正規表現として不正です：" + e.Message);
+                    }
                 }
-                catch (ArgumentException e)
+                if (arguments.Length == 4)
                 {
-                    throw new CodeEE("第２引数が正規表現として不正です：" + e.Message);
+                    switch (type)
+                    {
+                        case 1:
+                            {
+                                var varTerm = arguments[2] as VariableTerm;
+                                if (varTerm == null || varTerm.Identifier.IsCalc || !varTerm.Identifier.IsArray1D || !varTerm.Identifier.IsString || varTerm.Identifier.IsConst)
+                                    throw new CodeEE(Name + "関数:第3引数が1次元文字列配列ではありません");
+                                var items = varTerm.Identifier.GetArray() as string[];
+                                int idx = 0;
+                                return reg.Replace(baseString, (Match match) =>
+                                {
+                                    if (idx < items.Length)
+                                        return items[idx++];
+                                    return string.Empty;
+                                });
+                            }
+                        case 2:
+                            return baseString.Replace(arguments[1].GetStrValue(exm), arguments[2].GetStrValue(exm));
+                    }
                 }
-                return (reg.Replace(baseString, arguments[2].GetStrValue(exm)));
+                return reg.Replace(baseString, arguments[2].GetStrValue(exm));
+            }
+        }
+
+        /// <summary>
+        /// 本家(EE): GETNUMB 変数名の文字列, キーワード。GETNUMと違い変数を文字列で渡す
+        /// </summary>
+        private sealed class GetnumBMethod : FunctionMethod
+        {
+            public GetnumBMethod()
+            {
+                ReturnType = typeof(Int64);
+                argumentTypeArray = new Type[] { typeof(string), typeof(string) };
+                CanRestructure = true;
+            }
+            public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                VariableToken var = GlobalStatic.IdentifierDictionary.GetVariableToken(arguments[0].GetStrValue(exm), null, true);
+                if (var == null)
+                    throw new CodeEE("GETNUMBの1番目の引数(\"" + arguments[0].GetStrValue(exm) + "\")が変数名ではありません");
+                string key = arguments[1].GetStrValue(exm);
+                if (exm.VEvaluator.Constant.TryKeywordToInteger(out int ret, var.Code, key, -1))
+                    return ret;
+                else
+                    return -1;
             }
         }
 
@@ -3418,10 +3478,15 @@ namespace MinorShift.Emuera.GameData.Function
 
 		public sealed class GraphicsCreateFromFileMethod : FunctionMethod
 		{
+			//本家(EE): GCREATEFROMFILE ID, ファイル名(, 相対指定)
+			//  相対指定が0(省略)ならresources/からの相対、非0ならゲームフォルダからの相対
 			public GraphicsCreateFromFileMethod()
 			{
 				ReturnType = typeof(Int64);
-				argumentTypeArray = new Type[] { typeof(Int64), typeof(string) };
+				argumentTypeArrayEx = new ArgTypeList[] {
+					new ArgTypeList { ArgTypesEnum = new List<ArgType> { ArgType.Int, ArgType.String, ArgType.Int }, OmitStart = 2 }
+				};
+				argumentTypeArray = null;
 				CanRestructure = false;
 			}
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
@@ -3437,26 +3502,12 @@ namespace MinorShift.Emuera.GameData.Function
 				try
 				{
 					string filepath = filename;
-
+					bool isRelative = arguments.Length > 2 && arguments[2].GetIntValue(exm) != 0;
 					if(!System.IO.Path.IsPathRooted(filepath))
-					{
-						filepath = Program.ExeDir + filename;
-						var undercontent = Program.ContentDir + filename;
-						if (!System.IO.File.Exists(filepath))
-						{
-							if (System.IO.File.Exists(undercontent))
-								filepath = undercontent;
-							else
-							{
-								//綴りの大小が実体と食い違っていてもWindowsでは開けてしまうので、
-								//ERBの綴りをそのまま信じられない。ここまで来た時だけ照合する
-								filepath = uEmuera.Utils.ResolvePath(filepath);
-								if (!System.IO.File.Exists(filepath))
-									filepath = uEmuera.Utils.ResolvePath(undercontent);
-							}
-						}
-					}
-					else if (!System.IO.File.Exists(filepath))
+						filepath = (isRelative ? Program.ExeDir : Program.ContentDir) + filename;
+					//綴りの大小が実体と食い違っていてもWindowsでは開けてしまうので、
+					//ERBの綴りをそのまま信じられない。見つからない時だけ照合する
+					if (!System.IO.File.Exists(filepath))
 						filepath = uEmuera.Utils.ResolvePath(filepath);
 
 					if (!System.IO.File.Exists(filepath))
@@ -3608,10 +3659,15 @@ namespace MinorShift.Emuera.GameData.Function
 		/// </summary>
 		public sealed class GraphicsClearMethod : FunctionMethod
 		{
+			//本家(EM): GCLEAR ID, 色 または GCLEAR ID, 色, x, y, 幅, 高さ
 			public GraphicsClearMethod()
 			{
 				ReturnType = typeof(Int64);
-				argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64) };
+				argumentTypeArrayEx = new ArgTypeList[] {
+					new ArgTypeList { ArgTypesEnum = new List<ArgType> { ArgType.Int, ArgType.Int } },
+					new ArgTypeList { ArgTypesEnum = new List<ArgType> { ArgType.Int, ArgType.Int, ArgType.Int, ArgType.Int, ArgType.Int, ArgType.Int } },
+				};
+				argumentTypeArray = null;
 				CanRestructure = false;
 			}
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
@@ -3622,7 +3678,10 @@ namespace MinorShift.Emuera.GameData.Function
 				Color c = ReadColor(Name, exm, arguments, 1);
 				if (!g.IsCreated)
 					return 0;
-				g.GClear(c);
+				if (arguments.Length == 2)
+					g.GClear(c);
+				else
+					g.GClear(c, (int)arguments[2].GetIntValue(exm), (int)arguments[3].GetIntValue(exm), (int)arguments[4].GetIntValue(exm), (int)arguments[5].GetIntValue(exm));
 				return 1;
 			}
 		}
@@ -4540,8 +4599,9 @@ namespace MinorShift.Emuera.GameData.Function
                 if (arguments[1].GetOperandType() != typeof(string)) return "Argument 1 must be string";
                 if (arguments.Length >= 3 && arguments[2].GetOperandType() != typeof(Int64)) return "Argument 2 must be Int64";
                 if (arguments.Length >= 4 && arguments[3].GetOperandType() != typeof(Int64)) return "Argument 3 must be Int64";
-                if (arguments.Length >= 5 && arguments[4].GetOperandType() != typeof(Int64)) return "Argument 4 must be Int64";
-                if (arguments.Length >= 6 && arguments[5].GetOperandType() != typeof(Int64)) return "Argument 5 must be Int64";
+				//本家(EE)は GDRAWTEXT ID, 文字列 か GDRAWTEXT ID, 文字列, x, y の2通りだけ
+				if (arguments.Length != 2 && arguments.Length != 4)
+					return string.Format(Properties.Resources.SyntaxErrMesMethodDefaultArgumentNum0, name);
 				return null;
 			}
 			public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
@@ -4554,13 +4614,7 @@ namespace MinorShift.Emuera.GameData.Function
                 if (arguments.Length >= 3) x = (int)arguments[2].GetIntValue(exm);
                 if (arguments.Length >= 4) y = (int)arguments[3].GetIntValue(exm);
 				
-				if (arguments.Length >= 6) {
-					int w = (int)arguments[4].GetIntValue(exm);
-					int h = (int)arguments[5].GetIntValue(exm);
-					g.GDrawString(text, x, y, w, h);
-				} else {
-					g.GDrawString(text, x, y);
-				}
+				g.GDrawString(text, x, y);
 				//本家(EE)は描いた文字列の大きさをRESULT:1(幅)とRESULT:2(高さ)へ返す。
 				//フォント未設定なら本家と同じく既定フォントの100pxで測る
 				string fontName = (g.font != null && g.font.FontFamily != null) ? g.font.FontFamily.Name : Config.FontName;
