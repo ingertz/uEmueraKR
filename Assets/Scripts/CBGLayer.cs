@@ -87,6 +87,7 @@ public class CBGLayer : MonoBehaviour
 
     void Rebuild(EmueraConsole console)
     {
+        RenderThrottle.Wake();
         ClearShown();
         var list = console.GetCBGSnapshot(out button_map_);
         //一覧は奥(zdepthが大きい)から手前の順。その順に子にすれば後の物ほど手前に描かれる

@@ -134,6 +134,8 @@ internal static class SpriteManager
     {
         if (pending_apply_.Count == 0)
             return;
+        //表示中の画像が書き換わった
+        RenderThrottle.Wake();
         foreach (var tex in pending_apply_)
         {
             if (tex != null)
@@ -156,6 +158,8 @@ internal static class SpriteManager
             swTotal.Restart();
             while (mainThreadActions.TryDequeue(out Action action))
             {
+                if (!processedAny)
+                    RenderThrottle.Wake();//G*の描画などテクスチャを触る処理が来た
                 processedAny = true;
                 try { action(); } catch (Exception e) { Debug.LogError(e); }
                 if (swTotal.ElapsedMilliseconds >= 30) break;

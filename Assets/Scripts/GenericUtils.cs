@@ -625,15 +625,18 @@ public static class GenericUtils
 
     public static void SetBackgroundColor(uEmuera.Drawing.Color color)
     {
+        RenderThrottle.Wake();
         text_content.SetBackgroundColor(color);
     }
     public static void ClearText()
     {
+        RenderThrottle.Wake();
         //text_content.Clear();
         text_content.RemoveLine(text_content.max_log_count);
     }
     public static void AddText(object console_line, bool roll_to_bottom)
     {
+        RenderThrottle.Wake();
         text_content.AddLine(console_line, roll_to_bottom);
     }
     public static object GetText(int index)
@@ -654,22 +657,27 @@ public static class GenericUtils
     }
     public static void RemoveTextCount(int count)
     {
+        RenderThrottle.Wake();
         text_content.RemoveLine(count);
     }
     public static void ToBottom()
     {
+        RenderThrottle.Wake();
         text_content.ToBottom();
     }
     public static void TextUpdate()
     {
+        RenderThrottle.Wake();
         text_content.Update();
     }
     public static void SetLastButtonGeneration(int generation)
     {
+        RenderThrottle.Wake();
         text_content.SetLastButtonGeneration(generation);
     }
     public static void ShowIsInProcess(bool value)
     {
+        RenderThrottle.Wake();
         text_content.ShowIsInProcess(value);
     }
     static EmueraContent text_content

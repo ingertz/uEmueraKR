@@ -11,6 +11,8 @@ public class MainEntry : MonoBehaviour
     void Awake()
     {
         Application.targetFrameRate = 24;
+        //画面に変化が無い間は描画を間引く
+        RenderThrottle.Create();
         ResolutionHelper.Apply();
     }
 

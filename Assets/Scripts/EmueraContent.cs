@@ -204,6 +204,7 @@ public class EmueraContent : MonoBehaviour
         if(!dirty && drag_delta == Vector2.zero)
             return;
         dirty = false;
+        RenderThrottle.Wake();
 
         float display_width = DISPLAY_WIDTH;
         float display_height = DISPLAY_HEIGHT;
@@ -387,6 +388,7 @@ public class EmueraContent : MonoBehaviour
     public void SetDirty()
     {
         dirty = true;
+        RenderThrottle.Wake();
         //ToBottom();
     }
 

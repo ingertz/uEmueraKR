@@ -73,6 +73,7 @@ public class BGImageLayer : MonoBehaviour
 
     void Rebuild(EmueraConsole console)
     {
+        RenderThrottle.Wake();
         ClearShown();
         var list = console.GetBackgroundSnapshot();
         float areaW = size_.x;

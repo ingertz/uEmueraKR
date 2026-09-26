@@ -34,6 +34,8 @@ public class EmueraImage : EmueraBehaviour
         {
             if(anime_ == null)
                 return;
+            //アニメするスプライトの表示中は描画を間引かない
+            RenderThrottle.Wake();
             var index = anime_.CurrentFrameIndex;
             if(index == anime_frame_)
                 return;
@@ -56,6 +58,7 @@ public class EmueraImage : EmueraBehaviour
                 image.color = new Color(1, 1, 1, alpha);
             }
             this.spriteinfo = spriteinfo;
+            RenderThrottle.Wake();
         }
         public void Clear()
         {

@@ -377,6 +377,7 @@ public class OptionWindow : MonoBehaviour
         msg_title.text = title;
         msg_content.text = content;
         msg_box.SetActive(true);
+        RenderThrottle.Wake();
     }
     void HideMessageBox()
     {

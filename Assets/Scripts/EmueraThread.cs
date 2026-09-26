@@ -164,7 +164,6 @@ public class EmueraThread
                     console.ApplyMouseInputResult(from_button_ ? input : null, 1, mapped_color_);//タップは左クリック扱い
                 console.PressEnterKey(skipflag, input, from_button_);
             }
-            Thread.Sleep(10);
             input = null;
         }
     }

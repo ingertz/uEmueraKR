@@ -82,6 +82,7 @@ public class IslandLayer : MonoBehaviour
 
     void Rebuild(EmueraConsole console)
     {
+        RenderThrottle.Wake();
         ReleaseAll();
         var lines = console.GetIslandSnapshot();
         float line_height = Config.LineHeight;
