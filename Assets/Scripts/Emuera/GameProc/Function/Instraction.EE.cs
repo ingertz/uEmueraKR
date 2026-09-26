@@ -394,110 +394,117 @@ private sealed class VARI_Instruction : AbstractInstruction
 			}
 		}
     }
-		internal sealed class BINPUT_Instruction : AbstractInstruction
+	//EE_BINPUT: 表示中のボタンからしか入力できないINPUT。
+	//押せるボタンが1つも無ければ、既定値があればそれを返し、無ければエラー
+	internal sealed class BINPUT_Instruction : AbstractInstruction
 	{
 		public BINPUT_Instruction()
 		{
 			ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_INPUT);
-			flag = 0x02000 | 0x04000;
+			flag = 0x02000 | 0x04000; // IS_PRINT | IS_INPUT
 		}
 		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 		{
-			ExpressionArgument arg = (ExpressionArgument)func.Argument;
+			if (!exm.Console.EmptyLine)
+				exm.Console.NewLine();
+			SpInputsArgument arg = (SpInputsArgument)func.Argument;
 			InputRequest req = new InputRequest();
-			req.InputType = InputType.IntValue;
-			if (arg.Term != null)
+			req.InputType = InputType.IntButton;
+			bool canSkip = arg.CanSkip != null && GlobalStatic.Console.MesSkip;
+			if (!canSkip && !exm.Console.FindCurrentButton(b => b.IsInteger))
 			{
-				long def;
-				if (arg.IsConst)
-					def = arg.ConstInt;
-				else
-					def = arg.Term.GetIntValue(exm);
-				req.HasDefValue = true;
-				req.DefIntValue = def;
+				if (arg.Def == null)
+					throw new MinorShift.Emuera.Sub.CodeEE("BINPUT:選択できるボタンがありません");
+				GlobalStatic.VEvaluator.RESULT = arg.Def.GetIntValue(exm);
+				return;
 			}
-			exm.Console.WaitInput(req);
+			FunctionIdentifier.WaitIntInput(exm, arg, req);
 		}
 	}
-		internal sealed class BINPUTS_Instruction : AbstractInstruction
+	//EE_BINPUT: 表示中のボタンからしか入力できないINPUT。
+	//押せるボタンが1つも無ければ、既定値があればそれを返し、無ければエラー
+	internal sealed class BINPUTS_Instruction : AbstractInstruction
 	{
 		public BINPUTS_Instruction()
 		{
 			ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_INPUTS);
-			flag = 0x02000 | 0x04000;
+			flag = 0x02000 | 0x04000; // IS_PRINT | IS_INPUT
 		}
 		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 		{
-			ExpressionArgument arg = (ExpressionArgument)func.Argument;
+			if (!exm.Console.EmptyLine)
+				exm.Console.NewLine();
+			SpInputsArgument arg = (SpInputsArgument)func.Argument;
 			InputRequest req = new InputRequest();
-			req.InputType = InputType.StrValue;
-			if (arg.Term != null)
+			req.InputType = InputType.StrButton;
+			bool canSkip = arg.CanSkip != null && GlobalStatic.Console.MesSkip;
+			if (!canSkip && !exm.Console.FindCurrentButton(b => true))
 			{
-				string def;
-				if (arg.IsConst)
-					def = arg.ConstStr;
-				else
-					def = arg.Term.GetStrValue(exm);
-				req.HasDefValue = true;
-				req.DefStrValue = def;
+				if (arg.Def == null)
+					throw new MinorShift.Emuera.Sub.CodeEE("BINPUTS:選択できるボタンがありません");
+				GlobalStatic.VEvaluator.RESULTS = arg.Def.GetStrValue(exm);
+				return;
 			}
-			exm.Console.WaitInput(req);
+			FunctionIdentifier.WaitStrInput(exm, arg, req);
 		}
 	}
+	//EE_BINPUT: 表示中のボタンからしか入力できないINPUT。
+	//押せるボタンが1つも無ければ、既定値があればそれを返し、無ければエラー
 	internal sealed class ONEBINPUT_Instruction : AbstractInstruction
 	{
 		public ONEBINPUT_Instruction()
 		{
 			ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_INPUT);
-			flag = 0x02000 | 0x04000;
+			flag = 0x02000 | 0x04000; // IS_PRINT | IS_INPUT
 		}
 		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 		{
-			ExpressionArgument arg = (ExpressionArgument)func.Argument;
+			if (!exm.Console.EmptyLine)
+				exm.Console.NewLine();
+			SpInputsArgument arg = (SpInputsArgument)func.Argument;
 			InputRequest req = new InputRequest();
-			req.InputType = InputType.IntValue;
+			req.InputType = InputType.IntButton;
 			req.OneInput = true;
-			if (arg.Term != null)
+			bool canSkip = arg.CanSkip != null && GlobalStatic.Console.MesSkip;
+			if (!canSkip && !exm.Console.FindCurrentButton(b => b.IsInteger))
 			{
-				long def;
-				if (arg.IsConst)
-					def = arg.ConstInt;
-				else
-					def = arg.Term.GetIntValue(exm);
-				req.HasDefValue = true;
-				req.DefIntValue = def;
+				if (arg.Def == null)
+					throw new MinorShift.Emuera.Sub.CodeEE("ONEBINPUT:選択できるボタンがありません");
+				GlobalStatic.VEvaluator.RESULT = arg.Def.GetIntValue(exm);
+				return;
 			}
-			exm.Console.WaitInput(req);
+			FunctionIdentifier.WaitIntInput(exm, arg, req);
 		}
 	}
+	//EE_BINPUT: 表示中のボタンからしか入力できないINPUT。
+	//押せるボタンが1つも無ければ、既定値があればそれを返し、無ければエラー
 	internal sealed class ONEBINPUTS_Instruction : AbstractInstruction
 	{
 		public ONEBINPUTS_Instruction()
 		{
 			ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_INPUTS);
-			flag = 0x02000 | 0x04000;
+			flag = 0x02000 | 0x04000; // IS_PRINT | IS_INPUT
 		}
 		public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 		{
-			ExpressionArgument arg = (ExpressionArgument)func.Argument;
+			if (!exm.Console.EmptyLine)
+				exm.Console.NewLine();
+			SpInputsArgument arg = (SpInputsArgument)func.Argument;
 			InputRequest req = new InputRequest();
-			req.InputType = InputType.StrValue;
+			req.InputType = InputType.StrButton;
 			req.OneInput = true;
-			if (arg.Term != null)
+			bool canSkip = arg.CanSkip != null && GlobalStatic.Console.MesSkip;
+			if (!canSkip && !exm.Console.FindCurrentButton(b => true))
 			{
-				string def;
-				if (arg.IsConst)
-					def = arg.ConstStr;
-				else
-					def = arg.Term.GetStrValue(exm);
-				if (def.Length > 1)
-					def = def.Remove(1);
-				req.HasDefValue = true;
-				req.DefStrValue = def;
+				if (arg.Def == null)
+					throw new MinorShift.Emuera.Sub.CodeEE("ONEBINPUTS:選択できるボタンがありません");
+				GlobalStatic.VEvaluator.RESULTS = arg.Def.GetStrValue(exm);
+				return;
 			}
-			exm.Console.WaitInput(req);
+			FunctionIdentifier.WaitStrInput(exm, arg, req);
 		}
 	}
+
 		internal sealed class SKIPLOG_Instruction : AbstractInstruction
 	{
 		public SKIPLOG_Instruction() { ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION); flag = 0x00020 | 0x00002; }

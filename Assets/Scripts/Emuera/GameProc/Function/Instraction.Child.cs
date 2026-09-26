@@ -642,6 +642,52 @@ namespace MinorShift.Emuera.GameProc.Function
 			}
 		}
 
+		#region EM/EE INPUT系の拡張引数
+		//本家(EM/EE)のINPUT系は (既定値, マウス入力, スキップ可) を受け取る。
+		//スキップ可が指定されていてメッセージスキップ中なら、待たずに既定値を返す
+		//(マウス入力が0ならRESULT/RESULTS、非0ならRESULT:1/RESULTS:1へ)
+		internal static void WaitIntInput(ExpressionMediator exm, SpInputsArgument arg, InputRequest req)
+		{
+			if (arg.Def != null)
+			{
+				req.HasDefValue = true;
+				req.DefIntValue = arg.Def.GetIntValue(exm);
+			}
+			if (arg.Mouse != null)
+				req.MouseInput = arg.Mouse.GetIntValue(exm) != 0;
+			if (arg.CanSkip != null && GlobalStatic.Console.MesSkip)
+			{
+				Int64 def = arg.Def != null ? arg.Def.GetIntValue(exm) : 0;
+				if (arg.Mouse == null || arg.Mouse.GetIntValue(exm) == 0)
+					GlobalStatic.VEvaluator.RESULT = def;
+				else
+					GlobalStatic.VEvaluator.RESULT_ARRAY[1] = def;
+			}
+			else
+				exm.Console.WaitInput(req);
+		}
+		internal static void WaitStrInput(ExpressionMediator exm, SpInputsArgument arg, InputRequest req)
+		{
+			if (arg.Def != null)
+			{
+				req.HasDefValue = true;
+				req.DefStrValue = arg.Def.GetStrValue(exm);
+			}
+			if (arg.Mouse != null)
+				req.MouseInput = arg.Mouse.GetIntValue(exm) != 0;
+			if (arg.CanSkip != null && GlobalStatic.Console.MesSkip)
+			{
+				string def = arg.Def != null ? arg.Def.GetStrValue(exm) : "";
+				if (arg.Mouse == null || arg.Mouse.GetIntValue(exm) == 0)
+					GlobalStatic.VEvaluator.RESULTS = def;
+				else
+					GlobalStatic.VEvaluator.RESULTS_ARRAY[1] = def;
+			}
+			else
+				exm.Console.WaitInput(req);
+		}
+		#endregion
+
 		private sealed class INPUT_Instruction : AbstractInstruction
 		{
 			public INPUT_Instruction()
@@ -652,20 +698,9 @@ namespace MinorShift.Emuera.GameProc.Function
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				ExpressionArgument arg = (ExpressionArgument)func.Argument;
 				InputRequest req = new InputRequest();
 				req.InputType = InputType.IntValue;
-				if (arg.Term != null)
-				{
-					Int64 def;
-					if (arg.IsConst)
-						def = arg.ConstInt;
-					else
-						def = arg.Term.GetIntValue(exm);
-					req.HasDefValue = true;
-					req.DefIntValue = def;
-				}
-				exm.Console.WaitInput(req);
+				WaitIntInput(exm, (SpInputsArgument)func.Argument, req);
 			}
 		}
 		private sealed class INPUTS_Instruction : AbstractInstruction
@@ -678,20 +713,9 @@ namespace MinorShift.Emuera.GameProc.Function
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				ExpressionArgument arg = (ExpressionArgument)func.Argument;
 				InputRequest req = new InputRequest();
 				req.InputType = InputType.StrValue;
-				if (arg.Term != null)
-				{
-					string def;
-					if (arg.IsConst)
-						def = arg.ConstStr;
-					else
-						def = arg.Term.GetStrValue(exm);
-					req.HasDefValue = true;
-					req.DefStrValue = def;
-				}
-				exm.Console.WaitInput(req);
+				WaitStrInput(exm, (SpInputsArgument)func.Argument, req);
 			}
 		}
 
@@ -705,28 +729,11 @@ namespace MinorShift.Emuera.GameProc.Function
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				ExpressionArgument arg = (ExpressionArgument)func.Argument;
+				//本家(EM/EE)は既定値を1桁に切り詰める制限を撤廃している
 				InputRequest req = new InputRequest();
 				req.InputType = InputType.IntValue;
 				req.OneInput = true;
-				if (arg.Term != null)
-				{
-					//TODO:二文字以上セットできるようにするかエラー停止するか
-					//少なくともONETINPUTとの仕様を統一すべき
-					Int64 def;
-					if (arg.IsConst)
-						def = arg.ConstInt;
-					else
-						def = arg.Term.GetIntValue(exm);
-					if (def > 9)
-						def = Int64.Parse(def.ToString().Remove(1));
-					if (def >= 0)
-					{
-						req.HasDefValue = true;
-						req.DefIntValue = def;
-					}
-				}
-				exm.Console.WaitInput(req);
+				WaitIntInput(exm, (SpInputsArgument)func.Argument, req);
 			}
 		}
 
@@ -740,26 +747,10 @@ namespace MinorShift.Emuera.GameProc.Function
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				ExpressionArgument arg = (ExpressionArgument)func.Argument;
 				InputRequest req = new InputRequest();
 				req.InputType = InputType.StrValue;
 				req.OneInput = true;
-				if (arg.Term != null)
-				{
-					string def;
-					if (arg.IsConst)
-						def = arg.ConstStr;
-					else
-						def = arg.Term.GetStrValue(exm);
-					if (def.Length > 1)
-						def = def.Remove(1);
-					if (def.Length > 0)
-					{
-						req.HasDefValue = true;
-						req.DefStrValue = def;
-					}
-				}
-				exm.Console.WaitInput(req);
+				WaitStrInput(exm, (SpInputsArgument)func.Argument, req);
 			}
 		}
 
@@ -782,20 +773,23 @@ namespace MinorShift.Emuera.GameProc.Function
 				req.OneInput = isOne;
 				Int64 x = tinputarg.Time.GetIntValue(exm);
 				Int64 y = tinputarg.Def.GetIntValue(exm);
-				//TODO:ONEINPUTと標準の値を統一
-				if (isOne)
-				{
-					if (y < 0)
-						y = Math.Abs(y);
-					if (y >= 10)
-						y = y / (long)(Math.Pow(10.0, Math.Log10((double)y)));
-				}
+				//本家(EM/EE)と同じく、TONEINPUTでも既定値は切り詰めない
+				if (tinputarg.Mouse != null)
+					req.MouseInput = tinputarg.Mouse.GetIntValue(exm) == 1;
 				Int64 z = (tinputarg.Disp != null) ? tinputarg.Disp.GetIntValue(exm) : 1;
 				req.Timelimit = x;
 				req.DefIntValue = y;
 				req.DisplayTime = z != 0;
 				req.TimeUpMes = (tinputarg.Timeout != null) ? tinputarg.Timeout.GetStrValue(exm) : Config.TimeupLabel;
-				exm.Console.WaitInput(req);
+				if (tinputarg.CanSkip != null && GlobalStatic.Console.MesSkip)
+				{
+					if (tinputarg.Mouse == null || tinputarg.Mouse.GetIntValue(exm) == 0)
+						GlobalStatic.VEvaluator.RESULT = y;
+					else
+						GlobalStatic.VEvaluator.RESULT_ARRAY[1] = y;
+				}
+				else
+					exm.Console.WaitInput(req);
 			}
 		}
 
@@ -817,14 +811,22 @@ namespace MinorShift.Emuera.GameProc.Function
 				req.OneInput = isOne;
 				Int64 x = tinputarg.Time.GetIntValue(exm);
 				string strs = tinputarg.Def.GetStrValue(exm);
-				if (isOne && strs.Length > 1)
-					strs = strs.Remove(1);
+				if (tinputarg.Mouse != null)
+					req.MouseInput = tinputarg.Mouse.GetIntValue(exm) == 1;
 				Int64 z = (tinputarg.Disp != null) ? tinputarg.Disp.GetIntValue(exm) : 1;
 				req.Timelimit = x;
 				req.DefStrValue = strs;
 				req.DisplayTime = z != 0;
 				req.TimeUpMes = (tinputarg.Timeout != null) ? tinputarg.Timeout.GetStrValue(exm) : Config.TimeupLabel;
-				exm.Console.WaitInput(req);
+				if (tinputarg.CanSkip != null && GlobalStatic.Console.MesSkip)
+				{
+					if (tinputarg.Mouse == null || tinputarg.Mouse.GetIntValue(exm) == 0)
+						GlobalStatic.VEvaluator.RESULTS = strs;
+					else
+						GlobalStatic.VEvaluator.RESULTS_ARRAY[1] = strs;
+				}
+				else
+					exm.Console.WaitInput(req);
 			}
 		}
 

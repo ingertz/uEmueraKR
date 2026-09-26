@@ -550,7 +550,7 @@ namespace MinorShift.Emuera.GameView
                 updatedGeneration = false;
             lastInputLine = emuera.getCurrentLine;
 			//古い選択肢を選択できないように。INPUTで使った選択肢をINPUTSには流用できないように。
-			if (inputReq.InputType == InputType.IntValue)
+			if (inputReq.InputType == InputType.IntValue || inputReq.InputType == InputType.IntButton)
 			{
 				if (lastButtonGeneration == newButtonGeneration)
 					unchecked { newButtonGeneration++; }
@@ -558,7 +558,7 @@ namespace MinorShift.Emuera.GameView
 					lastButtonGeneration = newButtonGeneration;
 				lastButtonIsInput = true;
 			}
-			if (inputReq.InputType == InputType.StrValue)
+			if (inputReq.InputType == InputType.StrValue || inputReq.InputType == InputType.StrButton)
 			{
 				if (lastButtonGeneration == newButtonGeneration)
 					unchecked { newButtonGeneration++; }
@@ -879,6 +879,34 @@ namespace MinorShift.Emuera.GameView
 						//空入力と時間切れ
 						if (str == null)
 							str = "";
+						emuera.InputString(str);
+						break;
+					//EE_BINPUT: 表示中の(現在の世代の)ボタンの値しか受け付けない
+					case InputType.IntButton:
+						if (string.IsNullOrEmpty(str) && inputReq.HasDefValue && !IsRunningTimer)
+						{
+							inputValue = inputReq.DefIntValue;
+							str = inputValue.ToString();
+						}
+						else if (!Int64.TryParse(str, out inputValue))
+							return false;
+						{
+							Int64 v = inputValue;
+							if (!FindCurrentButton(b => b.IsInteger && b.Input == v))
+								return false;
+						}
+						emuera.InputInteger(inputValue);
+						break;
+					case InputType.StrButton:
+						if (string.IsNullOrEmpty(str) && inputReq.HasDefValue && !IsRunningTimer)
+							str = inputReq.DefStrValue;
+						if (str == null)
+							str = "";
+						{
+							string sv = str;
+							if (!FindCurrentButton(b => (b.IsInteger && b.Input.ToString() == sv) || b.Inputs == sv))
+								return false;
+						}
 						emuera.InputString(str);
 						break;
 				}

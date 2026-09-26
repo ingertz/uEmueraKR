@@ -129,8 +129,84 @@ namespace MinorShift.Emuera.GameView
             get {
                 return state == ConsoleState.WaitInput &&
                           (inputReq.InputType == GameProc.InputType.IntValue || 
-                          inputReq.InputType == GameProc.InputType.StrValue);
+                          inputReq.InputType == GameProc.InputType.StrValue ||
+                          inputReq.InputType == GameProc.InputType.IntButton ||
+                          inputReq.InputType == GameProc.InputType.StrButton);
             }
+        }
+
+        /// <summary>
+        /// EM/EE: マウス入力付きINPUTへのクリック結果を書き込む(本家MainWindowのMouseUp相当)。
+        /// RESULT:1=マウスボタン(1左 2右 3中) RESULT:2=修飾キー RESULTS:1=ボタン文字列 RESULT:3=マスク色。
+        /// ボタン以外を押した時は制限時間を止め、既定値で入力を終えられるようにする
+        /// </summary>
+        internal void ApplyMouseInputResult(string buttonStr, int mouseButton, long mappedColor)
+        {
+            if (!IsWaitingInputWithMouse)
+                return;
+            var result = GlobalStatic.VEvaluator.RESULT_ARRAY;
+            var results = GlobalStatic.VEvaluator.RESULTS_ARRAY;
+            if (buttonStr != null)
+            {
+                result[3] = mappedColor;
+                results[1] = buttonStr;
+            }
+            result[1] = mouseButton;
+            result[2] = 0;   //タッチには修飾キーが無い
+            if (buttonStr == null)
+                inputReq.Timelimit = 0;
+        }
+
+        /// <summary>EM/EE: マウス入力付きのINPUT待ちか(INPUT系の第2引数)</summary>
+        internal bool IsWaitingInputWithMouse
+        {
+            get { return state == ConsoleState.WaitInput && inputReq != null && inputReq.MouseInput; }
+        }
+
+        /// <summary>
+        /// 現在の世代のボタン(と、その行に含まれるdivの中のボタン)に条件を満たす物があるか。
+        /// 本家BINPUT系と同じく、後ろの行から見て古い世代のボタンに着いたら打ち切る
+        /// </summary>
+        internal bool FindCurrentButton(System.Predicate<ConsoleButtonString> pred)
+        {
+            for (int i = displayLineList.Count - 1; i >= 0; --i)
+            {
+                var buttons = displayLineList[i].Buttons;
+                for (int b = 0; b < buttons.Length; ++b)
+                {
+                    var button = buttons[b];
+                    if (button.Generation != 0 && button.Generation != lastButtonGeneration)
+                        return false;
+                    if (button.IsButton && pred(button))
+                        return true;
+                    if (FindInDivs(button, pred))
+                        return true;
+                }
+            }
+            return false;
+        }
+        static bool FindInDivs(ConsoleButtonString button, System.Predicate<ConsoleButtonString> pred)
+        {
+            var parts = button.StrArray;
+            for (int p = 0; p < parts.Length; ++p)
+            {
+                var div = parts[p] as ConsoleDivPart;
+                if (div == null || div.Children == null)
+                    continue;
+                foreach (var line in div.Children)
+                {
+                    if (line == null)
+                        continue;
+                    foreach (var child in line.Buttons)
+                    {
+                        if (child.IsButton && pred(child))
+                            return true;
+                        if (FindInDivs(child, pred))
+                            return true;
+                    }
+                }
+            }
+            return false;
         }
         internal GameProc.InputType InputType
         {

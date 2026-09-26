@@ -11,6 +11,9 @@ namespace MinorShift.Emuera.GameProc
 		IntValue = 3,//整数値。OneInputかどうかは別の変数で
 		StrValue = 4,//文字列。
 		Void = 5,//入力不能。待つしかない→スキップ中orマクロ中ならなかったことになる
+		//EE_BINPUT: 表示中のボタンの値しか受け付けない
+		IntButton = 7,
+		StrButton = 8,
 
 		//1823
 		PrimitiveMouseKey = 11,
@@ -35,9 +38,15 @@ namespace MinorShift.Emuera.GameProc
 			get 
 			{ 
 				return (InputType == InputType.IntValue || InputType == InputType.StrValue
-					|| InputType == InputType.PrimitiveMouseKey); 
+					|| InputType == InputType.PrimitiveMouseKey
+					|| InputType == InputType.IntButton || InputType == InputType.StrButton); 
 			} 
 		}
+		/// <summary>
+		/// EM/EE: INPUT系の第2引数。クリックで入力した時にRESULT:1へマウスボタン、
+		/// RESULTS:1へボタン文字列、RESULT:2へ修飾キー、RESULT:3へマスク色を入れる
+		/// </summary>
+		public bool MouseInput = false;
 		public bool OneInput = false;
 		public bool StopMesskip = false;
 		public bool IsSystemInput = false;

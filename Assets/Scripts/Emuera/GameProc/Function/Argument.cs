@@ -138,19 +138,44 @@ namespace MinorShift.Emuera.GameProc.Function
 		readonly public IOperandTerm StrExpression;
 	}
 
+	/// <summary>
+	/// EM/EE: INPUT/INPUTS/ONEINPUT(S)/BINPUT(S)の引数。(既定値, マウス入力, スキップ可)
+	/// </summary>
+	internal sealed class SpInputsArgument : Argument
+	{
+		public SpInputsArgument(IOperandTerm def, IOperandTerm mouse, IOperandTerm canskip)
+		{
+			Def = def;
+			Mouse = mouse;
+			CanSkip = canskip;
+		}
+		readonly public IOperandTerm Def;
+		readonly public IOperandTerm Mouse;
+		readonly public IOperandTerm CanSkip;
+	}
+
 	internal sealed class SpTInputsArgument : Argument
 	{
 		public SpTInputsArgument(IOperandTerm time, IOperandTerm def, IOperandTerm disp, IOperandTerm timeout)
+			: this(time, def, disp, timeout, null, null)
+		{
+		}
+		//EM/EE: 第5引数はマウス入力、第6引数はスキップ可
+		public SpTInputsArgument(IOperandTerm time, IOperandTerm def, IOperandTerm disp, IOperandTerm timeout, IOperandTerm mouse, IOperandTerm canskip)
 		{
 			Time = time;
 			Def = def;
 			Disp = disp;
             Timeout = timeout;
+			Mouse = mouse;
+			CanSkip = canskip;
 		}
 		readonly public IOperandTerm Time;
 		readonly public IOperandTerm Def;
 		readonly public IOperandTerm Disp;
         readonly public IOperandTerm Timeout;
+		readonly public IOperandTerm Mouse;
+		readonly public IOperandTerm CanSkip;
 	}
 
 	//難読化用属性。enum.ToString()やenum.Parse()を行うなら(Exclude=true)にすること。

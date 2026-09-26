@@ -64,13 +64,16 @@ public class EmueraThread
         return false;
     }
 
-    public void Input(string c, bool from_button, bool skip = false)
+    public void Input(string c, bool from_button, bool skip = false, long mapped_color = 0)
     {
         var console = MinorShift.Emuera.GlobalStatic.Console;
         if(console == null)
             return;
-        if(!from_button && console.IsWaitingInputSomething)
+        //入力欄のあるINPUT待ちでは、ボタン以外のタップは無視する。
+        //ただしマウス入力付き(INPUT系の第2引数)なら、本家同様どこを押しても入力になる
+        if(!from_button && console.IsWaitingInputSomething && !console.IsWaitingInputWithMouse)
             return;
+        mapped_color_ = mapped_color;
         input = c;
         skipflag = skip;
         //ボタン由来の入力はマクロ解析を通さず、ONEINPUT系でも切り詰めない。
@@ -79,6 +82,8 @@ public class EmueraThread
         wake_.Set();
     }
     bool from_button_ = false;
+    /// <summary>押したボタンのマスク画像の色(PRINT_IMGの第3引数)。RESULT:3に入る</summary>
+    long mapped_color_ = 0;
     /// <summary>
     /// INPUTMOUSEKEY待ちへクリックを渡す。
     /// コンソールの操作はワーカー側で行う必要があるので、ここでは予約だけする
@@ -151,6 +156,8 @@ public class EmueraThread
             {
                 if(console.IsWaitingEnterKey)
                     input = "";
+                else if(console.IsWaitingInputWithMouse)
+                    console.ApplyMouseInputResult(from_button_ ? input : null, 1, mapped_color_);//タップは左クリック扱い
                 console.PressEnterKey(skipflag, input, from_button_);
             }
             Thread.Sleep(10);
@@ -190,6 +197,8 @@ public class EmueraThread
             {
                 if(console.IsWaitingEnterKey)
                     input = "";
+                else if(console.IsWaitingInputWithMouse)
+                    console.ApplyMouseInputResult(from_button_ ? input : null, 1, mapped_color_);//タップは左クリック扱い
                 console.PressEnterKey(skipflag, input, from_button_);
             }
             yield return new WaitForSeconds(0.01f);
