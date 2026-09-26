@@ -10,6 +10,7 @@ using MinorShift.Emuera.GameData.Function;
 //using System.Drawing;
 using System.IO;
 using uEmuera.Drawing;
+using MixedNum = MinorShift.Emuera.GameView.MixedNum;
 
 namespace MinorShift.Emuera.GameProc.Function
 {
@@ -315,11 +316,11 @@ namespace MinorShift.Emuera.GameProc.Function
 		
 		
 		/// <summary>EM: 数式+px指定をMixedNumへ評価する</summary>
-		internal static MixedNum EvalMixedNum(MixedIntegerExprTerm t, ExpressionMediator exm)
+		internal static MinorShift.Emuera.GameView.MixedNum EvalMixedNum(MixedIntegerExprTerm t, ExpressionMediator exm)
 		{
 			if (t == null)
-				return new MixedNum();
-			return new MixedNum { num = (int)t.num.GetIntValue(exm), isPx = t.isPx };
+				return new MinorShift.Emuera.GameView.MixedNum();
+			return new MinorShift.Emuera.GameView.MixedNum { num = (int)t.num.GetIntValue(exm), isPx = t.isPx };
 		}
 
 		private sealed class PRINT_IMG_Instruction : AbstractInstruction
