@@ -10,18 +10,43 @@ namespace MinorShift.Emuera.GameView
 {
 	abstract class ConsoleShapePart : AConsoleColoredPart
 	{
+		/// <summary>
+		/// EM/EE: PRINT_RECT/PRINT_SPACEの引数。各値はpx指定ならそのまま、無ければフォントサイズの百分率
+		/// </summary>
+		static public ConsoleShapePart CreateShape(string shapeType, MixedNum[] param, Color color, Color bcolor, bool colorchanged)
+		{
+			float[] paramPixel = new float[param.Length];
+			var text = new StringBuilder();
+			for (int i = 0; i < param.Length; i++)
+			{
+				paramPixel[i] = param[i].isPx ? param[i].num : ((float)param[i].num * Config.FontSize) / 100f;
+				text.Append(param[i].num.ToString());
+				if (param[i].isPx) text.Append("px");
+				if (i < param.Length - 1) text.Append(", ");
+			}
+			return createShape(shapeType, paramPixel, text.ToString(), color, bcolor, colorchanged);
+		}
+
 		static public ConsoleShapePart CreateShape(string shapeType, int[] param, Color color, Color bcolor, bool colorchanged)
+		{
+			float[] paramPixel = new float[param.Length];
+			var text = new StringBuilder();
+			for (int i = 0; i < param.Length; i++)
+			{
+				paramPixel[i] = ((float)param[i] * Config.FontSize) / 100f;
+				text.Append(param[i].ToString());
+				if (i < param.Length - 1) text.Append(", ");
+			}
+			return createShape(shapeType, paramPixel, text.ToString(), color, bcolor, colorchanged);
+		}
+
+		static ConsoleShapePart createShape(string shapeType, float[] paramPixel, string paramText, Color color, Color bcolor, bool colorchanged)
 		{
 			string type = shapeType.ToLower();
 			colorchanged = colorchanged || color != Config.ForeColor;
 
 			ConsoleShapePart ret = null;
 			int lineHeight = Config.FontSize;
-			float[] paramPixel = new float[param.Length];
-			for (int i = 0; i < param.Length; i++)
-			{
-				paramPixel[i] = ((float)param[i] * lineHeight) / 100f;
-			}
 			RectangleF rectF;
 
 			switch (type)
@@ -58,12 +83,7 @@ namespace MinorShift.Emuera.GameView
             sb.Append("<shape type='");
             sb.Append(type);
             sb.Append("' param='");
-            for(int i = 0; i < param.Length; i++)
-            {
-                sb.Append(param[i].ToString());
-                if(i < param.Length - 1)
-                    sb.Append(", ");
-            }
+            sb.Append(paramText);
             sb.Append("'");
             if(colorchanged)
             {

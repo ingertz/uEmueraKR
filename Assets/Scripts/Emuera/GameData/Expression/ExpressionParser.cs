@@ -24,6 +24,8 @@ namespace MinorShift.Emuera.GameData.Expression
 		RightParenthesis = 0x0004,//')'終端
 		RightBracket = 0x0008,//')'終端
 		Assignment = 0x0010,//')'終端
+		//EM_私家版_HTMLパラメータ拡張: 数値の直後の'px'で終える(PRINT_IMG/PRINT_RECT/PRINT_SPACE)
+		KeyWordPx = 0x0020,
 
 		RightParenthesis_Comma = RightParenthesis | Comma,//',' or ')'終端
 		RightBracket_Comma = RightBracket | Comma,//',' or ']'終端
@@ -373,6 +375,10 @@ namespace MinorShift.Emuera.GameData.Expression
 							}
 							else if (idStr.Equals("IS", Config.SCVariable))
 								throw new CodeEE("ISキーワードはここでは使用できません");
+							if ((endWith & TermEndWith.KeyWordPx) == TermEndWith.KeyWordPx
+								&& idStr.Equals("px", StringComparison.OrdinalIgnoreCase)
+								&& (wc.Next.Type == ',' || wc.Next.Type == '\0'))
+								goto end;
 							stack.Add(reduceIdentifier(wc, idStr, varCode));
 							continue;
 						}

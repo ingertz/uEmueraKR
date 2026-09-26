@@ -37,6 +37,16 @@ namespace MinorShift.Emuera.Sub
 			} 
 		}
 		public bool EOL { get { return Pointer >= Collection.Count; } }
+		/// <summary>現在の次の単語。無ければ終端(Type '\0')</summary>
+		public Word Next
+		{
+			get
+			{
+				if (Pointer + 1 >= Collection.Count)
+					return nullToken;
+				return Collection[Pointer + 1];
+			}
+		}
 
 		public void Insert(Word w)
 		{

@@ -314,24 +314,36 @@ namespace MinorShift.Emuera.GameProc.Function
 		}
 		
 		
+		/// <summary>EM: 数式+px指定をMixedNumへ評価する</summary>
+		internal static MixedNum EvalMixedNum(MixedIntegerExprTerm t, ExpressionMediator exm)
+		{
+			if (t == null)
+				return new MixedNum();
+			return new MixedNum { num = (int)t.num.GetIntValue(exm), isPx = t.isPx };
+		}
+
 		private sealed class PRINT_IMG_Instruction : AbstractInstruction
 		{
 			public PRINT_IMG_Instruction()
 			{
 				flag = EXTENDED | METHOD_SAFE;
-				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.STR_EXPRESSION);
+				//EM/EE: PRINT_IMG 画像名(, ボタン画像名(, マスク画像名))(, 幅(px)(, 高さ(px)(, 縦位置(px))))
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_PRINT_IMG);
 			}
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
                 if (GlobalStatic.Process.SkipPrint)
                     return;
-                string str;
-				if (func.Argument.IsConst)
-					str = func.Argument.ConstStr;
-				else
-					str = ((ExpressionArgument)func.Argument).Term.GetStrValue(exm);
-				exm.Console.PrintImg(str);
+				var arg = (SpPrintImgArgument)func.Argument;
+				string strb = arg.Nameb != null ? arg.Nameb.GetStrValue(exm) : null;
+				string strm = arg.Namem != null ? arg.Namem.GetStrValue(exm) : null;
+				if (strb == string.Empty) strb = null;
+				//本家と同じ並び: 数値は 幅, 高さ, 縦位置
+				MixedNum width = arg.Param != null && arg.Param.Length > 0 ? EvalMixedNum(arg.Param[0], exm) : new MixedNum();
+				MixedNum height = arg.Param != null && arg.Param.Length > 1 ? EvalMixedNum(arg.Param[1], exm) : new MixedNum();
+				MixedNum ypos = arg.Param != null && arg.Param.Length > 2 ? EvalMixedNum(arg.Param[2], exm) : new MixedNum();
+				exm.Console.PrintImg(arg.Name.GetStrValue(exm), strb, strm, height, width, ypos);
 			}
 		}
 
@@ -340,18 +352,18 @@ namespace MinorShift.Emuera.GameProc.Function
 			public PRINT_RECT_Instruction()
 			{
 				flag = EXTENDED | METHOD_SAFE;
-				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_ANY);
+				//EM/EE: 各値に'px'を付けられる
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_PRINT_RECT);
 			}
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
                 if (GlobalStatic.Process.SkipPrint)
                     return;
-                ExpressionArrayArgument intExpArg = (ExpressionArrayArgument)func.Argument;
-				int[] param = new int[intExpArg.TermList.Length];
-				for (int i = 0; i < intExpArg.TermList.Length; i++)
-					param[i] = FunctionIdentifier.toUInt32inArg(intExpArg.TermList[i].GetIntValue(exm), "PRINT_RECT", i + 1);
-
+				var arg = (SpPrintShapeArgument)func.Argument;
+				var param = new MixedNum[arg.Param.Length];
+				for (int i = 0; i < param.Length; i++)
+					param[i] = EvalMixedNum(arg.Param[i], exm);
 				exm.Console.PrintShape("rect", param);
 			}
 		}
@@ -361,20 +373,19 @@ namespace MinorShift.Emuera.GameProc.Function
 			public PRINT_SPACE_Instruction()
 			{
 				flag = EXTENDED | METHOD_SAFE;
-				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.INT_EXPRESSION);
+				//EM/EE: 'px'を付けられる
+				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_PRINT_SPACE);
 			}
 
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
                 if (GlobalStatic.Process.SkipPrint)
                     return;
-                Int64 param;
-				if (func.Argument.IsConst)
-					param = func.Argument.ConstInt;
-				else
-					param = ((ExpressionArgument)func.Argument).Term.GetIntValue(exm);
-				int param32 = FunctionIdentifier.toUInt32inArg(param, "PRINT_SPACE", 1);
-				exm.Console.PrintShape("space", new int[] { param32 });
+				var arg = (SpPrintShapeArgument)func.Argument;
+				var param = new MixedNum[arg.Param.Length];
+				for (int i = 0; i < param.Length; i++)
+					param[i] = EvalMixedNum(arg.Param[i], exm);
+				exm.Console.PrintShape("space", param);
 			}
 		}
 

@@ -13,6 +13,15 @@ namespace MinorShift.Emuera.GameView
 	class ConsoleImagePart : AConsoleDisplayPart
 	{
 
+		/// <summary>EM/EE: マスク画像(srcm)付き。マスクはINPUT系のマウス入力でRESULT:3の元になる</summary>
+		public ConsoleImagePart(string resName, string resNameb, string resNamem, MixedNum raw_height, MixedNum raw_width, MixedNum raw_ypos)
+			: this(resName, resNameb, raw_height, raw_width, raw_ypos)
+		{
+			MappingGraphName = string.IsNullOrEmpty(resNamem) ? null : resNamem;
+		}
+		/// <summary>マスク画像の名前(PRINT_IMGの第3引数 / imgのsrcm)。無ければnull</summary>
+		public string MappingGraphName { get; private set; }
+
 		public ConsoleImagePart(string resName, string resNameb, MixedNum raw_height, MixedNum raw_width, MixedNum raw_ypos)
 		{
 			top = 0;

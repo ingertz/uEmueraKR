@@ -346,7 +346,20 @@ namespace MinorShift.Emuera.GameView
 			printBuffer.Append(new ConsoleImagePart(str, null, 0, 0, 0));
 		}
 
+		/// <summary>EM/EE: PRINT_IMGの拡張形(ボタン画像・マスク画像・大きさ・縦位置)</summary>
+		public void PrintImg(string name, string nameb, string namem, MixedNum height, MixedNum width, MixedNum ypos)
+		{
+			printBuffer.Append(new ConsoleImagePart(name, nameb, namem, height ?? new MixedNum(), width ?? new MixedNum(), ypos ?? new MixedNum()));
+		}
+
 		public void PrintShape(string type, int[] param)
+		{
+			ConsoleShapePart part = ConsoleShapePart.CreateShape(type, param, userStyle.Color, userStyle.ButtonColor, false);
+			printBuffer.Append(part);
+		}
+
+		/// <summary>EM/EE: px指定を含むPRINT_RECT/PRINT_SPACE</summary>
+		public void PrintShape(string type, MixedNum[] param)
 		{
 			ConsoleShapePart part = ConsoleShapePart.CreateShape(type, param, userStyle.Color, userStyle.ButtonColor, false);
 			printBuffer.Append(part);

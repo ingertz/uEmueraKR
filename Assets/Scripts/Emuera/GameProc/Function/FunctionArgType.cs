@@ -74,5 +74,9 @@ namespace MinorShift.Emuera.GameProc.Function
 		SP_REFBYNAME,
 		SP_HTMLSPLIT,
 		SP_DT_COLUMN_OPTIONS,
+		//EM_私家版_HTMLパラメータ拡張
+		SP_PRINT_IMG,
+		SP_PRINT_RECT,
+		SP_PRINT_SPACE,
 	}
 }

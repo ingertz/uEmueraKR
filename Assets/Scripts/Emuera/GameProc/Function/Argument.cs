@@ -138,6 +138,37 @@ namespace MinorShift.Emuera.GameProc.Function
 		readonly public IOperandTerm StrExpression;
 	}
 
+	/// <summary>EM: 数式と、その後ろに'px'が付いていたか</summary>
+	internal sealed class MixedIntegerExprTerm
+	{
+		public IOperandTerm num;
+		public bool isPx;
+	}
+	/// <summary>EM: PRINT_RECT/PRINT_SPACEの引数</summary>
+	internal sealed class SpPrintShapeArgument : Argument
+	{
+		public SpPrintShapeArgument(MixedIntegerExprTerm[] param)
+		{
+			Param = param;
+		}
+		readonly public MixedIntegerExprTerm[] Param;
+	}
+	/// <summary>EM: PRINT_IMG 画像名, ボタン画像名, マスク画像名, 幅, 高さ, 縦位置</summary>
+	internal sealed class SpPrintImgArgument : Argument
+	{
+		public SpPrintImgArgument(IOperandTerm name, IOperandTerm nameb, IOperandTerm namem, MixedIntegerExprTerm[] param)
+		{
+			Name = name;
+			Nameb = nameb;
+			Namem = namem;
+			Param = param;
+		}
+		readonly public IOperandTerm Name;
+		readonly public IOperandTerm Nameb;
+		readonly public IOperandTerm Namem;
+		readonly public MixedIntegerExprTerm[] Param;
+	}
+
 	/// <summary>
 	/// EM/EE: INPUT/INPUTS/ONEINPUT(S)/BINPUT(S)の引数。(既定値, マウス入力, スキップ可)
 	/// </summary>

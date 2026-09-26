@@ -228,6 +228,9 @@ namespace MinorShift.Emuera.GameProc.Function
 			argb[FunctionArgType.SP_REFBYNAME] = new SP_REF_ArgumentBuilder(true);
 			argb[FunctionArgType.SP_HTMLSPLIT] = new SP_HTMLSPLIT_ArgumentBuilder();
 			argb[FunctionArgType.SP_DT_COLUMN_OPTIONS] = new SP_DT_COLUMN_OPTIONS_ArgumentBuilder();
+			argb[FunctionArgType.SP_PRINT_IMG] = new SP_PRINT_IMG_ArgumentBuilder();
+			argb[FunctionArgType.SP_PRINT_RECT] = new SP_PRINT_SHAPE_ArgumentBuilder(4);
+			argb[FunctionArgType.SP_PRINT_SPACE] = new SP_PRINT_SHAPE_ArgumentBuilder(1);
 			
         }
 		
@@ -1805,6 +1808,117 @@ namespace MinorShift.Emuera.GameProc.Function
 				}
 			}
 		}
+
+        /// <summary>
+        /// EM_私家版_HTMLパラメータ拡張(本家EM/EEと同じ):
+        /// PRINT_IMG 画像名(, ボタン画像名(, マスク画像名))(, 幅(px)(, 高さ(px)(, 縦位置(px))))
+        /// 文字列の引数は数値より前にだけ置ける
+        /// </summary>
+        private sealed class SP_PRINT_IMG_ArgumentBuilder : ArgumentBuilder
+        {
+            public SP_PRINT_IMG_ArgumentBuilder()
+            {
+                argumentTypeArray = null;
+                minArg = 1;
+            }
+            public override Argument CreateArgument(InstructionLine line, ExpressionMediator exm)
+            {
+                WordCollection wc = popWords(line);
+                IOperandTerm name, nameb = null, namem = null;
+                var param = new List<MixedIntegerExprTerm>();
+                if (wc.EOL)
+                {
+                    warn("第1引数は省略できません", line, 2, false);
+                    return null;
+                }
+                name = ExpressionParser.ReduceExpressionTerm(wc, TermEndWith.Comma);
+                if (name == null)
+                {
+                    warn("第1引数は省略できません", line, 2, false);
+                    return null;
+                }
+                name = name.Restructure(exm);
+                wc.ShiftNext();
+                int argCount = 2;
+                while (!wc.EOL)
+                {
+                    if (param.Count == 3)
+                    {
+                        warn("引数が多すぎます", line, 2, false);
+                        return null;
+                    }
+                    IOperandTerm arg = ExpressionParser.ReduceExpressionTerm(wc, TermEndWith.Comma | TermEndWith.KeyWordPx);
+                    if (arg == null)
+                    {
+                        warn("第" + argCount.ToString() + "引数が不正です", line, 2, false);
+                        return null;
+                    }
+                    arg = arg.Restructure(exm);
+                    if (arg.GetOperandType() == typeof(string))
+                    {
+                        if (param.Count > 0 || argCount > 3)
+                        {
+                            warn("第" + argCount.ToString() + "引数が不正です", line, 2, false);
+                            return null;
+                        }
+                        if (argCount == 2) nameb = arg;
+                        else namem = arg;
+                    }
+                    else
+                        param.Add(new MixedIntegerExprTerm { num = arg, isPx = wc.Current.Type != '\0' && wc.Current.Type != ',' });
+                    if (wc.Current.Type != '\0' && wc.Current.Type != ',') wc.ShiftNext();//'px'を読み飛ばす
+                    wc.ShiftNext();
+                    argCount++;
+                }
+                return new SpPrintImgArgument(name, nameb, namem, param.Count > 0 ? param.ToArray() : null);
+            }
+        }
+
+        /// <summary>EM: PRINT_RECT/PRINT_SPACE。各数値の後ろに'px'を付けられる</summary>
+        private sealed class SP_PRINT_SHAPE_ArgumentBuilder : ArgumentBuilder
+        {
+            public SP_PRINT_SHAPE_ArgumentBuilder(int max)
+            {
+                argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64), typeof(Int64), typeof(Int64) };
+                minArg = 1;
+                maxArg = max;
+            }
+            readonly int maxArg;
+            public override Argument CreateArgument(InstructionLine line, ExpressionMediator exm)
+            {
+                WordCollection wc = popWords(line);
+                var param = new List<MixedIntegerExprTerm>();
+                while (!wc.EOL)
+                {
+                    IOperandTerm arg = ExpressionParser.ReduceExpressionTerm(wc, TermEndWith.Comma | TermEndWith.KeyWordPx);
+                    if (arg == null)
+                    {
+                        warn("引数を省略できません", line, 2, false);
+                        return null;
+                    }
+                    arg = arg.Restructure(exm);
+                    if (arg.GetOperandType() != typeof(Int64))
+                    {
+                        warn("引数の型が違います", line, 2, false);
+                        return null;
+                    }
+                    param.Add(new MixedIntegerExprTerm { num = arg, isPx = wc.Current.Type != '\0' && wc.Current.Type != ',' });
+                    if (wc.Current.Type != '\0' && wc.Current.Type != ',') wc.ShiftNext();//'px'を読み飛ばす
+                    wc.ShiftNext();
+                }
+                if (param.Count < minArg)
+                {
+                    warn("引数が足りません", line, 2, false);
+                    return null;
+                }
+                if (param.Count > maxArg)
+                {
+                    warn("引数が多すぎます", line, 2, false);
+                    return null;
+                }
+                return new SpPrintShapeArgument(param.ToArray());
+            }
+        }
 
         private sealed class SP_INPUT_ArgumentBuilder : ArgumentBuilder
         {
