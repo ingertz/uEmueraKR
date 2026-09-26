@@ -4526,6 +4526,16 @@ namespace MinorShift.Emuera.GameData.Function
 				} else {
 					g.GDrawString(text, x, y);
 				}
+				//本家(EE)は描いた文字列の大きさをRESULT:1(幅)とRESULT:2(高さ)へ返す。
+				//フォント未設定なら本家と同じく既定フォントの100pxで測る
+				string fontName = (g.font != null && g.font.FontFamily != null) ? g.font.FontFamily.Name : Config.FontName;
+				float fontSize = g.font != null ? g.font.Size : 100f;
+				string[] lines = (text ?? "").Replace("\r\n", "\n").Split('\n');
+				int width = 0;
+				foreach (string line in lines)
+					width = Math.Max(width, uEmuera.Utils.GetDisplayLength(line, fontName, fontSize));
+				exm.VEvaluator.RESULT_ARRAY[1] = width;
+				exm.VEvaluator.RESULT_ARRAY[2] = (Int64)(fontSize * lines.Length);
 				return 1;
 			}
 		}

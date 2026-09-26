@@ -389,7 +389,7 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.GSETPEN, new DummyGraphics_Instruction());
 			addFunction(FunctionCode.GGETTEXTSIZE, new DummyGraphics_Instruction());
 			addFunction(FunctionCode.GSETCOLOR, new DummyGraphics_Instruction());
-			addFunction(FunctionCode.GSETBGCOLOR, new DummyGraphics_Instruction());
+			//GSETBGCOLORは本家(Emuera.NET/EE)に存在しない命令なので登録しない
 			addFunction(FunctionCode.SPRITECREATED, new DummyGraphics_Instruction());
 			addFunction(FunctionCode.SPRITEDISPOSE, new DummyGraphics_Instruction());
 
@@ -436,7 +436,8 @@ namespace MinorShift.Emuera.GameProc.Function
 			addFunction(FunctionCode.ENCODETOUNI, argb[FunctionArgType.FORM_STR_NULLABLE], METHOD_SAFE | EXTENDED);//式中関数版を追加。処理が全然違う
 			addFunction(FunctionCode.VARI, new VARI_Instruction());
 			addFunction(FunctionCode.VARS, new VARS_Instruction());
-			addFunction(FunctionCode.MATCHALL, new MATCHALL_Instruction());
+			//MATCHALLは本家(Emuera.NET/EE)に存在しない命令なので登録しない。
+			//中身の無い命令が黙って通ると、ゲーム側の誤りに気付けない
 			#endregion
 
 			Dictionary<string, FunctionMethod> methodList = FunctionMethodCreator.GetMethodList();

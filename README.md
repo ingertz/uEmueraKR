@@ -19,6 +19,7 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
   - `CHECK_OVERFLOW 1`이면 정수 계산이 넘칠 때 INT64 최댓값/최솟값에서 멈춥니다
 - **그래픽 명령**
   - `GGETTEXTSIZE`: 글자를 그렸을 때의 폭을 돌려주고, 높이를 `RESULT:1`에 넣습니다
+  - `GDRAWTEXT`는 PC판처럼 그린 글자의 폭/높이를 `RESULT:1`/`RESULT:2`에 넣습니다
   - `GDRAWTEXT`에 폭/높이를 주면 그 폭에서 줄바꿈하고, 영역 밖은 그리지 않습니다
   - `GSETCOLOR`가 실제로 점을 찍고, `GGETCOLOR`/`SPRITEGETCOLOR`가 올바른 위치의 색을 읽습니다
 - **화면 배경 그래픽(CBG)**
@@ -96,9 +97,8 @@ Unity를 켜 둔 채로 실행해도 되고, 받아온 뒤 자동으로 다시 �
 
 - 앱 안에서 게임 설정(`emuera.config`)을 바꿀 수 없습니다
 - 디버그 모드는 지원하지 않습니다
-- `HTML_PRINT_ISLAND`, `HTML_PRINT_ISLAND_CLEAR`, `MATCHALL`은 아무 동작도 하지 않습니다
+- `HTML_PRINT_ISLAND`, `HTML_PRINT_ISLAND_CLEAR`는 아무 동작도 하지 않습니다
 - CBG 버튼의 "선택됐을 때 이미지"는 표시하지 않습니다 (터치 화면에는 마우스를 올리는 동작이 없으므로)
-- `GSETBGCOLOR`는 아무 동작도 하지 않습니다
 - 모바일에서 쓸 일이 없는 PC 전용 입력은 지원하지 않습니다
   - `GETKEY`/`GETKEYTRIGGERED`, `MOUSEX`/`MOUSEY`, 툴팁
 - 문자 코드 자동 판별에 내장된 레거시 인코딩은 Shift-JIS(CP932)뿐입니다
