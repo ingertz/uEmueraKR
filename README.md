@@ -76,8 +76,31 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 설치와 사용법
 -------------
 
+### 앱 받기
+
+**👉 [최신 버전 받으러 가기 (Releases 페이지)](https://github.com/ingertz/uEmueraKR/releases/latest)**
+
+1. 위 링크를 누르면 최신 버전 페이지가 열립니다.
+   - 링크 없이 찾아가려면: 이 저장소 첫 화면 오른쪽의 **Releases** 항목을 누릅니다.
+     (휴대폰에서는 화면을 아래로 내리면 **Releases**가 보입니다)
+2. 페이지 아래쪽의 **Assets**에서 받을 파일을 누르면 다운로드가 시작됩니다.
+   - Assets가 접혀 있으면 **Assets**라는 글자를 눌러 펼치세요.
+   - `Source code (zip)`, `Source code (tar.gz)`는 앱이 아니라 소스 코드이니 받지 않아도 됩니다.
+
+| 파일 | 대상 | 바로 받기 |
+|---|---|---|
+| `uEmuera.apk` | 모든 폰 (**잘 모르겠으면 이것**) | [다운로드](https://github.com/ingertz/uEmueraKR/releases/latest/download/uEmuera.apk) |
+| `uEmuera.arm64-v8a.apk` | 64비트 폰 (2019년 이후 대부분의 폰, 용량이 더 작음) | [다운로드](https://github.com/ingertz/uEmueraKR/releases/latest/download/uEmuera.arm64-v8a.apk) |
+| `uEmuera.armeabi-v7a.apk` | 32비트 구형 폰 | [다운로드](https://github.com/ingertz/uEmueraKR/releases/latest/download/uEmuera.armeabi-v7a.apk) |
+
+> 세 파일은 같은 앱입니다. 폰에 맞지 않는 파일은 "앱이 설치되지 않았습니다"라고 뜨며 설치되지 않으니,
+> 그럴 때는 `uEmuera.apk`를 받으세요.
+
+> 받은 APK를 누르면 "출처를 알 수 없는 앱" 경고가 나올 수 있습니다.
+> **설정 → 이 출처 허용**을 켠 뒤 다시 설치하면 됩니다. (Play 스토어 밖에서 받은 앱이라 나오는 안내입니다)
+
 ### Android
-1. APK를 설치하고, 처음 실행할 때 **파일 접근 권한(모든 파일 접근)**을 허용합니다.
+1. 받은 APK를 설치하고, 처음 실행할 때 **파일 접근 권한(모든 파일 접근)**을 허용합니다.
 2. 게임 폴더를 아래 위치에 넣습니다.
    ```
    /storage/emulated/0/emuera/<게임 폴더>/
