@@ -1260,7 +1260,11 @@ check1break:
 		private void loadCharacterDataFile(string csvPath, string csvName, bool disp)
 		{
 			CharacterTemplate tmpl = null;
-			EraStreamReader eReader = new EraStreamReader(false);
+			//キャラCSVの値にも_Rename.csvの[[～]]を適用する(本家EEは適用しない)。
+			//AI翻訳版のメガテンなどは能力値を[[スキル:名前]]で書いており、
+			//適用しないと数値にならず、全て1(=最初のスキル)になっていた。
+			//[[～]]を含まない行は何も変わらない
+			EraStreamReader eReader = new EraStreamReader(Config.UseRenameFile && ParserMediator.RenameDic != null);
 			if (!eReader.Open(csvPath, csvName))
 			{
 				output.PrintError(eReader.Filename + "のオープンに失敗しました");
