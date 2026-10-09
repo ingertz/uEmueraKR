@@ -34,11 +34,11 @@ namespace uEmuera
             started_ = true;
             try
             {
-                device_ = "uEmuera " + Application.version + " / " + SystemInfo.operatingSystem
-                    + " / " + SystemInfo.deviceModel;
+                device_ = "uEmuera " + UnityEngine.Application.version + " / " + UnityEngine.SystemInfo.operatingSystem
+                    + " / " + UnityEngine.SystemInfo.deviceModel;
             }
             catch { }
-            Application.logMessageReceivedThreaded += OnLog;
+            UnityEngine.Application.logMessageReceivedThreaded += OnLog;
         }
 
         /// <summary>ゲームフォルダが決まった時に呼ぶ(どのスレッドからでもよい)。以前のログは消して書き直す</summary>
