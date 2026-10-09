@@ -54,6 +54,8 @@ namespace MinorShift.Emuera
 			ExeDir = @"";
 			
 #endif
+			//不具合の報告用に、警告とエラーをゲームフォルダの uEmuera.log へ書く
+			uEmuera.FileLog.SetGameDir(ExeDir);
 			//フォルダ名の大小は配布物によってまちまち(csv/CSV/Csv)。
 			//小文字と大文字の二択では拾えない物があるので実体に合わせる
 			CsvDir = uEmuera.Utils.ResolvePath(ExeDir + "csv/");

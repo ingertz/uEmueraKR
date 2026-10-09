@@ -13,6 +13,8 @@ public class MainEntry : MonoBehaviour
         Application.targetFrameRate = 24;
         //画面に変化が無い間は描画を間引く
         RenderThrottle.Create();
+        //警告とエラーをゲームフォルダの uEmuera.log へ残す
+        uEmuera.FileLog.Start();
         ResolutionHelper.Apply();
     }
 

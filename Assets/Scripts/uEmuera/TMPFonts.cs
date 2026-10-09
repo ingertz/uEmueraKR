@@ -17,10 +17,16 @@ namespace uEmuera
         /// <summary>
         /// アトラスの基準サイズ。SDFなので拡大縮小に耐える。
         /// 表示が甘く見えるようならSMOOTH_HINTEDへ変える余地がある
+        ///
+        /// 以前は90/1024で、ハングル1字が約108px四方を取り、1枚に100字ほどしか入らなかった。
+        /// 1画面で数百字を使うeraTWなどでは常に複数枚へ溢れる。
+        /// eraTWの身体情報(div内の文字)で一部の字が描かれない不具合があり、その原因と疑っている。
+        /// 表示は16～24px程度なので48で十分に滑らか。
+        /// 48/2048なら1枚に1200字ほど入り、溢れる事がほぼ無くなる
         /// </summary>
-        const int kSamplingPointSize = 90;
-        const int kAtlasPadding = 9;
-        const int kAtlasSize = 1024;
+        const int kSamplingPointSize = 48;
+        const int kAtlasPadding = 5;
+        const int kAtlasSize = 2048;
         const GlyphRenderMode kRenderMode = GlyphRenderMode.SDFAA;
 
         static readonly Dictionary<string, TMP_FontAsset> assets_ =
