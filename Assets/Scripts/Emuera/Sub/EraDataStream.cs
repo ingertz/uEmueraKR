@@ -38,10 +38,23 @@ namespace MinorShift.Emuera.Sub
 		{
 			this.file = file;
 			file.Seek(0, SeekOrigin.Begin);
-			reader = new StreamReader(file, Config.Encode);
+			//PC版Emueraのテキスト形式のセーブはShift-JISで書かれている事が多い。
+			//ERBやCSVと同じく BOM → UTF-8 → Shift-JIS の順に判別して読む
+			var bytes = new byte[file.Length];
+			int read = 0;
+			while (read < bytes.Length)
+			{
+				int n = file.Read(bytes, read, bytes.Length - read);
+				if (n <= 0)
+					break;
+				read += n;
+			}
+			if (read < bytes.Length)
+				System.Array.Resize(ref bytes, read);
+			reader = new StringReader(uEmuera.TextFileReader.Decode(bytes) ?? string.Empty);
 		}
 		FileStream file;
-		StreamReader reader;
+		TextReader reader;
 		public const string FINISHER = "__FINISHED";
 		public const string EMU_1700_START = "__EMUERA_STRAT__";
 		public const string EMU_1708_START = "__EMUERA_1708_STRAT__";
@@ -131,7 +144,7 @@ namespace MinorShift.Emuera.Sub
 
 			if (reader == null)
 				throw new FileEE("無効なストリームです");
-			if (reader.EndOfStream)
+			if (reader.Peek() < 0)
 				return false;
 			while (true)
 			{

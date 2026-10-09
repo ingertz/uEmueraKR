@@ -49,6 +49,7 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 - **문자 코드 자동 판별**
   - BOM → UTF-8 → Shift-JIS(CP932) 순서로 판별합니다
   - 이제 파일을 UTF-8로 변환하지 않아도 되고, Shift-JIS 원본도 그대로 읽힙니다
+  - ERB/ERH/CSV/`_Rename.csv`/`emuera.config`/`resources`의 CSV/`LOADTEXT`/텍스트 형식 세이브 모두 해당됩니다
 - **사운드**
   - `PLAYBGM`, `PLAYSOUND` 등을 지원합니다
   - 지원 형식: `.ogg`, `.mp3`, `.wav`, `.mid`/`.midi` (MIDI는 Android 전용)
