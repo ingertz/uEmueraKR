@@ -278,7 +278,7 @@ PlayerSettings:
   AndroidKeyaliasName: uemuera
   AndroidEnableArmv9SecurityFeatures: 0
   AndroidEnableArm64MTE: 0
-  AndroidBuildApkPerCpuArchitecture: 0
+  AndroidBuildApkPerCpuArchitecture: 1
   AndroidTVCompatibility: 0
   AndroidIsGame: 0
   androidAppCategory: 3

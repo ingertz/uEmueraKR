@@ -28,6 +28,7 @@
 *.VC.db
 UpgradeLog*.htm
 .collabignore
+.vsconfig
 
 # ビルド成果物
 *.apk
