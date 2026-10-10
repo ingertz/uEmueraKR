@@ -12,13 +12,13 @@ namespace MinorShift.Emuera.Content
 	{
 		static AppContents()
 		{
-			gList = new Dictionary<int, GraphicsImage>();
+			gList = new Dictionary<long, GraphicsImage>();
 		}
 		static readonly Dictionary<string, AContentFile> resourceDic = new Dictionary<string, AContentFile>();
 		static readonly Dictionary<string, ASprite> imageDictionary = new Dictionary<string, ASprite>();
 		//resourcesのcsvで作られたスプライト(SPRITEDISPOSEALLで残す分)
 		static readonly Dictionary<string, ASprite> resourceImageDictionary = new Dictionary<string, ASprite>();
-		static readonly Dictionary<int, GraphicsImage> gList;
+		static readonly Dictionary<long, GraphicsImage> gList;
 
 		//static public T GetContent<T>(string name)where T :AContentItem
 		//{
@@ -29,7 +29,7 @@ namespace MinorShift.Emuera.Content
 		//		return null;
 		//	return itemDic[name] as T;
 		//}
-		static public GraphicsImage GetGraphics(int i)
+		static public GraphicsImage GetGraphics(long i)
 		{
             GraphicsImage gi;
             gList.TryGetValue(i, out gi);

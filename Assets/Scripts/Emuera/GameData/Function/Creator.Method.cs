@@ -154,6 +154,32 @@ namespace MinorShift.Emuera.GameData.Function
             }
         }
 
+        /// <summary>
+        /// int HASH_XXH32(str) / int HASH_XXH3(str)
+        /// 本家EEには無い。ShinEraTensei(メガテンP版)のEmueraが持っており、
+        /// 画像に名前から決まるGraphicsIDを割り振るのに使われている(画像ハッシュ.ERB)。
+        /// あちらと同じく文字列をUTF-8にして種0で計算する。
+        /// XXH32は0～4294967295、XXH3は64bitの値をそのまま符号付きとして返す
+        /// </summary>
+        private sealed class HashXxhMethod : FunctionMethod
+        {
+            readonly bool is64;
+            public HashXxhMethod(bool is64)
+            {
+                ReturnType = typeof(Int64);
+                argumentTypeArray = new Type[] { typeof(string) };
+                this.is64 = is64;
+                CanRestructure = true;
+            }
+            public override long GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(arguments[0].GetStrValue(exm));
+                if (is64)
+                    return unchecked((long)XxHash.Hash3(bytes));
+                return XxHash.Hash32(bytes);
+            }
+        }
+
         private sealed class CsvcstrMethod : FunctionMethod
         {
             public CsvcstrMethod()
@@ -2965,9 +2991,9 @@ namespace MinorShift.Emuera.GameData.Function
 			Int64 target = arguments[argNo].GetIntValue(exm);
 			if (target < 0)//funcname + "関数:GraphicsIDに負の値(" + target.ToString() + ")が指定されました"
 				throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodGraphicsID0, Name, target));
-			else if (target > int.MaxValue)//funcname + "関数:GraphicsIDの値(" + target.ToString() + ")が大きすぎます"
-				throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodGraphicsID1, Name, target));
-            return AppContents.GetGraphics((int)target);
+			//上限は設けない。本家はint.MaxValueまでだが、メガテンP版は
+			//HASH_XXH32(名前)+1億 をIDにするので32bitに収まらない事がある
+            return AppContents.GetGraphics(target);
 		}
 
 		/// <summary>

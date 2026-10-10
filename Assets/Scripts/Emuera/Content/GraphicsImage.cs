@@ -20,7 +20,7 @@ namespace MinorShift.Emuera.Content
 		//protected IntPtr hBitmap;
 		//protected IntPtr hDefaultImg;
 
-		public GraphicsImage(int id)
+		public GraphicsImage(long id)
 		{
 			ID = id;
 			//g = null;
@@ -28,7 +28,7 @@ namespace MinorShift.Emuera.Content
 			//created = false;
 			//locked = false;
 		}
-		public readonly int ID;
+		public readonly long ID;
         //Size size;
         
         //Bitmap b;

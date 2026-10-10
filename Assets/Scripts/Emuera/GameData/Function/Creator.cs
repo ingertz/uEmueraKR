@@ -25,6 +25,8 @@ namespace MinorShift.Emuera.GameData.Function
                 ["GETCSVNOBYCALLNAME"] = new GetCsvNoByStrMethod(CharacterStrData.CALLNAME),
                 ["GETCSVNOBYNICKNAME"] = new GetCsvNoByStrMethod(CharacterStrData.NICKNAME),
                 ["GETCSVNOBYMASTERNAME"] = new GetCsvNoByStrMethod(CharacterStrData.MASTERNAME),
+                ["HASH_XXH32"] = new HashXxhMethod(false),
+                ["HASH_XXH3"] = new HashXxhMethod(true),
                 ["CSVCSTR"] = new CsvcstrMethod(),
                 ["CSVBASE"] = new CsvDataMethod(CharacterIntData.BASE),
                 ["CSVABL"] = new CsvDataMethod(CharacterIntData.ABL),
