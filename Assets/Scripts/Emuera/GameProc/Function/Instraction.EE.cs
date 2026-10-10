@@ -383,17 +383,114 @@ private sealed class VARI_Instruction : AbstractInstruction
 			}
 		}
 
+		/// <summary>
+		/// MATCHALL 変数, 検索値(, 範囲始点, 範囲終点)
+		/// MATCHALL 1次元キャラ変数, インデックス, 検索値(, 範囲始点, 範囲終点)
+		///
+		/// 本家EEには無く、AI翻訳版メガテンなどが使う。
+		/// 非キャラ変数はVAR:Iを、キャラ変数はVAR:I(無次元)かVAR:I:インデックス(1次元)を
+		/// 範囲始点から範囲終点の手前まで走査し、一致した数をRESULT:0に、
+		/// 一致したIをRESULT:1から順に入れる(RESULTに入りきらない分は捨てるが数には入れる)。
+		/// 範囲を省略した時は配列(キャラ変数ならキャラ)の全体。文字列は正規表現を使わず完全一致
+		/// </summary>
+		internal sealed class MATCHALL_ArgumentBuilder : ArgumentBuilder
+		{
+			public override Argument CreateArgument(InstructionLine line, ExpressionMediator exm)
+			{
+				IOperandTerm[] args = popTerms(line);
+				if (args.Length < 1 || !(args[0] is VariableTerm))
+					throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの1番目の引数が変数ではありません");
+				var id = ((VariableTerm)args[0]).Identifier;
+				bool chara = id.IsCharacterData;
+				bool chara1D = chara && id.IsArray1D;
+				if (!chara && !id.IsArray1D)
+					throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの1番目の引数は1次元配列変数かキャラクタ変数(無次元・1次元)でなければなりません");
+				if (chara && (id.IsArray2D || id.IsArray3D))
+					throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLは2次元以上のキャラクタ変数には対応していません");
+				int valueIndex = chara1D ? 2 : 1;
+				if (args.Length < valueIndex + 1)
+					throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの引数が足りません");
+				if (args.Length > valueIndex + 3)
+					throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの引数が多すぎます");
+				for (int i = 1; i < args.Length; i++)
+				{
+					if (args[i] == null)
+					{
+						if (i <= valueIndex)
+							throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの" + (i + 1) + "番目の引数は省略できません");
+						continue;
+					}
+					if (i == valueIndex)
+					{
+						if (args[i].GetOperandType() != args[0].GetOperandType())
+							throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの1番目の引数と検索値の型が異なります");
+					}
+					else if (args[i].GetOperandType() != typeof(Int64))
+						throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの" + (i + 1) + "番目の引数の型が正しくありません");
+					args[i] = args[i].Restructure(exm);
+				}
+				return new SpPrintVArgument(args);
+			}
+		}
+
 		internal sealed class MATCHALL_Instruction : AbstractInstruction
 		{
 			public MATCHALL_Instruction()
 			{
-				// MATCHALL usually takes a variable and an array/value
-				ArgBuilder = ArgumentParser.GetArgumentBuilder(FunctionArgType.SP_VAR_SET);
+				ArgBuilder = new MATCHALL_ArgumentBuilder();
 				flag = METHOD_SAFE | EXTENDED;
 			}
 			public override void DoInstruction(ExpressionMediator exm, InstructionLine func, ProcessState state)
 			{
-				// Dummy implementation
+				IOperandTerm[] args = ((SpPrintVArgument)func.Argument).Terms;
+				VariableTerm varTerm = (VariableTerm)args[0];
+				var id = varTerm.Identifier;
+				bool chara = id.IsCharacterData;
+				bool chara1D = chara && id.IsArray1D;
+				int k = 1;
+				Int64 arrayIndex = chara1D ? args[k++].GetIntValue(exm) : 0;
+				IOperandTerm target = args[k++];
+				Int64 start = (args.Length > k && args[k] != null) ? args[k].GetIntValue(exm) : 0;
+				k++;
+				Int64 end;
+				if (args.Length > k && args[k] != null)
+					end = args[k].GetIntValue(exm);
+				else
+					end = chara ? exm.VEvaluator.CHARANUM : varTerm.GetLength();
+
+				if (chara)
+				{
+					Int64 charaNum = exm.VEvaluator.CHARANUM;
+					if (start < 0 || end > charaNum || start > end)
+						throw new MinorShift.Emuera.Sub.CodeEE("MATCHALLの範囲指定がキャラクタ配列の範囲を超えています(" + start + "～" + end + ")");
+				}
+				else
+				{
+					FixedVariableTerm p = varTerm.GetFixedVariableTerm(exm);
+					p.IsArrayRangeValid(start, end, "MATCHALL", 3L, 4L);
+				}
+
+				long[] index = chara1D ? new long[] { 0, arrayIndex } : new long[] { 0 };
+				Int64[] result = exm.VEvaluator.RESULT_ARRAY;
+				Int64 count = 0;
+				bool isString = id.IsString;
+				Int64 targetInt = isString ? 0 : target.GetIntValue(exm);
+				string targetStr = isString ? (target.GetStrValue(exm) ?? "") : null;
+				for (Int64 i = start; i < end; i++)
+				{
+					index[0] = i;
+					bool hit;
+					if (isString)
+						hit = (id.GetStrValue(exm, index) ?? "") == targetStr;
+					else
+						hit = id.GetIntValue(exm, index) == targetInt;
+					if (!hit)
+						continue;
+					count++;
+					if (count < result.Length)
+						result[count] = i;
+				}
+				result[0] = count;
 			}
 		}
     }

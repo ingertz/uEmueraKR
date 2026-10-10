@@ -32,6 +32,9 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
   - `UPDATECHECK`와 `GAMEBASE_URL`/`GAMEBASE_VERSIONNAME` (`GAMEBASE.CSV`의 `バージョン情報URL`, `バージョン名`)
   - EE처럼 `BEGIN`을 어느 상태에서든 쓸 수 있습니다
   - `OUTPUTLOG 파일명, 정보숨김`: EE처럼 실행 폴더 아래 원하는 파일로 로그를 저장합니다
+- **`MATCHALL` 지원** (EE에는 없는 명령, AI 번역판 메가텐 등이 사용)
+  - `MATCHALL 변수, 검색값(, 시작, 끝)` / `MATCHALL 1차원캐릭터변수, 인덱스, 검색값(, 시작, 끝)`
+  - 일치한 개수를 `RESULT:0`에, 일치한 위치를 `RESULT:1`부터 차례로 넣습니다
 - **Emuera1824+v10+v3의 `CHECK_OVERFLOW` 지원**
   - `CHECK_OVERFLOW 1`이면 정수 계산이 넘칠 때 INT64 최댓값/최솟값에서 멈춥니다
 - **그래픽 명령**
