@@ -19,11 +19,30 @@ public class EmueraLine : EmueraBehaviour
             {
                 text_ = GetComponent<TMPro.TMP_Text>();
                 text_.maskable = false;
+                text_.onCullStateChanged.AddListener(OnCullStateChanged);
             }
             return text_;
         }
     }
     TMPro.TMP_Text text_ = null;
+    /// <summary>
+    /// 本体のカリング状態をサブメッシュへ写す。
+    /// フォールバックフォントやアトラスの2枚目以降の字はTMP_SubMeshUI(子)が描く。
+    /// 行は余白のRectMask2Dに登録されていて、使われていない間(x=-10000)は
+    /// サブメッシュごとカリングされるが、マスクから外れる時(divの子になる・
+    /// Canvasが付く・余白が0になる)はMaskableGraphicが本体しか戻さないので、
+    /// サブメッシュがカリングされたまま残ってその字だけ抜ける
+    /// </summary>
+    void OnCullStateChanged(bool cull)
+    {
+        var t = transform;
+        for(int i = 0; i < t.childCount; ++i)
+        {
+            TMPro.TMP_SubMeshUI sub;
+            if(t.GetChild(i).TryGetComponent(out sub) && sub.textComponent == text_)
+                sub.canvasRenderer.cull = cull;
+        }
+    }
     public UnityEngine.UI.ContentSizeFitter size_fitter
     {
         get
