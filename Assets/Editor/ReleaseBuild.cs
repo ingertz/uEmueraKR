@@ -8,7 +8,7 @@ using UnityEngine;
 /// 配布用のAPKをコマンドラインから作る。
 ///   Unity -batchmode -projectPath . -buildTarget Android -executeMethod ReleaseBuild.Android
 /// Build/Release/ に uEmuera.arm64-v8a.apk / uEmuera.armeabi-v7a.apk と
-/// uEmuera.apk(全CPU)を出す。
+/// uEmuera.apk(全CPU)を出す。Build/Release/ は毎回作り直す。
 ///
 /// 署名鍵のパスワードはプロジェクトに保存されないので環境変数から読む
 ///   UEMUERA_KEYSTORE_PASS  user.keystoreのパスワード
@@ -17,6 +17,7 @@ using UnityEngine;
 public static class ReleaseBuild
 {
     const string kOutDir = "Build/Release";
+    const string kPerCpuDir = kOutDir + "/per_cpu";
     const string kApkName = "uEmuera.apk";
 
     public static void Android()
@@ -49,13 +50,20 @@ public static class ReleaseBuild
         PlayerSettings.Android.keyaliasPass = alias_pass;
         EditorUserBuildSettings.buildAppBundle = false;
 
+        if(Directory.Exists(kOutDir))
+            Directory.Delete(kOutDir, true);
         Directory.CreateDirectory(kOutDir);
         var per_cpu = PlayerSettings.Android.buildApkPerCpuArchitecture;
         try
         {
-            //CPU別を先に作る。どちらも同じ名前を指定するので、
-            //全CPU版を後にして上書きされないようにする
-            return Build(true) && Build(false);
+            if(!Build(true) || !Build(false))
+                return false;
+            //CPU別のビルドは指定した名前のフォルダを作って、その中に
+            //uEmuera.arm64-v8a.apk などを置く。全CPU版の隣へ出しておく
+            foreach(var apk in Directory.GetFiles(kPerCpuDir, "*.apk", SearchOption.AllDirectories))
+                File.Move(apk, kOutDir + "/" + Path.GetFileName(apk));
+            Directory.Delete(kPerCpuDir, true);
+            return true;
         }
         finally
         {
@@ -70,10 +78,11 @@ public static class ReleaseBuild
         {
             //Build Settingsのシーン一覧は空(開いているシーンを使う設定)なので明示する
             scenes = new[] { "Assets/Main.unity" },
-            locationPathName = kOutDir + "/" + kApkName,
+            locationPathName = (per_cpu ? kPerCpuDir : kOutDir) + "/" + kApkName,
             target = BuildTarget.Android,
             targetGroup = BuildTargetGroup.Android,
-            options = BuildOptions.CompressWithLz4HC,
+            //エディタの Build Profiles (Android) と同じLZ4
+            options = BuildOptions.CompressWithLz4,
         };
         var summary = BuildPipeline.BuildPlayer(options).summary;
         Debug.Log(string.Format("ReleaseBuild: {0} {1} per_cpu={2} result={3} errors={4}",
