@@ -456,9 +456,12 @@ namespace MinorShift.Emuera.Sub
 
 		public void Dispose()
 		{
+			//readerは読み込み済みの文字列なので、閉じてもファイルは閉じない。
+			//ファイルを開いたままにすると、LOADGLOBALの後のSAVEGLOBALなど
+			//同じファイルへの書き込みが共有違反で失敗する
 			if (reader != null)
 				reader.Close();
-			else if (file != null)
+			if (file != null)
 				file.Close();
 			file = null;
 			reader = null;
