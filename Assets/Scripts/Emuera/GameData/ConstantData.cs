@@ -629,6 +629,7 @@ check1break:
 			}
 			//if (!Program.AnalysisMode)
 			loadCharacterData(csvDir, disp);
+			loadVarExSetting(csvDir, disp);
 
 			//逆引き辞書を作成2 (RELATION)
 			for (int i = 0; i < CharacterTmplList.Count; i++)
@@ -1190,6 +1191,85 @@ check1break:
 		//    get { if (dummyChara == null) dummyChara = new CharacterData(GlobalStatic.VEvaluator.Constant, GetPseudoChara(),varData); return dummyChara; }
 		//    set { dummyChara = value; }
 		//}
+
+		/// <summary>EM: セーブするMAP・XML・DataTableの名前(VarExt*.csv)</summary>
+		public HashSet<string> GlobalSaveMaps { get; private set; } = new HashSet<string>();
+		public HashSet<string> SaveMaps { get; private set; } = new HashSet<string>();
+		public HashSet<string> GlobalSaveXmls { get; private set; } = new HashSet<string>();
+		public HashSet<string> SaveXmls { get; private set; } = new HashSet<string>();
+		public HashSet<string> GlobalSaveDTs { get; private set; } = new HashSet<string>();
+		public HashSet<string> SaveDTs { get; private set; } = new HashSet<string>();
+		public HashSet<string> StaticMaps { get; private set; } = new HashSet<string>();
+		public HashSet<string> StaticXmls { get; private set; } = new HashSet<string>();
+		public HashSet<string> StaticDTs { get; private set; } = new HashSet<string>();
+
+		/// <summary>
+		/// EM: VarExt*.csv を読む。1列目が種類、2列目以降が名前。
+		/// GLOBAL_* は SAVEGLOBAL、SAVE_* は SAVEDATA で保存され、
+		/// STATIC_* は RESETGLOBAL で消える
+		/// </summary>
+		private void loadVarExSetting(string csvDir, bool disp)
+		{
+			var sets = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
+			{
+				{ "GLOBAL_MAPS", GlobalSaveMaps }, { "SAVE_MAPS", SaveMaps },
+				{ "GLOBAL_XMLS", GlobalSaveXmls }, { "SAVE_XMLS", SaveXmls },
+				{ "GLOBAL_DTS", GlobalSaveDTs }, { "SAVE_DTS", SaveDTs },
+				{ "STATIC_MAPS", StaticMaps }, { "STATIC_XMLS", StaticXmls }, { "STATIC_DTS", StaticDTs },
+			};
+			foreach (var set in sets.Values)
+				set.Clear();
+			if (!Directory.Exists(csvDir))
+				return;
+			foreach (var file in Config.GetFiles(csvDir, "VarExt*.csv", false))
+			{
+				EraStreamReader eReader = new EraStreamReader(false);
+				if (!eReader.Open(file.Value))
+				{
+					output.PrintError(eReader.Filename + "のオープンに失敗しました");
+					continue;
+				}
+				ScriptPosition position = null;
+				if (disp)
+					output.PrintSystemLine(eReader.Filename + "読み込み中・・・");
+				try
+				{
+					StringStream st = null;
+					while ((st = eReader.ReadEnabledLine()) != null)
+					{
+						position = new ScriptPosition(eReader.Filename, eReader.LineNo);
+						string[] tokens = st.Substring().Split(',');
+						if (tokens.Length < 2)
+						{
+							ParserMediator.Warn("\",\"が必要です", position, 1);
+							continue;
+						}
+						if (tokens[0].Length == 0)
+						{
+							ParserMediator.Warn("\",\"で始まっています", position, 1);
+							continue;
+						}
+						HashSet<string> set;
+						if (!sets.TryGetValue(tokens[0].Trim(), out set))
+							continue;
+						for (int i = 1; i < tokens.Length; i++)
+							set.Add(tokens[i].Trim());
+					}
+				}
+				catch
+				{
+					uEmuera.Media.SystemSounds.Hand.Play();
+					if (position != null)
+						ParserMediator.Warn("予期しないエラーが発生しました", position, 3);
+					else
+						output.PrintError("予期しないエラーが発生しました");
+				}
+				finally
+				{
+					eReader.Close();
+				}
+			}
+		}
 
 		private void loadCharacterData(string csvDir, bool disp)
 		{

@@ -32,7 +32,7 @@ static ConfigData() { }
 		private ConfigData() { setDefault(); }
 
 		//適当に大き目の配列を作っておく。
-		private AConfigItem[] configArray = new AConfigItem[73];
+		private AConfigItem[] configArray = new AConfigItem[74];
 		private AConfigItem[] replaceArray = new AConfigItem[50];
 		private AConfigItem[] debugArray = new AConfigItem[20];
 
@@ -120,6 +120,8 @@ static ConfigData() { }
 			//EE由来。ユーザー定義変数の要素をERDファイルの名前で指定できるようにする
 			configArray[i++] = new ConfigItem<bool>(ConfigCode.UseERD, "ERD機能を利用する", true);
 			configArray[i++] = new ConfigItem<bool>(ConfigCode.ForbidUpdateCheck, "UPDATECHECKを許可しない", false);
+			//EM由来。バイナリ形式のセーブをgzipで圧縮する
+			configArray[i++] = new ConfigItem<bool>(ConfigCode.ZipSaveData, "セーブデータを圧縮して保存する", false);
 
 			i = 0;
 			debugArray[i++] = new ConfigItem<bool>(ConfigCode.DebugShowWindow, "起動時にデバッグウインドウを表示する", true);
@@ -151,7 +153,7 @@ static ConfigData() { }
 
         public void Clear()
         {
-            configArray = new AConfigItem[73];
+            configArray = new AConfigItem[74];
             replaceArray = new AConfigItem[50];
             debugArray = new AConfigItem[20];
             setDefault();

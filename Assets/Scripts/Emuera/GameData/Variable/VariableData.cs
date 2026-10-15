@@ -1024,6 +1024,63 @@ namespace MinorShift.Emuera.GameData.Variable
 			while (LoadVariableBinary(bReader)) { }
 		}
 
+		#region EM: VarExt*.csvで指定したMAP・XML・DataTableの保存
+		/// <summary>SAVEGLOBALで書く分。バイナリ形式の2つ目の区画に入る</summary>
+		public void SaveGlobalEMDataToStreamBinary(EraBinaryDataWriter writer)
+		{
+			writeEMData(writer, GlobalStatic.ConstantData.GlobalSaveMaps,
+				GlobalStatic.ConstantData.GlobalSaveXmls, GlobalStatic.ConstantData.GlobalSaveDTs);
+		}
+		/// <summary>SAVEDATAで書く分</summary>
+		public void SaveEMDataToStreamBinary(EraBinaryDataWriter writer)
+		{
+			writeEMData(writer, GlobalStatic.ConstantData.SaveMaps,
+				GlobalStatic.ConstantData.SaveXmls, GlobalStatic.ConstantData.SaveDTs);
+		}
+		void writeEMData(EraBinaryDataWriter writer, HashSet<string> maps, HashSet<string> xmls, HashSet<string> dts)
+		{
+			foreach (var key in maps)
+				if (DataStringMaps.ContainsKey(key))
+					writer.WriteWithKey(key, DataStringMaps[key]);
+			foreach (var key in xmls)
+				if (DataXmlDocument.ContainsKey(key))
+					writer.WriteWithKey(key, DataXmlDocument[key]);
+			foreach (var key in dts)
+				if (DataDataTables.ContainsKey(key))
+					writer.WriteWithKey(key, DataDataTables[key]);
+		}
+
+		/// <summary>RESETDATAとLOADDATAの前に、SAVEDATAで保存する分を消す</summary>
+		public void RemoveEMSaveData()
+		{
+			removeEMData(GlobalStatic.ConstantData.SaveMaps,
+				GlobalStatic.ConstantData.SaveXmls, GlobalStatic.ConstantData.SaveDTs);
+		}
+		/// <summary>RESETGLOBALとLOADGLOBALの前に、SAVEGLOBALで保存する分を消す</summary>
+		public void RemoveEMGlobalData()
+		{
+			removeEMData(GlobalStatic.ConstantData.GlobalSaveMaps,
+				GlobalStatic.ConstantData.GlobalSaveXmls, GlobalStatic.ConstantData.GlobalSaveDTs);
+		}
+		/// <summary>RESETGLOBALで STATIC_* に挙げた分を消す</summary>
+		public void RemoveEMStaticData()
+		{
+			removeEMData(GlobalStatic.ConstantData.StaticMaps,
+				GlobalStatic.ConstantData.StaticXmls, GlobalStatic.ConstantData.StaticDTs);
+		}
+		void removeEMData(HashSet<string> maps, HashSet<string> xmls, HashSet<string> dts)
+		{
+			foreach (var key in maps)
+				if (DataStringMaps.ContainsKey(key))
+					DataStringMaps[key].Clear();
+			foreach (var key in xmls)
+				DataXmlDocument.Remove(key);
+			foreach (var key in dts)
+				if (DataDataTables.ContainsKey(key))
+					DataDataTables[key].Clear();
+		}
+		#endregion
+
 		/// <summary>
 		/// 1808 キャラクタ型でない変数を一つ読む
 		/// ファイル終端の場合はfalseを返す
@@ -1039,6 +1096,31 @@ namespace MinorShift.Emuera.GameData.Variable
 				vToken = null;
 			switch (nameAndType.Value)
 			{
+				//EM: 名前はReadVariableCodeが読まずに残している
+				case EraSaveDataType.Map:
+					{
+						var key = reader.ReadString();
+						var dict = reader.ReadMap();
+						if (GlobalStatic.ConstantData.SaveMaps.Contains(key) || GlobalStatic.ConstantData.GlobalSaveMaps.Contains(key))
+							DataStringMaps[key] = dict;
+						break;
+					}
+				case EraSaveDataType.Xml:
+					{
+						var key = reader.ReadString();
+						var doc = reader.ReadXml();
+						if (GlobalStatic.ConstantData.SaveXmls.Contains(key) || GlobalStatic.ConstantData.GlobalSaveXmls.Contains(key))
+							DataXmlDocument[key] = doc;
+						break;
+					}
+				case EraSaveDataType.DT:
+					{
+						var key = reader.ReadString();
+						var dt = reader.ReadDataTable();
+						if (GlobalStatic.ConstantData.SaveDTs.Contains(key) || GlobalStatic.ConstantData.GlobalSaveDTs.Contains(key))
+							DataDataTables[key] = dt;
+						break;
+					}
 				case EraSaveDataType.EOF:
 					return false;
 				case EraSaveDataType.Int:

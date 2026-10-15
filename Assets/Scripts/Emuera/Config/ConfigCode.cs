@@ -156,5 +156,7 @@ namespace MinorShift.Emuera
 		UseERD = 164,
 		//EE: UPDATECHECKを許可しない
 		ForbidUpdateCheck = 165,
+		//EM: バイナリ形式のセーブデータを圧縮する
+		ZipSaveData = 166,
 	}
 }

@@ -123,6 +123,7 @@ namespace MinorShift.Emuera
 			ValidExtension = instance.GetConfigValue<List<string>>(ConfigCode.ValidExtension) ?? new List<string> { "txt" };
 			UseERD = instance.GetConfigValue<bool>(ConfigCode.UseERD);
 			ForbidUpdateCheck = instance.GetConfigValue<bool>(ConfigCode.ForbidUpdateCheck);
+			ZipSaveData = instance.GetConfigValue<bool>(ConfigCode.ZipSaveData);
 			
 			CompatiFuncArgAutoConvert = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgAutoConvert);
 			CompatiFuncArgOptional = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgOptional);
@@ -747,6 +748,8 @@ namespace MinorShift.Emuera
 		public static bool UseERD { get; private set; } = true;
 		/// <summary>EE: UPDATECHECKを許可しない</summary>
 		public static bool ForbidUpdateCheck { get; private set; } = false;
+		/// <summary>EM: バイナリ形式のセーブを圧縮する。バイナリ形式でない時は効かない</summary>
+		public static bool ZipSaveData { get; private set; } = false;
 
 		public static int Language { get; private set; }
 

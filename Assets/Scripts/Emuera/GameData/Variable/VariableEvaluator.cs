@@ -1260,6 +1260,7 @@ namespace MinorShift.Emuera.GameData.Variable
 		{
 			//グローバルは初期化しない方が都合がよい。
 			//varData.SetDefaultGlobalValue();
+			varData.RemoveEMSaveData();
 			varData.SetDefaultLocalValue();
 			varData.SetDefaultValue(constant);
 			foreach (CharacterData chara in varData.CharacterList)
@@ -1269,6 +1270,8 @@ namespace MinorShift.Emuera.GameData.Variable
 
 		public void ResetGlobalData()
 		{
+			varData.RemoveEMGlobalData();
+			varData.RemoveEMStaticData();
 			varData.SetDefaultGlobalValue();
 		}
 
@@ -2355,6 +2358,9 @@ namespace MinorShift.Emuera.GameData.Variable
 							bWriter.WriteString("");//saveMes
 							varData.SaveGlobalToStreamBinary(bWriter);
 							bWriter.WriteEOF();
+							//EM: MAP・XML・DataTableは2つ目の区画に書く
+							varData.SaveGlobalEMDataToStreamBinary(bWriter);
+							bWriter.WriteEOF();
 							bWriter.Close();
 						}
 					}
@@ -2400,6 +2406,8 @@ namespace MinorShift.Emuera.GameData.Variable
 			EraDataReader reader = null;
 			EraBinaryDataReader bReader = null;
 			FileStream fs = null;
+			//EE: SAVEGLOBALで保存するMAP・XML・DataTableは読み直す前に消す
+			varData.RemoveEMGlobalData();
 			try
 			{
 				fs = new FileStream(filepath, FileMode.Open, FileAccess.Read);
@@ -2416,6 +2424,8 @@ namespace MinorShift.Emuera.GameData.Variable
 						return false;
 					bReader.ReadString();//saveMes
 					varData.LoadFromStreamBinary(bReader);
+					if (!bReader.EOF())
+						varData.LoadFromStreamBinary(bReader);
 				}
 				else
 				{
@@ -2463,6 +2473,9 @@ namespace MinorShift.Emuera.GameData.Variable
 			}
 			varData.SaveToStreamBinary(bWriter);
 			bWriter.WriteEOF();
+			//EM: MAP・XML・DataTableは2つ目の区画に書く
+			varData.SaveEMDataToStreamBinary(bWriter);
+			bWriter.WriteEOF();
 		}
 
 		public void LoadFromStreamBinary(EraBinaryDataReader bReader)
@@ -2491,6 +2504,8 @@ namespace MinorShift.Emuera.GameData.Variable
 				chara.LoadFromStreamBinary(bReader);
 			}
 			varData.LoadFromStreamBinary(bReader);
+			if (!bReader.EOF())
+				varData.LoadFromStreamBinary(bReader);
 		}
 
 		public bool SaveTo(int saveIndex, string saveText)
@@ -2543,6 +2558,8 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				fs = new FileStream(filepath, FileMode.Open, FileAccess.Read);
 				bReader = EraBinaryDataReader.CreateReader(fs);
+				//EE: SAVEDATAで保存するMAP・XML・DataTableは読み直す前に消す
+				varData.RemoveEMSaveData();
 				if (bReader != null)
 				{
 					LoadFromStreamBinary(bReader);

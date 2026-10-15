@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using System.IO.Compression;
+using System.Data;
+using System.Xml;
 
 namespace MinorShift.Emuera.Sub
 {
@@ -17,18 +20,32 @@ namespace MinorShift.Emuera.Sub
 	{
 		public EraBinaryDataWriter(FileStream fs)
 		{
-			writer = new BinaryWriter(fs, Encoding.Unicode);
+			//EM: 圧縮する時はヘッダだけファイルへ直接書き、残りを溜めてから
+			//gzipにして後ろへ付ける
+			zip = Config.SystemSaveInBinary && Config.ZipSaveData;
+			if (zip)
+			{
+				writer = new BinaryWriter(new MemoryStream(), Encoding.Unicode);
+				fileWriter = new BinaryWriter(fs, Encoding.Unicode, true);
+			}
+			else
+			{
+				writer = new BinaryWriter(fs, Encoding.Unicode);
+				fileWriter = writer;
+			}
 		}
 		BinaryWriter writer = null;
+		BinaryWriter fileWriter = null;
+		readonly bool zip = false;
 		
 		public void WriteHeader()
 		{
-			writer.Write(EraBDConst.Header);
-			writer.Write(EraBDConst.Version1808);
-			writer.Write(EraBDConst.DataCount);
+			fileWriter.Write(zip ? EraBDConst.ZipHeader : EraBDConst.Header);
+			fileWriter.Write(EraBDConst.Version1808);
+			fileWriter.Write(EraBDConst.DataCount);
 			for (int i = 0; i < EraBDConst.DataCount; i++)
 			{
-				writer.Write((UInt32)0);
+				fileWriter.Write((UInt32)0);
 			}
 		}
 
@@ -113,6 +130,40 @@ namespace MinorShift.Emuera.Sub
 				writer.Write((byte)EraSaveDataType.StrArray2D);
 				writer.Write(key);
 				writeData((string[,])v);
+			}
+			else if (v is Dictionary<string, string>)
+			{
+				var map = (Dictionary<string, string>)v;
+				writer.Write((byte)EraSaveDataType.Map);
+				writer.Write(key);
+				writer.Write(map.Count);
+				foreach (var pair in map)
+				{
+					writer.Write(pair.Key);
+					writer.Write(pair.Value);
+				}
+			}
+			else if (v is XmlDocument)
+			{
+				writer.Write((byte)EraSaveDataType.Xml);
+				writer.Write(key);
+				writer.Write(((XmlDocument)v).OuterXml);
+			}
+			else if (v is DataTable)
+			{
+				var dt = (DataTable)v;
+				writer.Write((byte)EraSaveDataType.DT);
+				writer.Write(key);
+				using (var schema = new StringWriter())
+				{
+					dt.WriteXmlSchema(schema);
+					writer.Write(schema.ToString());
+				}
+				using (var rows = new StringWriter())
+				{
+					dt.WriteXml(rows);
+					writer.Write(rows.ToString());
+				}
 			}
 			else if (v is string[, ,])
 			{
@@ -407,6 +458,17 @@ namespace MinorShift.Emuera.Sub
 
 		public void Dispose()
 		{
+			if (zip && writer != null)
+			{
+				writer.Flush();
+				var st = writer.BaseStream;
+				st.Seek(0, SeekOrigin.Begin);
+				fileWriter.Flush();
+				using (var gzip = new GZipStream(fileWriter.BaseStream, CompressionMode.Compress, true))
+					st.CopyTo(gzip);
+				fileWriter.Close();
+			}
+			fileWriter = null;
 			if (writer != null)
 				writer.Close();
 			writer = null;
