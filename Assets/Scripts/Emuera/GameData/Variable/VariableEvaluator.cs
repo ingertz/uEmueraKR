@@ -1879,6 +1879,16 @@ namespace MinorShift.Emuera.GameData.Variable
 		private string getSaveDataPathC(string s) { return Program.DatDir + "chara_" + s + ".dat"; }
 
 		/// <summary>
+		/// セーブ・ロードに失敗した本当の理由を uEmuera.log に残す。
+		/// 画面に出す文言はEEと同じく一言だけなので、これが無いと
+		/// 報告を受けても原因(共有違反・権限・壊れたファイルなど)が分からない
+		/// </summary>
+		static void LogSaveError(string what, string path, Exception e)
+		{
+			UnityEngine.Debug.LogWarning(what + " failed: " + path + Environment.NewLine + e);
+		}
+
+		/// <summary>
 		/// DatFolderが存在せず、かつ作成に失敗したらエラーを投げる
 		/// </summary>
 		/// <returns></returns>
@@ -2039,8 +2049,9 @@ namespace MinorShift.Emuera.GameData.Variable
 				result.State = EraDataState.ETC_ERROR;
 				result.DataMes = fee.Message;
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
+				LogSaveError("check", filename, e);
 				result.State = EraDataState.ETC_ERROR;
 				result.DataMes = "読み込み中にエラーが発生しました";
 			}
@@ -2050,7 +2061,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					reader.Close();
 				else if (bReader != null)
 					bReader.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 			return result;
@@ -2140,7 +2151,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (bWriter != null)
 					bWriter.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 		}
@@ -2188,7 +2199,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (bReader != null)
 					bReader.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 		}
@@ -2225,7 +2236,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (bWriter != null)
 					bWriter.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 		}
@@ -2265,7 +2276,7 @@ namespace MinorShift.Emuera.GameData.Variable
 			{
 				if (bReader != null)
 					bReader.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 		}
@@ -2361,8 +2372,9 @@ namespace MinorShift.Emuera.GameData.Variable
 					}
 				}
 			}
-			catch (SystemException)
+			catch (SystemException e)
 			{
+				LogSaveError("SAVEGLOBAL", filepath, e);
 				throw new CodeEE("グローバルデータの保存中にエラーが発生しました");
 				//console.PrintError(
 				//console.NewLine();
@@ -2421,8 +2433,9 @@ namespace MinorShift.Emuera.GameData.Variable
 				}
 				return true;
 			}
-			catch
+			catch (Exception e)
 			{
+				LogSaveError("LOADGLOBAL", filepath, e);
 				return false;
 			}
 			finally
@@ -2431,7 +2444,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					reader.Close();
 				else if (bReader != null)
 					bReader.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 		}
@@ -2502,8 +2515,9 @@ namespace MinorShift.Emuera.GameData.Variable
 				}
 				return true;
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
+				LogSaveError("SAVEDATA", filepath, e);
 				return false;
 			}
 			finally
@@ -2512,7 +2526,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					writer.Close();
 				else if (bWriter != null)
 					bWriter.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 		}
@@ -2546,7 +2560,7 @@ namespace MinorShift.Emuera.GameData.Variable
 					reader.Close();
 				else if (bReader != null)
 					bReader.Close();
-				else if (fs != null)
+				if (fs != null)
 					fs.Close();
 			}
 			return true;
