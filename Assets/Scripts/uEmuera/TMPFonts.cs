@@ -431,6 +431,12 @@ namespace uEmuera
                 if (kv.Value != null)
                     Object.Destroy(kv.Value);
             }
+            //端末のフォントから作った物はassets_に入っていないので別に消す。
+            //覚えた結果も消さないと、次に破棄済みのアセットを返してしまう
+            if (system_cjk_ != null && !assets_.ContainsValue(system_cjk_))
+                Object.Destroy(system_cjk_);
+            system_cjk_ = null;
+            system_cjk_tried_ = false;
             assets_.Clear();
             substitutes_.Clear();
         }
