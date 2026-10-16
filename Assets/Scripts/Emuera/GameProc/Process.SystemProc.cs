@@ -106,6 +106,87 @@ namespace MinorShift.Emuera.GameProc
 			req.InputType = InputType.IntValue;
 			req.IsSystemInput = true;
 			console.WaitInput(req);
+			//EEのCtrl-Z: この後でSystemStateを入力待ちに切り替えるので、覚えるのは
+			//DoScriptを抜ける時(状態が出揃った後)にする
+			undoSnapshotPending = true;
+		}
+		bool undoSnapshotPending = false;
+
+		/// <summary>EEのCtrl-Z用。システムの入力待ちでの、プロセス側の状態</summary>
+		internal sealed class UndoProcess
+		{
+			public SystemStateCode SystemState;
+			public BeginType Begin;
+			public int CurrentMin;
+			public Int64 SystemResult;
+			public int LastCalledComable;
+			public int LastAddCom;
+			public int[] ComAble;
+			public List<Int64> Coms;
+			public bool IsCTrain;
+			public int Count;
+			public bool SkipPrint;
+			public int PrintComCount;
+			public Int64 DoTrainSelectCom;
+			public bool NeedWaitToEventComEnd;
+			public bool NeedCheck;
+			public bool SaveSkip;
+			public bool UserDefinedSkip;
+			public int Page;
+		}
+
+		internal UndoProcess CaptureUndo()
+		{
+			return new UndoProcess
+			{
+				SystemState = state.SystemState,
+				Begin = state.BeginTypeForUndo,
+				CurrentMin = state.currentMin,
+				SystemResult = systemResult,
+				LastCalledComable = lastCalledComable,
+				LastAddCom = lastAddCom,
+				ComAble = comAble == null ? null : (int[])comAble.Clone(),
+				Coms = new List<Int64>(coms),
+				IsCTrain = isCTrain,
+				Count = count,
+				SkipPrint = skipPrint,
+				PrintComCount = printComCount,
+				DoTrainSelectCom = doTrainSelectCom,
+				NeedWaitToEventComEnd = NeedWaitToEventComEnd,
+				NeedCheck = needCheck,
+				SaveSkip = saveSkip,
+				UserDefinedSkip = userDefinedSkip,
+				Page = page,
+			};
+		}
+
+		/// <summary>覚えた入力待ちに戻し、同じ入力を待つ(この時は覚え直さない)</summary>
+		internal void RestoreUndo(UndoProcess p)
+		{
+			state.ClearFunctionList();
+			deleteAllPrevState();
+			state.SystemState = p.SystemState;
+			state.BeginTypeForUndo = p.Begin;
+			state.currentMin = p.CurrentMin;
+			systemResult = p.SystemResult;
+			lastCalledComable = p.LastCalledComable;
+			lastAddCom = p.LastAddCom;
+			comAble = p.ComAble == null ? null : (int[])p.ComAble.Clone();
+			coms = new List<Int64>(p.Coms);
+			isCTrain = p.IsCTrain;
+			count = p.Count;
+			skipPrint = p.SkipPrint;
+			printComCount = p.PrintComCount;
+			doTrainSelectCom = p.DoTrainSelectCom;
+			NeedWaitToEventComEnd = p.NeedWaitToEventComEnd;
+			needCheck = p.NeedCheck;
+			saveSkip = p.SaveSkip;
+			userDefinedSkip = p.UserDefinedSkip;
+			page = p.Page;
+			InputRequest req = new InputRequest();
+			req.InputType = InputType.IntValue;
+			req.IsSystemInput = true;
+			console.WaitInput(req);
 		}
 
 

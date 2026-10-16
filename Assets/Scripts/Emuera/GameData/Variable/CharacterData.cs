@@ -92,6 +92,81 @@ namespace MinorShift.Emuera.GameData.Variable
 		}
 
 
+		/// <summary>
+		/// EEのCtrl-Z用の複製。配列を丸ごと写すので、要素を1つずつ写すCopyToより
+		/// ずっと速い(入力待ちのたびに全キャラクタ分を写すため)
+		/// </summary>
+		internal CharacterData(CharacterData src)
+		{
+			dataInteger = (Int64[])src.dataInteger.Clone();
+			dataString = (string[])src.dataString.Clone();
+			dataIntegerArray = new Int64[src.dataIntegerArray.Length][];
+			for (int i = 0; i < dataIntegerArray.Length; i++)
+				dataIntegerArray[i] = src.dataIntegerArray[i] == null ? null : (Int64[])src.dataIntegerArray[i].Clone();
+			dataStringArray = new string[src.dataStringArray.Length][];
+			for (int i = 0; i < dataStringArray.Length; i++)
+				dataStringArray[i] = src.dataStringArray[i] == null ? null : (string[])src.dataStringArray[i].Clone();
+			dataIntegerArray2D = new Int64[src.dataIntegerArray2D.Length][,];
+			for (int i = 0; i < dataIntegerArray2D.Length; i++)
+				dataIntegerArray2D[i] = src.dataIntegerArray2D[i] == null ? null : (Int64[,])src.dataIntegerArray2D[i].Clone();
+			dataStringArray2D = new string[src.dataStringArray2D.Length][,];
+			for (int i = 0; i < dataStringArray2D.Length; i++)
+				dataStringArray2D[i] = src.dataStringArray2D[i] == null ? null : (string[,])src.dataStringArray2D[i].Clone();
+			UserDefCVarDataList = new List<object>(src.UserDefCVarDataList.Count);
+			foreach (var array in src.UserDefCVarDataList)
+				UserDefCVarDataList.Add(array == null ? null : ((Array)array).Clone());
+		}
+
+		/// <summary>
+		/// EEのCtrl-Z用。同じ形の複製へ値だけを写し直す(配列を作り直さないので、
+		/// 入力待ちのたびにメモリを確保してGCを走らせることがない)。形が違えばfalse
+		/// </summary>
+		internal bool CopyArraysFrom(CharacterData src)
+		{
+			if (!sameShape(dataInteger, src.dataInteger) || !sameShape(dataString, src.dataString)
+				|| !sameShape(dataIntegerArray, src.dataIntegerArray) || !sameShape(dataStringArray, src.dataStringArray)
+				|| !sameShape(dataIntegerArray2D, src.dataIntegerArray2D) || !sameShape(dataStringArray2D, src.dataStringArray2D)
+				|| UserDefCVarDataList.Count != src.UserDefCVarDataList.Count)
+				return false;
+			for (int i = 0; i < UserDefCVarDataList.Count; i++)
+				if (!sameShape(UserDefCVarDataList[i] as Array, src.UserDefCVarDataList[i] as Array))
+					return false;
+			Array.Copy(src.dataInteger, dataInteger, dataInteger.Length);
+			Array.Copy(src.dataString, dataString, dataString.Length);
+			copyAll(src.dataIntegerArray, dataIntegerArray);
+			copyAll(src.dataStringArray, dataStringArray);
+			copyAll(src.dataIntegerArray2D, dataIntegerArray2D);
+			copyAll(src.dataStringArray2D, dataStringArray2D);
+			for (int i = 0; i < UserDefCVarDataList.Count; i++)
+				if (src.UserDefCVarDataList[i] != null)
+					Array.Copy((Array)src.UserDefCVarDataList[i], (Array)UserDefCVarDataList[i], ((Array)src.UserDefCVarDataList[i]).Length);
+			return true;
+		}
+
+		static bool sameShape(Array a, Array b)
+		{
+			if (a == null || b == null)
+				return a == b;
+			return a.GetType() == b.GetType() && a.Length == b.Length;
+		}
+
+		static bool sameShape(Array[] a, Array[] b)
+		{
+			if (a.Length != b.Length)
+				return false;
+			for (int i = 0; i < a.Length; i++)
+				if (!sameShape(a[i], b[i]))
+					return false;
+			return true;
+		}
+
+		static void copyAll(Array[] src, Array[] dst)
+		{
+			for (int i = 0; i < src.Length; i++)
+				if (src[i] != null)
+					Array.Copy(src[i], dst[i], src[i].Length);
+		}
+
 		public CharacterData(ConstantData constant, CharacterTemplate tmpl, VariableData varData)
 			: this(constant, varData)
 		{

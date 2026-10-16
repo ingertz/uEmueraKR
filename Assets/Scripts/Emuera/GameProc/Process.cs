@@ -294,6 +294,14 @@ namespace MinorShift.Emuera.GameProc
 					systemProcRunning = false;
 					runScriptProc();
 				}
+				//EEのCtrl-Z: SHOPやTRAINの入力待ちのように、関数を何も実行していない
+				//システムの入力待ちなら、変数と画面だけで状態が決まるので丸ごと覚えておく
+				if (undoSnapshotPending)
+				{
+					undoSnapshotPending = false;
+					if (state.ScriptEnd && prevStateList.Count == 0 && console.IsWaitingInput)
+						GlobalStatic.ctrlZ.TakeSnapshot(this, console);
+				}
 			}
 			catch (Exception ec)
 			{

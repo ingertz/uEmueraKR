@@ -1960,10 +1960,85 @@ namespace MinorShift.Emuera.GameView
 			RefreshStrings(true);
 		}
 
+		/// <summary>EEのCtrl-Z用。入力待ちの時点の画面</summary>
+		internal sealed class UndoConsole
+		{
+			public ConsoleDisplayLine[] Lines;
+			public int LineNo;
+			public Int64 LogicalLineCount;
+			public int LastButtonGeneration;
+			public int NewButtonGeneration;
+			public bool LastButtonIsInput;
+			public Color BgColor;
+			public StringStyle UserStyle;
+			public bool UseUserStyle;
+			public bool UseSetColorStyle;
+			public DisplayLineAlignment Alignment;
+			public ConsoleRedraw Redraw;
+		}
+
+		internal UndoConsole CaptureUndo()
+		{
+			var lines = new ConsoleDisplayLine[displayLineList.Count];
+			displayLineList.CopyTo(lines, 0);
+			return new UndoConsole
+			{
+				Lines = lines,
+				LineNo = lineNo,
+				LogicalLineCount = logicalLineCount,
+				LastButtonGeneration = lastButtonGeneration,
+				NewButtonGeneration = newButtonGeneration,
+				LastButtonIsInput = lastButtonIsInput,
+				BgColor = bgColor,
+				UserStyle = userStyle,
+				UseUserStyle = UseUserStyle,
+				UseSetColorStyle = UseSetColorStyle,
+				Alignment = alignment,
+				Redraw = redraw,
+			};
+		}
+
+		void restoreUndo(UndoConsole c)
+		{
+			displayLineList.Clear();
+			foreach (var line in c.Lines)
+				displayLineList.Add(line);
+			lineNo = c.LineNo;
+			logicalLineCount = c.LogicalLineCount;
+			lastDrawnLineNo = -1;
+			lastButtonGeneration = c.LastButtonGeneration;
+			newButtonGeneration = c.NewButtonGeneration;
+			lastButtonIsInput = c.LastButtonIsInput;
+			bgColor = c.BgColor;
+			userStyle = c.UserStyle;
+			UseUserStyle = c.UseUserStyle;
+			UseSetColorStyle = c.UseSetColorStyle;
+			alignment = c.Alignment;
+			redraw = c.Redraw;
+			selectingButton = null;
+			lastSelectingButton = null;
+		}
+
+		/// <summary>覚えた入力待ちへ即座に戻す。戻せなければfalse(何も変えない)</summary>
+		bool restoreUndoSnapshot(Sub.CtrlZ.Snapshot s)
+		{
+			if (!GlobalStatic.VariableData.RestoreUndo(s.Variables))
+				return false;
+			forceStopTimer();
+			GameData.Function.FunctionMethodCreator.RestoreErbDictionaries(s.Dictionaries);
+			GlobalStatic.VEvaluator.SetRandState(s.RandomState);
+			restoreUndo(s.Console);
+			emuera.RestoreUndo(s.Process);
+			return true;
+		}
+
 		/// <summary>
-		/// EEのCtrl-Z。基準点(タイトルの始まりか、読んだ・書いたセーブ)まで戻り、
-		/// それ以降の入力を最後の1つを除いてもう一度流す。
-		/// 流している最中にもう一度頼まれたら、さらに1つ減らしてやり直す。
+		/// EEのCtrl-Z。直前の入力を1つ取り消す。
+		///
+		/// SHOPやTRAINの入力待ちごとに状態を丸ごと覚えている(最新の2つ)ので、まずそこへ戻し、
+		/// それ以降の入力(サブメニューの選択など)を最後の1つを除いて流し直す。
+		/// 使える物が無い時だけ、基準点(タイトルの始まりか、読んだ・書いたセーブ)から全部流し直す。
+		/// 流している最中にもう一度頼まれたら、さらに1つ戻す。
 		/// 入力を待っている時に、ゲームを動かすスレッドから呼ぶこと
 		/// </summary>
 		public bool UndoLastInput()
@@ -1975,53 +2050,74 @@ namespace MinorShift.Emuera.GameView
 			do
 			{
 				z.RepeatedUndoRequested = false;
-				//基準点を作り直さないよう、タイトルへ戻る所から流し直し扱いにする
+				int last = z.Inputs.Count - 1;
+				//基準点や覚えた状態を作り直さないよう、ここからは流し直し扱いにする
 				z.RewindInProgress = true;
 				try
 				{
-					forceStopTimer();
-					ClearDisplay();
-					redraw = ConsoleRedraw.Normal;
-					UseUserStyle = false;
-					userStyle = new StringStyle(Config.ForeColor, FontStyle.Regular, null);
-					//リソースCSVの読み直しはPlayerPrefsを使うのでメインスレッドに任せて待つ
-					var prepared = new System.Threading.ManualResetEvent(false);
-					SpriteManager.RunOnMainThread(() =>
+					var snap = z.FindSnapshot(last);
+					int from;
+					if (snap != null && restoreUndoSnapshot(snap))
 					{
-						try { uEmuera.Utils.ResourcePrepareSimple(); }
-						finally { prepared.Set(); }
-					});
-					prepared.WaitOne();
-					emuera.BeginTitle();
-					ReadAnyKey(false, false);
-					if (z.Kind == Sub.CtrlZ.CheckpointKind.Title)
-					{
-						//タイトルの始まりの乱数から
-						GlobalStatic.VEvaluator.SetRandState(z.RandomState);
-						callEmueraProgram("");
+						z.DropSnapshotsAfter(snap.InputIndex);
+						from = snap.InputIndex;
 					}
 					else
 					{
-						callEmueraProgram("");
-						//EEと同じく、タイトルを出してから乱数を戻してセーブを読む
-						GlobalStatic.VEvaluator.SetRandState(z.RandomState);
-						emuera.LoadUndoCheckpoint(z.SaveData, z.SaveNo);
-						callEmueraProgram(null);
+						z.ClearSnapshots();
+						rewindToCheckpoint(z);
+						from = 0;
 					}
-					var inputs = z.Inputs;
-					if (inputs.Count > 0)
-						inputs.RemoveAt(inputs.Count - 1);
-					for (int i = 0; i < inputs.Count && !z.RepeatedUndoRequested; i++)
-						PressEnterKey(true, inputs[i], false);
+					for (int i = from; i < last && !z.RepeatedUndoRequested; i++)
+					{
+						z.ReplayCursor = i + 1;
+						PressEnterKey(true, z.Inputs[i], false);
+					}
+					z.Inputs.RemoveAt(last);
 				}
 				finally
 				{
 					z.RewindInProgress = false;
 				}
-			} while (z.RepeatedUndoRequested && z.Inputs.Count > 0);
+			} while (z.RepeatedUndoRequested && z.CanUndo);
 			z.RepeatedUndoRequested = false;
 			RefreshStrings(true);
 			return true;
+		}
+
+		/// <summary>タイトルへ戻って基準点の状態にする(遅い方の取り消し)</summary>
+		void rewindToCheckpoint(Sub.CtrlZ z)
+		{
+			z.ReplayCursor = 0;
+			forceStopTimer();
+			ClearDisplay();
+			redraw = ConsoleRedraw.Normal;
+			UseUserStyle = false;
+			userStyle = new StringStyle(Config.ForeColor, FontStyle.Regular, null);
+			//リソースCSVの読み直しはPlayerPrefsを使うのでメインスレッドに任せて待つ
+			var prepared = new System.Threading.ManualResetEvent(false);
+			SpriteManager.RunOnMainThread(() =>
+			{
+				try { uEmuera.Utils.ResourcePrepareSimple(); }
+				finally { prepared.Set(); }
+			});
+			prepared.WaitOne();
+			emuera.BeginTitle();
+			ReadAnyKey(false, false);
+			if (z.Kind == Sub.CtrlZ.CheckpointKind.Title)
+			{
+				//タイトルの始まりの乱数から
+				GlobalStatic.VEvaluator.SetRandState(z.RandomState);
+				callEmueraProgram("");
+			}
+			else
+			{
+				callEmueraProgram("");
+				//EEと同じく、タイトルを出してから乱数を戻してセーブを読む
+				GlobalStatic.VEvaluator.SetRandState(z.RandomState);
+				emuera.LoadUndoCheckpoint(z.SaveData, z.SaveNo);
+				callEmueraProgram(null);
+			}
 		}
 
 		bool force_temporary = false;

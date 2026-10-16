@@ -191,6 +191,22 @@ namespace MinorShift.Emuera.GameData.Function
             erbDictionaries_.Clear();
         }
 
+        /// <summary>EEのCtrl-Z用。辞書を丸ごと写す</summary>
+        public static Dictionary<string, Dictionary<long, object>> CaptureErbDictionaries()
+        {
+            var copy = new Dictionary<string, Dictionary<long, object>>();
+            foreach (var kv in erbDictionaries_)
+                copy[kv.Key] = new Dictionary<long, object>(kv.Value);
+            return copy;
+        }
+
+        public static void RestoreErbDictionaries(Dictionary<string, Dictionary<long, object>> saved)
+        {
+            erbDictionaries_.Clear();
+            foreach (var kv in saved)
+                erbDictionaries_[kv.Key] = new Dictionary<long, object>(kv.Value);
+        }
+
         /// <summary>
         /// DICT_CREATE(str) / DICT_EXIST(str) / DICT_CONTAINS_KEY(str, key) /
         /// DICT_SET_VALUE(str, key, value) / DICT_GET_VALUE_STRING(str, key) / DICT_GET_VALUE_LONG(str, key)

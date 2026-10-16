@@ -541,6 +541,9 @@ namespace MinorShift.Emuera.GameProc
 		bool isClone = false;
         public bool IsClone { get { return isClone; } set { isClone = value; } }
 
+		/// <summary>EEのCtrl-Z用</summary>
+		internal BeginType BeginTypeForUndo { get { return begintype; } set { begintype = value; } }
+
 		// functionListのコピーを必要とする呼び出し元が無かったのでコピーしないことにする。
 		public ProcessState Clone()
 		{

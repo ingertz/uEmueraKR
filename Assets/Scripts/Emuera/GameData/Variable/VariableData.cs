@@ -1024,6 +1024,138 @@ namespace MinorShift.Emuera.GameData.Variable
 			while (LoadVariableBinary(bReader)) { }
 		}
 
+		#region EEのCtrl-Z: 入力待ちの時点の変数を丸ごと覚えて戻す
+		/// <summary>覚えた変数。配列は今の配列と、その時点の写しの組で持つ</summary>
+		internal sealed class UndoVariables
+		{
+			public List<Array> Live;
+			public List<Array> Copies;
+			public List<CharacterData> Charas;
+			public Dictionary<string, Dictionary<string, string>> Maps;
+			public Dictionary<string, XmlDocument> Xmls;
+			public Dictionary<string, DataTable> Tables;
+			public Int64 LastLoadNo;
+			public Int64 LastLoadVersion;
+			public string LastLoadText;
+		}
+
+		/// <summary>キャラクタ以外の、値が変わりうる配列を全て並べる。覚える時と戻す時で同じ順になる</summary>
+		List<Array> enumerateUndoArrays()
+		{
+			var list = new List<Array>(256);
+			list.Add(dataInteger);
+			list.Add(dataString);
+			foreach (var a in dataIntegerArray) if (a != null) list.Add(a);
+			foreach (var a in dataStringArray) if (a != null) list.Add(a);
+			foreach (var a in dataIntegerArray2D) if (a != null) list.Add(a);
+			foreach (var a in dataStringArray2D) if (a != null) list.Add(a);
+			foreach (var a in dataIntegerArray3D) if (a != null) list.Add(a);
+			foreach (var a in dataStringArray3D) if (a != null) list.Add(a);
+			//LOCAL・ARGなど関数ごとの変数は数が多く(関数の数×4)、写すと入力待ちのたびに
+			//数十MBになる。システムの入力待ちでは実行中の関数が無く、次に呼ばれた時に
+			//設定し直されるのが普通なので覚えない
+			foreach (var token in userDefinedStaticVarList)
+				addTokenArray(list, token);
+			foreach (var token in userDefinedGlobalVarList)
+				addTokenArray(list, token);
+			return list;
+		}
+
+		static void addTokenArray(List<Array> list, VariableToken token)
+		{
+			if (token == null || token.IsCharacterData || token.IsReference)
+				return;
+			try
+			{
+				var a = token.GetArray() as Array;
+				if (a != null)
+					list.Add(a);
+			}
+			catch (Exception)
+			{
+				//配列でない・まだ作られていない物は対象外
+			}
+		}
+
+		/// <summary>
+		/// 今の値を覚える。reuseに捨てる予定の物を渡すと、形が同じ配列はそこへ写し直して
+		/// 使い回す(入力待ちのたびに数十MBを確保してGCで止まるのを避ける)
+		/// </summary>
+		internal UndoVariables CaptureUndo(UndoVariables reuse)
+		{
+			var u = new UndoVariables();
+			u.Live = enumerateUndoArrays();
+			u.Copies = new List<Array>(u.Live.Count);
+			for (int i = 0; i < u.Live.Count; i++)
+			{
+				var live = u.Live[i];
+				Array old = (reuse != null && i < reuse.Copies.Count) ? reuse.Copies[i] : null;
+				if (old != null && old.GetType() == live.GetType() && old.Length == live.Length)
+				{
+					Array.Copy(live, old, live.Length);
+					u.Copies.Add(old);
+				}
+				else
+					u.Copies.Add((Array)live.Clone());
+			}
+			u.Charas = new List<CharacterData>(characterList.Count);
+			for (int i = 0; i < characterList.Count; i++)
+			{
+				CharacterData old = (reuse != null && i < reuse.Charas.Count) ? reuse.Charas[i] : null;
+				if (old != null && old.CopyArraysFrom(characterList[i]))
+					u.Charas.Add(old);
+				else
+					u.Charas.Add(new CharacterData(characterList[i]));
+			}
+			u.Maps = new Dictionary<string, Dictionary<string, string>>();
+			foreach (var kv in DataStringMaps)
+				u.Maps[kv.Key] = new Dictionary<string, string>(kv.Value);
+			u.Xmls = new Dictionary<string, XmlDocument>();
+			foreach (var kv in DataXmlDocument)
+				u.Xmls[kv.Key] = (XmlDocument)kv.Value.Clone();
+			u.Tables = new Dictionary<string, DataTable>();
+			foreach (var kv in DataDataTables)
+				u.Tables[kv.Key] = kv.Value.Copy();
+			u.LastLoadNo = LastLoadNo;
+			u.LastLoadVersion = LastLoadVersion;
+			u.LastLoadText = LastLoadText;
+			return u;
+		}
+
+		/// <summary>
+		/// 覚えた時点の値に戻す。配列が作り直されていて同じ物に戻せない時は何もせずfalse
+		/// </summary>
+		internal bool RestoreUndo(UndoVariables u)
+		{
+			var now = enumerateUndoArrays();
+			if (now.Count != u.Live.Count)
+				return false;
+			for (int i = 0; i < now.Count; i++)
+				if (!ReferenceEquals(now[i], u.Live[i]))
+					return false;
+			for (int i = 0; i < now.Count; i++)
+				Array.Copy(u.Copies[i], now[i], u.Copies[i].Length);
+			foreach (var chara in characterList)
+				chara.Dispose();
+			characterList.Clear();
+			foreach (var saved in u.Charas)
+				characterList.Add(new CharacterData(saved));
+			DataStringMaps.Clear();
+			foreach (var kv in u.Maps)
+				DataStringMaps[kv.Key] = new Dictionary<string, string>(kv.Value);
+			DataXmlDocument.Clear();
+			foreach (var kv in u.Xmls)
+				DataXmlDocument[kv.Key] = (XmlDocument)kv.Value.Clone();
+			DataDataTables.Clear();
+			foreach (var kv in u.Tables)
+				DataDataTables[kv.Key] = kv.Value.Copy();
+			LastLoadNo = u.LastLoadNo;
+			LastLoadVersion = u.LastLoadVersion;
+			LastLoadText = u.LastLoadText;
+			return true;
+		}
+		#endregion
+
 		#region EM: VarExt*.csvで指定したMAP・XML・DataTableの保存
 		/// <summary>SAVEGLOBALで書く分。バイナリ形式の2つ目の区画に入る</summary>
 		public void SaveGlobalEMDataToStreamBinary(EraBinaryDataWriter writer)
