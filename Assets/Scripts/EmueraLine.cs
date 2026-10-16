@@ -410,7 +410,9 @@ public class EmueraLine : EmueraBehaviour
             for(int i = 0; i < info.characterCount; ++i)
             {
                 var c = info.characterInfo[i];
-                if(!c.isVisible)
+                //括弧(《》【】)や縦線、■などの記号は文字より下まで伸びるので見ない。
+                //それに合わせると線が下がりすぎて次の行に付く
+                if(!c.isVisible || !char.IsLetterOrDigit(c.character))
                     continue;
                 lowest = Mathf.Min(lowest, c.bottomLeft.y);
             }
