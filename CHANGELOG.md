@@ -6,6 +6,13 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+- 아직 없음
+
+</details>
+
+<details>
+<summary><b>0.3.2a</b> (2026-10-16)</summary>
+
 - 「업데이트 확인」에서 새 버전이 있으면 앱이 직접 APK를 받아 설치 화면을 띄움 ([app.md](docs/app.md))
 
 </details>
