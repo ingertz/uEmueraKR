@@ -742,7 +742,7 @@ public class OptionWindow : MonoBehaviour
     /// </summary>
     /// <summary>
     /// 오른쪽 위 아이콘 줄(잠금 왼쪽)에 되돌리기(EE의 Ctrl-Z) 버튼을 만든다.
-    /// 아이콘 그림은 따로 없어서 실행할 때 그린다
+    /// 아이콘은 Resources/icon_undo.png
     /// </summary>
     void CreateUndoButton()
     {
@@ -763,7 +763,7 @@ public class OptionWindow : MonoBehaviour
                 - (input_button.transform as RectTransform).anchoredPosition.x);
         rt.anchoredPosition = new Vector2(src.anchoredPosition.x - gap, src.anchoredPosition.y);
         undo_image_ = obj.AddComponent<Image>();
-        undo_image_.sprite = MakeUndoSprite();
+        undo_image_.sprite = Resources.Load<Sprite>("icon_undo");
         undo_image_.preserveAspect = true;
         undo_color_ = orientation_lock_image != null ? orientation_lock_image.color : Color.white;
         undo_image_.color = undo_color_;
@@ -809,59 +809,6 @@ public class OptionWindow : MonoBehaviour
             return;
         }
         EmueraThread.instance.RequestUndo();
-    }
-
-    /// <summary>반시계 방향 화살표(⟲)를 그린 흰색 아이콘</summary>
-    static Sprite MakeUndoSprite()
-    {
-        const int S = 128;
-        const int SS = 4;//한 화소를 4x4로 나눠 가장자리를 부드럽게
-        float cx = S * 0.5f, cy = S * 0.5f, r = S * 0.30f, w = S * 0.085f;
-        //고리는 100도~150도를 비우고, 100도 끝에 화살촉을 단다(각도는 오른쪽 0, 위쪽 90)
-        float tipA = 100f * Mathf.Deg2Rad;
-        var p = new Vector2(cx + r * Mathf.Cos(tipA), cy + r * Mathf.Sin(tipA));
-        var tangent = new Vector2(-Mathf.Sin(tipA), Mathf.Cos(tipA));
-        var radial = new Vector2(Mathf.Cos(tipA), Mathf.Sin(tipA));
-        var t0 = p + tangent * (w * 2.0f);
-        var t1 = p + radial * (w * 1.6f);
-        var t2 = p - radial * (w * 1.6f);
-        var px = new Color32[S * S];
-        for (int y = 0; y < S; y++)
-        {
-            for (int x = 0; x < S; x++)
-            {
-                int hit = 0;
-                for (int sy = 0; sy < SS; sy++)
-                {
-                    for (int sx = 0; sx < SS; sx++)
-                    {
-                        var q = new Vector2(x + (sx + 0.5f) / SS, y + (sy + 0.5f) / SS);
-                        float dx = q.x - cx, dy = q.y - cy;
-                        float d = Mathf.Sqrt(dx * dx + dy * dy);
-                        float a = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg;
-                        if (a < 0) a += 360f;
-                        bool ring = Mathf.Abs(d - r) <= w * 0.5f && !(a > 100f && a < 150f);
-                        if (ring || InTriangle(q, t0, t1, t2))
-                            hit++;
-                    }
-                }
-                px[y * S + x] = new Color32(255, 255, 255, (byte)(255 * hit / (SS * SS)));
-            }
-        }
-        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
-        tex.SetPixels32(px);
-        tex.Apply(false, true);
-        return Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f));
-    }
-
-    static bool InTriangle(Vector2 q, Vector2 a, Vector2 b, Vector2 c)
-    {
-        float d1 = (q.x - b.x) * (a.y - b.y) - (a.x - b.x) * (q.y - b.y);
-        float d2 = (q.x - c.x) * (b.y - c.y) - (b.x - c.x) * (q.y - c.y);
-        float d3 = (q.x - a.x) * (c.y - a.y) - (c.x - a.x) * (q.y - a.y);
-        bool neg = d1 < 0 || d2 < 0 || d3 < 0;
-        bool pos = d1 > 0 || d2 > 0 || d3 > 0;
-        return !(neg && pos);
     }
 
     void CreateUpdateButton()
