@@ -6,6 +6,13 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+- 아직 없음
+
+</details>
+
+<details>
+<summary><b>0.3.1g</b> (2026-10-16)</summary>
+
 - HTML의 `<shape type='space' param='54px'>`처럼 `px`를 붙인 크기를 글자 크기의 백분율로 잘못 읽던 문제 수정. TW에서 얼굴 그림 위 이름표가 가운데로 몰리고 홍조가 엉뚱한 자리에 나오던 원인
 
 </details>
