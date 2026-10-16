@@ -1961,9 +1961,9 @@ namespace MinorShift.Emuera.GameView
 		}
 
 		/// <summary>
-		/// EEのCtrl-Z。タイトルに戻って最後にセーブ・ロードしたデータを読み直し、
+		/// EEのCtrl-Z。基準点(タイトルの始まりか、読んだ・書いたセーブ)まで戻り、
 		/// それ以降の入力を最後の1つを除いてもう一度流す。
-		/// 流している最中にもう一度呼ばれたら、さらに1つ減らしてやり直す。
+		/// 流している最中にもう一度頼まれたら、さらに1つ減らしてやり直す。
 		/// 入力を待っている時に、ゲームを動かすスレッドから呼ぶこと
 		/// </summary>
 		public bool UndoLastInput()
@@ -1975,13 +1975,32 @@ namespace MinorShift.Emuera.GameView
 			do
 			{
 				z.RepeatedUndoRequested = false;
-				GotoTitle();
+				//基準点を作り直さないよう、タイトルへ戻る所から流し直し扱いにする
 				z.RewindInProgress = true;
 				try
 				{
-					GlobalStatic.VEvaluator.SetRandState(z.RandomState);
-					emuera.LoadSilent();
-					PressEnterKey(true, z.LastSave.ToString(), false);
+					forceStopTimer();
+					ClearDisplay();
+					redraw = ConsoleRedraw.Normal;
+					UseUserStyle = false;
+					userStyle = new StringStyle(Config.ForeColor, FontStyle.Regular, null);
+					uEmuera.Utils.ResourcePrepareSimple();
+					emuera.BeginTitle();
+					ReadAnyKey(false, false);
+					if (z.Kind == Sub.CtrlZ.CheckpointKind.Title)
+					{
+						//タイトルの始まりの乱数から
+						GlobalStatic.VEvaluator.SetRandState(z.RandomState);
+						callEmueraProgram("");
+					}
+					else
+					{
+						callEmueraProgram("");
+						//EEと同じく、タイトルを出してから乱数を戻してセーブを読む
+						GlobalStatic.VEvaluator.SetRandState(z.RandomState);
+						emuera.LoadUndoCheckpoint(z.SaveData, z.SaveNo);
+						callEmueraProgram(null);
+					}
 					var inputs = z.Inputs;
 					if (inputs.Count > 0)
 						inputs.RemoveAt(inputs.Count - 1);
@@ -1994,6 +2013,7 @@ namespace MinorShift.Emuera.GameView
 				}
 			} while (z.RepeatedUndoRequested && z.Inputs.Count > 0);
 			z.RepeatedUndoRequested = false;
+			RefreshStrings(true);
 			return true;
 		}
 

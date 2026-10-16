@@ -132,6 +132,7 @@ namespace MinorShift.Emuera.GameProc
 
 		void beginTitle()
 		{
+			GlobalStatic.ctrlZ.OnTitle();
 			//連続調教コマンド処理中の状態が持ち越されていたらここで消しておく
 			if (isCTrain)
 				if (ClearCommands())
@@ -1005,27 +1006,26 @@ namespace MinorShift.Emuera.GameProc
 		}
 
 		/// <summary>
-		/// EEのCtrl-Z用。タイトルの「ロード」と同じ待ちに入るが、セーブの一覧は表示しない
+		/// EEのCtrl-Z用。覚えておいた基準点のセーブを、LOADDATAと同じく読み込んで
+		/// SYSTEM_LOADEND・EVENTLOADへ進む状態にする。この後でスクリプトを動かすこと
 		/// </summary>
-		public void LoadSilent()
+		public void LoadUndoCheckpoint(byte[] data, int saveNo)
 		{
-			state.SystemState = SystemStateCode.LoadGameOpenning_Begin;
-			if (isFirstTime)
+			Config.CreateSavDir();
+			string path = Config.SavDir + "undo_checkpoint.tmp";
+			File.WriteAllBytes(path, data);
+			try
 			{
-				isFirstTime = false;
-				dataIsAvailable = new bool[Config.SaveDataNos + 1];
+				if (!vEvaluator.LoadFromFile(path, saveNo))
+					throw new ExeEE("ファイルのロード中に予期しないエラーが発生しました");
 			}
-			for (int i = 0; i < 20; i++)
+			finally
 			{
-				int dataNo = page * 20 + i;
-				if (dataNo == dataIsAvailable.Length - 1)
-					break;
-				dataIsAvailable[dataNo] = vEvaluator.CheckData(dataNo, EraSaveFileType.Normal).State == EraDataState.OK;
+				try { File.Delete(path); } catch { }
 			}
-			dataIsAvailable[dataIsAvailable.Length - 1] =
-				vEvaluator.CheckData(AutoSaveIndex, EraSaveFileType.Normal).State == EraDataState.OK;
-			setWaitInput();
-			state.SystemState = SystemStateCode.LoadGameOpenning_WaitInput;
+			deleteAllPrevState();
+			state.ClearFunctionList();
+			state.SystemState = SystemStateCode.LoadData_DataLoaded;
 		}
 
 		private bool writeSavedataTextFrom(int saveIndex)

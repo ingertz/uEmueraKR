@@ -787,6 +787,7 @@ namespace MinorShift.Emuera.GameProc
 						if (result.State != EraDataState.OK)
 							throw new CodeEE("不正なデータをロードしようとしました");
 
+						GlobalStatic.ctrlZ.OnLoad((int)target);
 						if (!vEvaluator.LoadFrom((int)target))
 							throw new ExeEE("ファイルのロード中に予期しないエラーが発生しました");
 						state.ClearFunctionList();

@@ -1900,6 +1900,8 @@ namespace MinorShift.Emuera.GameData.Variable
 
 		private string getSaveDataPathG() { return Config.SavDir + "global.sav"; }
 		private string getSaveDataPath(int index) { return string.Format("{0}save{1:00}.sav", Config.SavDir, index); }
+		/// <summary>EEのCtrl-Z用。セーブ番号のファイルの場所</summary>
+		public string SaveDataPath(int index) { return getSaveDataPath(index); }
 		private string getSaveDataPath(string s) { return string.Format("{0}save{1:00}.sav", Config.SavDir, s); }
 
 		private string getSaveDataPathV(int index) { return Program.DatDir + string.Format("var_{0:00}.dat", index); }
@@ -2574,7 +2576,15 @@ namespace MinorShift.Emuera.GameData.Variable
 
 		public bool LoadFrom(int dataIndex)
 		{
-			string filepath = getSaveDataPath(dataIndex);
+			return LoadFromFile(getSaveDataPath(dataIndex), dataIndex);
+		}
+
+		/// <summary>
+		/// 番号の場所以外にあるセーブを、その番号のセーブとして読む(EEのCtrl-Zで、
+		/// 覚えておいた基準点のセーブを読み直すのに使う)
+		/// </summary>
+		public bool LoadFromFile(string filepath, int dataIndex)
+		{
 			if (!File.Exists(filepath))
 				throw new ExeEE("存在しないパスを呼び出した");
 			EraDataReader reader = null;
