@@ -346,7 +346,9 @@ public abstract class EmueraBehaviour : MonoBehaviour
                 }
                 //空白だけのボタン(PRINTBUTTON " " * 80 など)も行を作らないと
                 //GameObjectが存在せずクリックできなくなる
-                ud.empty = (validlength == 0) && !btn.IsButton;
+                //下線付きの空白も同じ。本家は空白にも線を引くので、
+                //ボタンの間の空白で線が途切れていた(OCG2のデッキ編集の見出し)
+                ud.empty = (validlength == 0) && !btn.IsButton && ud.style_spans == null;
                 if(ud.empty)
                     ud.content = null;
                 else

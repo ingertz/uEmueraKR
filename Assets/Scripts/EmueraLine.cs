@@ -396,34 +396,83 @@ public class EmueraLine : EmueraBehaviour
     /// 下線を引く高さ(行の上端から、下向きが負)。
     /// 本来は字の大きさ+1の所でよいが、ハングルなど端末のフォントで描かれた字は
     /// それより下まで伸びることがあり、線が字に重なっていた(OCG2のデッキ編集など)。
-    /// 実際に組まれた字の下端より下へ下げる。上げることはしない
+    ///
+    /// 本家では1行の下線は同じ高さの1本に見える。ここではボタンごとに別のTMP_Textなので、
+    /// 中身の字で決めると括弧と空白だけの検索欄や[x]だけ高さが変わって段になっていた。
+    /// 中身ではなく、フォントと大きさごとに見本の字を組んで、
+    /// ベースラインから下へどれだけ伸びるかを決める。
+    ///
+    /// 行の上端からの距離で覚えてはいけない。最初に測った行の枠が高い(画像の入った行など)と
+    /// 字が下に置かれて大きな値になり、全部の行で線が次の行まで下がっていた。
+    /// 位置はこの行の実際のベースラインから求める
     /// </summary>
     float UnderlineY()
     {
-        float y = -text.fontSize - 1;
+        float size = text.fontSize;
+        float y = -size - 1;
         try
         {
             text.ForceMeshUpdate();
             var info = text.textInfo;
+            if(info.characterCount == 0 || info.lineCount == 0)
+                return y;
+            float baseline = info.lineInfo[0].baseline;
             float top = text.rectTransform.rect.yMax;
-            float lowest = float.MaxValue;
-            for(int i = 0; i < info.characterCount; ++i)
-            {
-                var c = info.characterInfo[i];
-                //括弧(《》【】)や縦線、■などの記号は文字より下まで伸びるので見ない。
-                //それに合わせると線が下がりすぎて次の行に付く
-                if(!c.isVisible || !char.IsLetterOrDigit(c.character))
-                    continue;
-                lowest = Mathf.Min(lowest, c.bottomLeft.y);
-            }
-            if(lowest != float.MaxValue)
-                y = Mathf.Min(y, Mathf.Floor(lowest - top) - 1);
+            float descent = UnderlineDescent(size);
+            if(descent > 0f)
+                y = Mathf.Min(y, Mathf.Floor(baseline - descent - top) - 1);
         }
         catch(System.Exception)
         {
         }
         return y;
     }
+
+    /// <summary>見本の字がベースラインより下へ伸びる長さ。フォントと大きさごとに一度だけ測る</summary>
+    float UnderlineDescent(float size)
+    {
+        string key = (text.font != null ? text.font.name : "") + "/" + size;
+        float cached;
+        if(underline_descent_.TryGetValue(key, out cached))
+            return cached;
+
+        float descent = 0f;
+        var saved = text.text;
+        try
+        {
+            text.text = kUnderlineProbe;
+            text.ForceMeshUpdate(true);
+            var info = text.textInfo;
+            if(info.characterCount > 0 && info.lineCount > 0)
+            {
+                float baseline = info.lineInfo[0].baseline;
+                for(int i = 0; i < info.characterCount; ++i)
+                {
+                    var c = info.characterInfo[i];
+                    if(c.isVisible)
+                        descent = Mathf.Max(descent, baseline - c.bottomLeft.y);
+                }
+            }
+            underline_descent_[key] = descent;
+        }
+        catch(System.Exception)
+        {
+        }
+        finally
+        {
+            text.text = saved;
+            text.ForceMeshUpdate(true);
+        }
+        return descent;
+    }
+
+    /// <summary>
+    /// 下線の高さを決める見本(검캉)。ふつうのハングルの下端に合わせる。
+    /// 括弧や記号、힣のような下へ長い字、かな漢字を入れると線が下がりすぎ、
+    /// 次の行の括弧の頭に掛かっていた
+    /// </summary>
+    const string kUnderlineProbe = "\uAC80\uCE89";
+    static readonly Dictionary<string, float> underline_descent_ = new Dictionary<string, float>();
 
     void AddDivRect(float x, float y, float w, float h, UnityEngine.Color color)
     {

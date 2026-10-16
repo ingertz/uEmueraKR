@@ -6,7 +6,12 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
-- 밑줄(FONTSTYLE 8)이 한글 글자 아랫부분에 겹치던 문제 수정(OCG2 덱 편집 화면 등)
+</details>
+
+<details>
+<summary><b>0.3.2b</b> (2026-10-17)</summary>
+
+- 밑줄(FONTSTYLE 8)이 한글 글자 아랫부분에 겹치던 문제 수정. 한 줄의 밑줄이 PC판처럼 같은 높이로 이어지고, 버튼 사이 공백에도 그어짐(OCG2 덱 편집 화면 등) ([display.md](docs/display.md))
 
 </details>
 
