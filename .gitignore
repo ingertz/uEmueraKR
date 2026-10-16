@@ -46,3 +46,7 @@ UpgradeLog*.htm
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Tools のビルド出力
+Tools/**/bin/
+Tools/**/obj/
