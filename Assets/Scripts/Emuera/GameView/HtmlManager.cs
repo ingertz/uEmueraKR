@@ -1045,7 +1045,8 @@ namespace MinorShift.Emuera.GameView
 					{
 						if (wc == null)
 							throw new CodeEE("<" + tag + ">タグに属性が設定されていません");
-						int[] param = null;
+						//EM: paramの値は「px」付きならピクセル、無ければフォントサイズに対する百分率
+						MixedNum[] param = null;
 						string type = null;
 						int color = -1;
 						int bcolor = -1;
@@ -1082,12 +1083,17 @@ namespace MinorShift.Emuera.GameView
 										throw new CodeEE("<" + tag + ">タグに" + word.Code + "属性が2度以上指定されています");
 									{
 										string[] tokens = attrValue.Split(',');
-										param = new int[tokens.Length];
+										param = new MixedNum[tokens.Length];
 										for (int i = 0; i < tokens.Length; i++)
 										{
+											param[i] = new MixedNum();
 											string tokenStr = tokens[i].Trim();
-											if (tokenStr.EndsWith("px", StringComparison.OrdinalIgnoreCase)) tokenStr = tokenStr.Substring(0, tokenStr.Length - 2).Trim();
-											if (!int.TryParse(tokenStr, out param[i])) throw new CodeEE("<" + tag + ">の" + word.Code + "属性の属性値が数値として解釈できません: [" + tokens[i] + "]");
+											if (tokenStr.EndsWith("px", StringComparison.OrdinalIgnoreCase))
+											{
+												tokenStr = tokenStr.Substring(0, tokenStr.Length - 2).Trim();
+												param[i].isPx = true;
+											}
+											if (!int.TryParse(tokenStr, out param[i].num)) throw new CodeEE("<" + tag + ">の" + word.Code + "属性の属性値が数値として解釈できません: [" + tokens[i] + "]");
 										}
 										break;
 									}
