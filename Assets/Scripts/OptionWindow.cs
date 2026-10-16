@@ -892,6 +892,14 @@ public class OptionWindow : MonoBehaviour
         public string tag_name;
         public string name;
         public string html_url;
+        public ReleaseAsset[] assets;
+    }
+
+    [System.Serializable]
+    class ReleaseAsset
+    {
+        public string name;
+        public string browser_download_url;
     }
 
     /// <summary>
@@ -944,9 +952,204 @@ public class OptionWindow : MonoBehaviour
             yield break;
         }
         var url = string.IsNullOrEmpty(info.html_url) ? "https://github.com/ingertz/uEmueraKR/releases/latest" : info.html_url;
+        //Android에서는 앱이 직접 받아서 설치 화면까지 띄운다
+        var apk = Application.platform == RuntimePlatform.Android ? PickApk(info) : null;
+        if (apk != null)
+        {
+            ShowMessageBox(title,
+                string.Format(Localized("[UpdateInstallAsk]", "새 버전 {0}이(가) 있습니다. (현재 {1})\n받아서 설치할까요?").Replace("\\n", "\n"), latest, current),
+                () => StartCoroutine(DownloadAndInstall(apk, latest, url)), () => { });
+            yield break;
+        }
         ShowMessageBox(title,
             string.Format(Localized("[UpdateAvailable]", "새 버전 {0}이(가) 있습니다. (현재 {1})\n다운로드 페이지를 열까요?").Replace("\\n", "\n"), latest, current),
             () => Application.OpenURL(url), () => { });
+    }
+
+    /// <summary>폰의 CPU에 맞는 APK. 모르면 모든 폰용(uEmuera.apk)</summary>
+    static ReleaseAsset PickApk(ReleaseInfo info)
+    {
+        if (info.assets == null)
+            return null;
+        string want = "uEmuera.apk";
+        try
+        {
+            using (var build = new AndroidJavaClass("android.os.Build"))
+            {
+                var abis = build.GetStatic<string[]>("SUPPORTED_ABIS");
+                if (abis != null && abis.Length > 0)
+                {
+                    if (abis[0] == "arm64-v8a")
+                        want = "uEmuera.arm64-v8a.apk";
+                    else if (abis[0] == "armeabi-v7a")
+                        want = "uEmuera.armeabi-v7a.apk";
+                }
+            }
+        }
+        catch (System.Exception) { }
+        ReleaseAsset universal = null;
+        foreach (var a in info.assets)
+        {
+            if (a == null || string.IsNullOrEmpty(a.browser_download_url))
+                continue;
+            if (a.name == want)
+                return a;
+            if (a.name == "uEmuera.apk")
+                universal = a;
+        }
+        return universal;
+    }
+
+    static int AndroidSdkInt()
+    {
+        try
+        {
+            using (var version = new AndroidJavaClass("android.os.Build$VERSION"))
+                return version.GetStatic<int>("SDK_INT");
+        }
+        catch (System.Exception)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// 안드로이드의 다운로드 관리자로 APK를 받고(알림창에 진행이 보인다), 다 받으면 설치 화면을 띄운다.
+    /// 설치 확인은 안드로이드가 사용자에게 묻는다. 안 되면 다운로드 페이지를 열지 묻는다
+    /// </summary>
+    IEnumerator DownloadAndInstall(ReleaseAsset apk, string version, string pageUrl)
+    {
+        //확인 창이 닫힌 뒤에 진행 창을 띄운다
+        yield return null;
+        var title = Localized("[CheckUpdate]", "업데이트 확인");
+        string error = null;
+        AndroidJavaObject activity = null;
+        AndroidJavaObject dm = null;
+        long id = -1;
+        try
+        {
+            using (var unity = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                activity = unity.GetStatic<AndroidJavaObject>("currentActivity");
+            //Android 8부터는 이 앱에서의 설치를 허용해야 한다. 받기 전에 확인해서 헛걸음을 막는다
+            if (AndroidSdkInt() >= 26)
+            {
+                bool allowed;
+                using (var pm = activity.Call<AndroidJavaObject>("getPackageManager"))
+                    allowed = pm.Call<bool>("canRequestPackageInstalls");
+                if (!allowed)
+                {
+                    string package = activity.Call<string>("getPackageName");
+                    using (var uriClass = new AndroidJavaClass("android.net.Uri"))
+                    using (var uri = uriClass.CallStatic<AndroidJavaObject>("parse", "package:" + package))
+                    using (var intent = new AndroidJavaObject("android.content.Intent",
+                        "android.settings.MANAGE_UNKNOWN_APP_SOURCES", uri))
+                        activity.Call("startActivity", intent);
+                    ShowMessageBox(title, Localized("[UpdateAllowInstall]",
+                        "설정에서 이 앱의 「출처를 알 수 없는 앱 설치」를 허용한 뒤,\n업데이트 확인을 다시 눌러 주세요.").Replace("\\n", "\n"));
+                    yield break;
+                }
+            }
+            dm = activity.Call<AndroidJavaObject>("getSystemService", "download");
+            //앞서 받은 같은 이름의 파일이 남아 있으면 지운다(남아 있으면 새 파일 이름 뒤에 -1이 붙는다)
+            using (var dir = activity.Call<AndroidJavaObject>("getExternalFilesDir", "Download"))
+            {
+                if (dir != null)
+                {
+                    var path = dir.Call<string>("getAbsolutePath") + "/" + apk.name;
+                    if (System.IO.File.Exists(path))
+                        System.IO.File.Delete(path);
+                }
+            }
+            using (var uriClass = new AndroidJavaClass("android.net.Uri"))
+            using (var uri = uriClass.CallStatic<AndroidJavaObject>("parse", apk.browser_download_url))
+            using (var request = new AndroidJavaObject("android.app.DownloadManager$Request", uri))
+            {
+                request.Call<AndroidJavaObject>("setTitle", "uEmuera " + version).Dispose();
+                request.Call<AndroidJavaObject>("setMimeType", "application/vnd.android.package-archive").Dispose();
+                //VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                request.Call<AndroidJavaObject>("setNotificationVisibility", 1).Dispose();
+                request.Call<AndroidJavaObject>("setDestinationInExternalFilesDir", activity, "Download", apk.name).Dispose();
+                id = dm.Call<long>("enqueue", request);
+            }
+        }
+        catch (System.Exception e)
+        {
+            error = e.Message;
+        }
+
+        //받는 동안 진행률을 보여 준다
+        int status = 0;
+        while (error == null)
+        {
+            long done = 0, total = 0;
+            try
+            {
+                using (var query = new AndroidJavaObject("android.app.DownloadManager$Query"))
+                {
+                    query.Call<AndroidJavaObject>("setFilterById", new long[] { id }).Dispose();
+                    using (var cursor = dm.Call<AndroidJavaObject>("query", query))
+                    {
+                        if (cursor != null && cursor.Call<bool>("moveToFirst"))
+                        {
+                            status = cursor.Call<int>("getInt", cursor.Call<int>("getColumnIndex", "status"));
+                            done = cursor.Call<long>("getLong", cursor.Call<int>("getColumnIndex", "bytes_so_far"));
+                            total = cursor.Call<long>("getLong", cursor.Call<int>("getColumnIndex", "total_size"));
+                        }
+                        else
+                            status = 16;
+                        if (cursor != null)
+                            cursor.Call("close");
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                error = e.Message;
+                break;
+            }
+            //STATUS_SUCCESSFUL = 8, STATUS_FAILED = 16
+            if (status == 8)
+                break;
+            if (status == 16)
+            {
+                error = "download failed";
+                break;
+            }
+            int percent = total > 0 ? (int)(done * 100 / total) : 0;
+            ShowMessageBox(title, string.Format(Localized("[UpdateDownloading]", "새 버전을 받는 중... {0}%"), percent));
+            yield return new WaitForSecondsRealtime(0.5f);
+        }
+
+        if (error == null)
+        {
+            try
+            {
+                using (var apkUri = dm.Call<AndroidJavaObject>("getUriForDownloadedFile", id))
+                using (var intent = new AndroidJavaObject("android.content.Intent", "android.intent.action.VIEW"))
+                {
+                    intent.Call<AndroidJavaObject>("setDataAndType", apkUri, "application/vnd.android.package-archive").Dispose();
+                    //FLAG_ACTIVITY_NEW_TASK | FLAG_GRANT_READ_URI_PERMISSION
+                    intent.Call<AndroidJavaObject>("addFlags", 0x10000000 | 0x00000001).Dispose();
+                    activity.Call("startActivity", intent);
+                }
+                ShowMessageBox(title, Localized("[UpdateInstallStarted]", "설치 화면에서 「업데이트」를 눌러 주세요.\n세이브는 그대로 남습니다.").Replace("\\n", "\n"));
+            }
+            catch (System.Exception e)
+            {
+                error = e.Message;
+            }
+        }
+
+        if (error != null)
+        {
+            Debug.LogWarning("Update download failed: " + error);
+            ShowMessageBox(title, Localized("[UpdateDownloadFailed]", "받거나 설치하지 못했습니다.\n다운로드 페이지를 열까요?").Replace("\\n", "\n"),
+                () => Application.OpenURL(pageUrl), () => { });
+        }
+        if (dm != null)
+            dm.Dispose();
+        if (activity != null)
+            activity.Dispose();
     }
 
     static bool LooksLikeVersion(string v)

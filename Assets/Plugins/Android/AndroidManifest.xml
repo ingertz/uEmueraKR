@@ -15,6 +15,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- 업데이트 확인에서 받은 새 버전 APK의 설치 화면을 띄우기 위해 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <application
         android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true">
