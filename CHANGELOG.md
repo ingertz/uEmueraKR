@@ -6,8 +6,18 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
-- 오른쪽 위 아이콘 줄에 「되돌리기」 추가. EE의 Ctrl-Z처럼 직전 입력을 취소합니다 ([app.md](docs/app.md))
+- 아직 없음
+
+</details>
+
+<details>
+<summary><b>0.3.1f</b> (2026-10-16)</summary>
+
+- 오른쪽 위 아이콘 줄에 「되돌리기」 추가. 직전 입력을 하나 취소합니다 ([app.md](docs/app.md))
+  - 메인 메뉴나 조교 커맨드 선택마다 상태를 기억해 두어, 커맨드 하나를 되돌리는 건 거의 즉시 끝납니다
+  - 게임 메뉴로 불러오는 게임(TW, 메가텐 등)에서도 동작합니다
 - 게임 중 메뉴에 「화면 글자 복사」 추가. 지금 화면의 글자를 클립보드에 넣습니다 ([app.md](docs/app.md))
+- 처리 중 표시(소녀기도중)를 언어에 맞게 표시하고, 되돌리기 아이콘과 겹치지 않게 옮김
 - 메가텐 P판 Emuera의 `DICT_*`, `G_POLYGON_*`, `setting.json`의 `UseNewRandom` 지원 ([other-engines.md](docs/other-engines.md))
 - 개발: Unity 없이 돌리는 엔진 테스트 추가 ([development.md](docs/development.md))
 
