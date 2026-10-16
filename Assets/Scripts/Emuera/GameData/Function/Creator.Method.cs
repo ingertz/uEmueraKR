@@ -180,6 +180,158 @@ namespace MinorShift.Emuera.GameData.Function
             }
         }
 
+        #region ShinEraTensei: DICT_*
+        //本家EEには無く、ShinEraTensei(メガテンP版)のEmueraにだけある辞書。
+        //名前ごとに 整数キー→整数か文字列 を持つ。セーブされず、ゲームを読み直すと消える。
+        //文字列のキーはあちらと同じくGetHashCodeで整数にして扱う
+        static readonly Dictionary<string, Dictionary<long, object>> erbDictionaries_ = new Dictionary<string, Dictionary<long, object>>();
+
+        public static void ClearErbDictionaries()
+        {
+            erbDictionaries_.Clear();
+        }
+
+        /// <summary>
+        /// DICT_CREATE(str) / DICT_EXIST(str) / DICT_CONTAINS_KEY(str, key) /
+        /// DICT_SET_VALUE(str, key, value) / DICT_GET_VALUE_STRING(str, key) / DICT_GET_VALUE_LONG(str, key)
+        /// keyとvalueは整数でも文字列でもよい
+        /// </summary>
+        private sealed class DictMethod : FunctionMethod
+        {
+            public enum Op { Create, Exist, ContainsKey, SetValue, GetString, GetLong }
+            readonly Op op;
+            public DictMethod(Op op)
+            {
+                this.op = op;
+                ReturnType = op == Op.GetString ? typeof(string) : typeof(Int64);
+                if (op == Op.Create || op == Op.Exist)
+                    argumentTypeArray = new Type[] { typeof(string) };
+                else
+                    argumentTypeArray = null;
+                CanRestructure = false;
+            }
+            public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+            {
+                if (argumentTypeArray != null)
+                    return base.CheckArgumentType(name, arguments);
+                int need = op == Op.SetValue ? 3 : 2;
+                if (arguments.Length != need)
+                    return name + "関数の引数は" + need + "つです";
+                for (int i = 0; i < need; i++)
+                    if (arguments[i] == null)
+                        return name + "関数の" + (i + 1) + "番目の引数は省略できません";
+                if (!arguments[0].IsString)
+                    return name + "関数の1番目の引数が文字列ではありません";
+                return null;
+            }
+            Dictionary<long, object> Find(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                string dictName = arguments[0].GetStrValue(exm);
+                Dictionary<long, object> dict;
+                if (!erbDictionaries_.TryGetValue(dictName, out dict))
+                    throw new CodeEE(Name + ": 辞書\"" + dictName + "\"は作られていません");
+                return dict;
+            }
+            static long Key(ExpressionMediator exm, IOperandTerm term)
+            {
+                if (term.IsString)
+                    return term.GetStrValue(exm).GetHashCode();
+                return term.GetIntValue(exm);
+            }
+            object Value(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                var dict = Find(exm, arguments);
+                object v;
+                if (!dict.TryGetValue(Key(exm, arguments[1]), out v))
+                    throw new CodeEE(Name + ": 辞書にそのキーはありません");
+                return v;
+            }
+            public override long GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                switch (op)
+                {
+                    case Op.Create:
+                        erbDictionaries_[arguments[0].GetStrValue(exm)] = new Dictionary<long, object>();
+                        return 1;
+                    case Op.Exist:
+                        return erbDictionaries_.ContainsKey(arguments[0].GetStrValue(exm)) ? 1 : 0;
+                    case Op.ContainsKey:
+                        return Find(exm, arguments).ContainsKey(Key(exm, arguments[1])) ? 1 : 0;
+                    case Op.SetValue:
+                        {
+                            var dict = Find(exm, arguments);
+                            long key = Key(exm, arguments[1]);
+                            if (arguments[2].IsString)
+                                dict[key] = arguments[2].GetStrValue(exm);
+                            else
+                                dict[key] = arguments[2].GetIntValue(exm);
+                            return 1;
+                        }
+                    case Op.GetLong:
+                        {
+                            var v = Value(exm, arguments);
+                            if (!(v is long))
+                                throw new CodeEE(Name + ": 値が整数ではありません");
+                            return (long)v;
+                        }
+                }
+                throw new ExeEE(Name);
+            }
+            public override string GetStrValue(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                var v = Value(exm, arguments);
+                var s = v as string;
+                if (s == null)
+                    throw new CodeEE(Name + ": 値が文字列ではありません");
+                return s;
+            }
+        }
+        #endregion
+
+        #region ShinEraTensei: G_POLYGON_*
+        /// <summary>
+        /// G_POLYGON_POINT_ADD(int ID, int x, int y) / G_POLYGON_POINT_CLEAR(int ID) /
+        /// G_POLYGON_DRAW(int ID) / G_POLYGON_FILL(int ID)
+        /// 点を足してから、ペン(GSETPEN)で輪郭を描くかブラシ(GSETBRUSH)で塗る
+        /// </summary>
+        private sealed class GraphicsPolygonMethod : FunctionMethod
+        {
+            public enum Op { AddPoint, ClearPoints, Draw, Fill }
+            readonly Op op;
+            public GraphicsPolygonMethod(Op op)
+            {
+                this.op = op;
+                ReturnType = typeof(Int64);
+                if (op == Op.AddPoint)
+                    argumentTypeArray = new Type[] { typeof(Int64), typeof(Int64), typeof(Int64) };
+                else
+                    argumentTypeArray = new Type[] { typeof(Int64) };
+                CanRestructure = false;
+            }
+            public override Int64 GetIntValue(ExpressionMediator exm, IOperandTerm[] arguments)
+            {
+                if (Config.TextDrawingMode == TextDrawingMode.WINAPI)
+                    throw new CodeEE(string.Format(Properties.Resources.RuntimeErrMesMethodGDIPLUSOnly, Name));
+                GraphicsImage g = ReadGraphics(Name, exm, arguments, 0);
+                if (!g.IsCreated)
+                    return 0;
+                switch (op)
+                {
+                    case Op.AddPoint:
+                        {
+                            Point p = ReadPoint(Name, exm, arguments, 1);
+                            g.GPolygonAddPoint(p.X, p.Y);
+                            break;
+                        }
+                    case Op.ClearPoints: g.GPolygonClearPoints(); break;
+                    case Op.Draw: g.GDrawPolygon(); break;
+                    case Op.Fill: g.GFillPolygon(); break;
+                }
+                return 1;
+            }
+        }
+        #endregion
+
         private sealed class CsvcstrMethod : FunctionMethod
         {
             public CsvcstrMethod()

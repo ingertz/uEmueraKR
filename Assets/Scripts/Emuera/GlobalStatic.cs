@@ -62,6 +62,7 @@ namespace MinorShift.Emuera
 			IdentifierDictionary = null;
 			tempDic.Clear();
 			GameData.Expression.OverflowMode.Reset();
+			GameData.Function.FunctionMethodCreator.ClearErbDictionaries();
 		}
 	}
 }

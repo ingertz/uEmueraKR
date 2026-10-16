@@ -478,6 +478,127 @@ namespace MinorShift.Emuera.Content
             waitHandle.WaitOne();
         }
 
+        #region ShinEraTensei: G_POLYGON_*
+        //点はクリアするまで残り、DRAWもFILLも同じ点を使う
+        List<Point> polygonPoints_ = null;
+
+        public void GPolygonAddPoint(int x, int y)
+        {
+            if (this.Bitmap == null)
+                throw new NullReferenceException();
+            if (polygonPoints_ == null)
+                polygonPoints_ = new List<Point>();
+            polygonPoints_.Add(new Point(x, y));
+        }
+
+        public void GPolygonClearPoints()
+        {
+            if (this.Bitmap == null)
+                throw new NullReferenceException();
+            if (polygonPoints_ != null)
+                polygonPoints_.Clear();
+        }
+
+        /// <summary>点を順に結び、最後の点から最初の点へ戻る線をペンで描く</summary>
+        public void GDrawPolygon()
+        {
+            if (this.Bitmap == null)
+                throw new NullReferenceException();
+            if (polygonPoints_ == null || polygonPoints_.Count == 0)
+                throw new MinorShift.Emuera.Sub.CodeEE("DrawPolygonに渡されるPointsが空です");
+            for (int i = 0; i < polygonPoints_.Count; i++)
+            {
+                var a = polygonPoints_[i];
+                var b = polygonPoints_[(i + 1) % polygonPoints_.Count];
+                GDrawLine(a.X, a.Y, b.X, b.Y);
+            }
+        }
+
+        /// <summary>点で囲まれた所をブラシで塗る。重なりは非ゼロ規則(Skiaの既定)</summary>
+        public void GFillPolygon()
+        {
+            if (this.Bitmap == null)
+                throw new NullReferenceException();
+            if (polygonPoints_ == null || polygonPoints_.Count == 0)
+                throw new MinorShift.Emuera.Sub.CodeEE("FillPolygonに渡されるPointsが空です");
+            var pts = polygonPoints_.ToArray();
+            var waitHandle = new System.Threading.ManualResetEvent(false);
+            SpriteManager.RunOnMainThread(() => {
+                try {
+                    var destTi = SpriteManager.GetTextureInfo(this.Bitmap.name, this.Bitmap.path);
+                    if (destTi == null) return;
+                    var tex = destTi.texture;
+                    int texW = tex.width;
+                    int texH = tex.height;
+                    UnityEngine.Color uc;
+                    if (brush != null && brush is SolidBrush sb)
+                        uc = new UnityEngine.Color(sb.Color.r, sb.Color.g, sb.Color.b, sb.Color.a);
+                    else
+                        uc = new UnityEngine.Color(Config.BackColor.r, Config.BackColor.g, Config.BackColor.b, Config.BackColor.a);
+                    int minY = int.MaxValue, maxY = int.MinValue;
+                    foreach (var p in pts) { minY = Math.Min(minY, p.Y); maxY = Math.Max(maxY, p.Y); }
+                    minY = Math.Max(minY, 0);
+                    maxY = Math.Min(maxY, texH - 1);
+                    if (minY > maxY) return;
+                    UnityEngine.Color[] pixels = tex.GetPixels();
+                    var crossings = new List<KeyValuePair<float, int>>();
+                    for (int y = minY; y <= maxY; y++)
+                    {
+                        //画素の中心の高さで、各辺と交わるxと向きを集める
+                        float sy = y + 0.5f;
+                        crossings.Clear();
+                        for (int i = 0; i < pts.Length; i++)
+                        {
+                            var a = pts[i];
+                            var b = pts[(i + 1) % pts.Length];
+                            if (a.Y == b.Y)
+                                continue;
+                            bool up = a.Y < b.Y;
+                            float y0 = up ? a.Y : b.Y;
+                            float y1 = up ? b.Y : a.Y;
+                            if (sy < y0 || sy >= y1)
+                                continue;
+                            float x = a.X + (sy - a.Y) * (b.X - a.X) / (float)(b.Y - a.Y);
+                            crossings.Add(new KeyValuePair<float, int>(x, up ? 1 : -1));
+                        }
+                        if (crossings.Count < 2)
+                            continue;
+                        crossings.Sort((l, r) => l.Key.CompareTo(r.Key));
+                        int winding = 0;
+                        for (int k = 0; k < crossings.Count - 1; k++)
+                        {
+                            winding += crossings[k].Value;
+                            if (winding == 0)
+                                continue;
+                            //画素の中心が区間に入る物を塗る
+                            int xs = Math.Max(0, (int)Math.Ceiling(crossings[k].Key - 0.5f));
+                            int xe = Math.Min(texW - 1, (int)Math.Ceiling(crossings[k + 1].Key - 0.5f) - 1);
+                            int row = (texH - 1 - y) * texW;//Unityのテクスチャは下から上
+                            for (int x = xs; x <= xe; x++)
+                            {
+                                UnityEngine.Color dC = pixels[row + x];
+                                float outA = uc.a + dC.a * (1f - uc.a);
+                                if (outA > 0f)
+                                    pixels[row + x] = new UnityEngine.Color(
+                                        (uc.r * uc.a + dC.r * dC.a * (1f - uc.a)) / outA,
+                                        (uc.g * uc.a + dC.g * dC.a * (1f - uc.a)) / outA,
+                                        (uc.b * uc.a + dC.b * dC.a * (1f - uc.a)) / outA,
+                                        outA);
+                            }
+                        }
+                    }
+                    tex.SetPixels(pixels);
+                    tex.Apply(false, false);
+                } catch(System.Exception e) {
+                    UnityEngine.Debug.LogError(e);
+                } finally {
+                    waitHandle.Set();
+                }
+            });
+            waitHandle.WaitOne();
+        }
+        #endregion
+
         /// <summary>
         /// GDASHSTYLE(int ID, int style, int cap)
         /// </summary>

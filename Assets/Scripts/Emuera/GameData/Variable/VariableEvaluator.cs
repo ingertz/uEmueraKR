@@ -50,7 +50,29 @@ namespace MinorShift.Emuera.GameData.Variable
 		}
 		public Int64 GetNextRand(Int64 max)
 		{
+			if (Config.UseNewRandom)
+				return nextInt64(newRand, max);
 			return rand.NextInt64(max);
+		}
+
+		//ShinEraTensei: setting.json の UseNewRandom の時に使う。種は固定しない
+		readonly System.Random newRand = new System.Random();
+
+		/// <summary>.NET 6 の Random.NextInt64(max) と同じく 0 以上 max 未満を偏り無く返す</summary>
+		static Int64 nextInt64(System.Random r, Int64 max)
+		{
+			if (max <= 1)
+				return 0;
+			ulong umax = (ulong)max;
+			ulong limit = umax * (ulong.MaxValue / umax);
+			var buf = new byte[8];
+			ulong v;
+			do
+			{
+				r.NextBytes(buf);
+				v = BitConverter.ToUInt64(buf, 0);
+			} while (v >= limit);
+			return (Int64)(v % umax);
 		}
 
 		public Int64 getPalamLv(Int64 pl, Int64 maxlv)

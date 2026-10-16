@@ -124,6 +124,7 @@ namespace MinorShift.Emuera
 			UseERD = instance.GetConfigValue<bool>(ConfigCode.UseERD);
 			ForbidUpdateCheck = instance.GetConfigValue<bool>(ConfigCode.ForbidUpdateCheck);
 			ZipSaveData = instance.GetConfigValue<bool>(ConfigCode.ZipSaveData);
+			UseNewRandom = ReadSettingJsonBool("UseNewRandom");
 			
 			CompatiFuncArgAutoConvert = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgAutoConvert);
 			CompatiFuncArgOptional = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgOptional);
@@ -750,6 +751,32 @@ namespace MinorShift.Emuera
 		public static bool ForbidUpdateCheck { get; private set; } = false;
 		/// <summary>EM: バイナリ形式のセーブを圧縮する。バイナリ形式でない時は効かない</summary>
 		public static bool ZipSaveData { get; private set; } = false;
+		/// <summary>
+		/// ShinEraTensei(メガテンP版)のEmuera: setting.json の「新しい高速なアルゴリズムを使う」。
+		/// 立っているとRANDが.NETのRandomを使い、RANDOMIZEやRANDDATAの影響を受けなくなる
+		/// </summary>
+		public static bool UseNewRandom { get; private set; } = false;
+
+		/// <summary>
+		/// ShinEraTensei(メガテンP版)のEmueraは一部の設定をemuera.configではなく
+		/// ゲームフォルダの setting.json に持つ。そのうち要る物だけを読む
+		/// </summary>
+		static bool ReadSettingJsonBool(string key)
+		{
+			try
+			{
+				var path = uEmuera.Utils.ResolvePath(Program.ExeDir + "setting.json");
+				if (!File.Exists(path))
+					return false;
+				var m = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(path),
+					"\"" + key + "\"\\s*:\\s*(true|false)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+				return m.Success && string.Equals(m.Groups[1].Value, "true", StringComparison.OrdinalIgnoreCase);
+			}
+			catch
+			{
+				return false;
+			}
+		}
 
 		public static int Language { get; private set; }
 
