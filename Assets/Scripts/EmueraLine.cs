@@ -258,13 +258,14 @@ public class EmueraLine : EmueraBehaviour
         //色もその区間の色を使う。行の基準色では見た目が変わってしまう
         if(unit_desc.style_spans != null)
         {
+            float under_y = UnderlineY();
             for(int i = 0; i < unit_desc.style_spans.Count; ++i)
             {
                 var sp = unit_desc.style_spans[i];
                 if(sp.w <= 0f)
                     continue;
                 if(sp.under)
-                    AddDivRect(sp.x, -text.fontSize - 1, sp.w, 1, sp.color);
+                    AddDivRect(sp.x, under_y, sp.w, 1, sp.color);
                 if(sp.strike)
                     AddDivRect(sp.x, -text.fontSize / 2.0f, sp.w, 1, sp.color);
             }
@@ -391,6 +392,37 @@ public class EmueraLine : EmueraBehaviour
     }
 
     /// <summary>div用の矩形を1枚作る。背景と枠線で共用</summary>
+    /// <summary>
+    /// 下線を引く高さ(行の上端から、下向きが負)。
+    /// 本来は字の大きさ+1の所でよいが、ハングルなど端末のフォントで描かれた字は
+    /// それより下まで伸びることがあり、線が字に重なっていた(OCG2のデッキ編集など)。
+    /// 実際に組まれた字の下端より下へ下げる。上げることはしない
+    /// </summary>
+    float UnderlineY()
+    {
+        float y = -text.fontSize - 1;
+        try
+        {
+            text.ForceMeshUpdate();
+            var info = text.textInfo;
+            float top = text.rectTransform.rect.yMax;
+            float lowest = float.MaxValue;
+            for(int i = 0; i < info.characterCount; ++i)
+            {
+                var c = info.characterInfo[i];
+                if(!c.isVisible)
+                    continue;
+                lowest = Mathf.Min(lowest, c.bottomLeft.y);
+            }
+            if(lowest != float.MaxValue)
+                y = Mathf.Min(y, Mathf.Floor(lowest - top) - 1);
+        }
+        catch(System.Exception)
+        {
+        }
+        return y;
+    }
+
     void AddDivRect(float x, float y, float w, float h, UnityEngine.Color color)
     {
         var obj = GameObject.Instantiate(EmueraContent.instance.template_block.gameObject);

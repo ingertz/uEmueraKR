@@ -6,7 +6,7 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
-- 아직 없음
+- 밑줄(FONTSTYLE 8)이 한글 글자 아랫부분에 겹치던 문제 수정(OCG2 덱 편집 화면 등)
 
 </details>
 
