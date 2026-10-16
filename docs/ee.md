@@ -98,8 +98,9 @@ EE의 내장 함수와 명령은 EE에서 꺼져 있는 `GROTATE`를 빼고 모�
 <summary><b>설정(emuera.config)</b></summary>
 
 - `セーブデータを圧縮して保存する`(세이브 압축)를 지원합니다 ([saves.md](saves.md)).
+- `Ctrl-Zで元に戻す機能を有効にする`의 되돌리기는 설정과 관계없이 항상 켜져 있고, 화면의 아이콘으로 씁니다 ([app.md](app.md)).
 - `UPDATECHECKを許可しない`, `LOADTEXTとSAVETEXTで使える拡張子`, `ERD機能を利用する`를 지원합니다.
-- 아직 없는 EE 설정: 클립보드 관련(CB*), Rikaichan, Ctrl-Z 되돌리기, `VARSIZEの次元指定をERD機能に合わせる`,
+- 아직 없는 EE 설정: 클립보드 관련(CB*), Rikaichan, `VARSIZEの次元指定をERD機能に合わせる`,
   `行連結の改行コードの置換文字列`. 뒤의 둘은 지금 동작이 EE 기본값과 같습니다.
 
 </details>

@@ -260,14 +260,17 @@ namespace MinorShift.Emuera.GameProc
 		}
 		public void InputInteger(Int64 i)
 		{
+			GlobalStatic.ctrlZ.Add(i.ToString());
 			vEvaluator.RESULT = i;
 		}
 		public void InputSystemInteger(Int64 i)
 		{
+			GlobalStatic.ctrlZ.Add(i.ToString());
 			systemResult = i;
 		}
 		public void InputString(string s)
 		{
+			GlobalStatic.ctrlZ.Add(s);
 			vEvaluator.RESULTS = s;
 		}
 

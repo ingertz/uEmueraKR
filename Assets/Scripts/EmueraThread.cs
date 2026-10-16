@@ -82,6 +82,34 @@ public class EmueraThread
         wake_.Set();
     }
     bool from_button_ = false;
+
+    /// <summary>
+    /// 直前の入力の取り消し(EEのCtrl-Z)を頼む。ゲームを動かすのはワーカーなので予約だけする。
+    /// 取り消しを流している最中なら、さらに1つ戻す
+    /// </summary>
+    public void RequestUndo()
+    {
+        var z = MinorShift.Emuera.GlobalStatic.ctrlZ;
+        if(z.RewindInProgress)
+        {
+            z.RepeatedUndoRequested = true;
+            return;
+        }
+        undo_pending_ = true;
+        input = "";//ワーカーを起こす
+        wake_.Set();
+    }
+    volatile bool undo_pending_ = false;
+
+    /// <summary>予約された取り消しがあれば行う。ワーカー側から呼ぶ</summary>
+    bool ConsumeUndo(MinorShift.Emuera.GameView.EmueraConsole console)
+    {
+        if(!undo_pending_)
+            return false;
+        undo_pending_ = false;
+        console.UndoLastInput();
+        return true;
+    }
     /// <summary>押したボタンのマスク画像の色(PRINT_IMGの第3引数)。RESULT:3に入る</summary>
     long mapped_color_ = 0;
     /// <summary>
@@ -152,7 +180,10 @@ public class EmueraThread
                 uEmuera.Forms.Timer.Update();
             }
 
-            if(ConsumeMouseInput(console))
+            if(ConsumeUndo(console))
+            {
+            }
+            else if(ConsumeMouseInput(console))
             {
                 //INPUTMOUSEKEY待ちはPressEnterKeyでは解けない
             }
@@ -192,7 +223,10 @@ public class EmueraThread
                 uEmuera.Forms.Timer.Update();
             }
 
-            if(ConsumeMouseInput(console))
+            if(ConsumeUndo(console))
+            {
+            }
+            else if(ConsumeMouseInput(console))
             {
                 //INPUTMOUSEKEY待ちはPressEnterKeyでは解けない
             }

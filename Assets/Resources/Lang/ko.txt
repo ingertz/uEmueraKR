@@ -52,3 +52,6 @@ FirstWindow.Titlebar.title=게임 리스트
 [CopyScreen]=화면 글자 복사
 [CopyScreenDone]={0}줄을 클립보드에 복사했습니다.
 [CopyScreenEmpty]=복사할 글자가 없습니다.
+[Undo]=되돌리기
+[UndoNone]=되돌릴 입력이 없습니다.\n세이브하거나 불러온 뒤에 한 입력만 되돌릴 수 있습니다.
+[UndoNewRandom]=이 게임은 setting.json의 UseNewRandom을 켜고 있어서 되돌릴 수 없습니다.

@@ -48,6 +48,10 @@ namespace MinorShift.Emuera.GameData.Variable
 		{
 			rand.GetRand(this.RANDDATA);
 		}
+
+		//EEのCtrl-Z用。乱数の状態をRANDDATAと同じ長さの配列で出し入れする
+		public void GetRandState(Int64[] state) { rand.GetRand(state); }
+		public void SetRandState(Int64[] state) { rand.SetRand(state); }
 		public Int64 GetNextRand(Int64 max)
 		{
 			if (Config.UseNewRandom)

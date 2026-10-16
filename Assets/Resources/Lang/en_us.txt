@@ -52,3 +52,6 @@ FirstWindow.Titlebar.title=Game List
 [CopyScreen]=Copy Screen Text
 [CopyScreenDone]=Copied {0} lines to the clipboard.
 [CopyScreenEmpty]=Nothing to copy.
+[Undo]=Undo
+[UndoNone]=Nothing to undo.\nOnly inputs made after saving or loading can be undone.
+[UndoNewRandom]=This game uses UseNewRandom in setting.json, so undo is not available.

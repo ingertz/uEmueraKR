@@ -61,3 +61,6 @@ EmueraMain.Template.template_text=uEmuera
 [CopyScreen]=复制屏幕文字
 [CopyScreenDone]=已复制{0}行到剪贴板。
 [CopyScreenEmpty]=没有可复制的文字。
+[Undo]=撤销
+[UndoNone]=没有可撤销的输入。\n只能撤销存档或读档之后的输入。
+[UndoNewRandom]=此游戏在setting.json中启用了UseNewRandom，无法撤销。

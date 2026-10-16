@@ -1960,6 +1960,43 @@ namespace MinorShift.Emuera.GameView
 			RefreshStrings(true);
 		}
 
+		/// <summary>
+		/// EEのCtrl-Z。タイトルに戻って最後にセーブ・ロードしたデータを読み直し、
+		/// それ以降の入力を最後の1つを除いてもう一度流す。
+		/// 流している最中にもう一度呼ばれたら、さらに1つ減らしてやり直す。
+		/// 入力を待っている時に、ゲームを動かすスレッドから呼ぶこと
+		/// </summary>
+		public bool UndoLastInput()
+		{
+			var z = GlobalStatic.ctrlZ;
+			//UseNewRandomの乱数は状態を戻せない(EEも同じく対応していない)
+			if (Config.UseNewRandom || !z.CanUndo || z.RandomState == null)
+				return false;
+			do
+			{
+				z.RepeatedUndoRequested = false;
+				GotoTitle();
+				z.RewindInProgress = true;
+				try
+				{
+					GlobalStatic.VEvaluator.SetRandState(z.RandomState);
+					emuera.LoadSilent();
+					PressEnterKey(true, z.LastSave.ToString(), false);
+					var inputs = z.Inputs;
+					if (inputs.Count > 0)
+						inputs.RemoveAt(inputs.Count - 1);
+					for (int i = 0; i < inputs.Count && !z.RepeatedUndoRequested; i++)
+						PressEnterKey(true, inputs[i], false);
+				}
+				finally
+				{
+					z.RewindInProgress = false;
+				}
+			} while (z.RepeatedUndoRequested && z.Inputs.Count > 0);
+			z.RepeatedUndoRequested = false;
+			return true;
+		}
+
 		bool force_temporary = false;
         bool timer_suspended = false;
 		ConsoleState prevState;

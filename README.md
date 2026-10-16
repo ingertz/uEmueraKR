@@ -19,7 +19,7 @@ era 계열 텍스트 게임을 Android 기기와 PC(Standalone)에서 실행할 
 | [다른 파생판](docs/other-engines.md) | 메가텐 P판 Emuera 전용 기능(`VARI`/`VARS`, `HASH_XXH*`, `DICT_*`, `G_POLYGON_*`), `MATCHALL`, `CHECK_OVERFLOW` |
 | [화면 표시](docs/display.md) | TextMesh Pro 렌더링, 실제 글자 폭으로 정렬, 게임 폴더의 글꼴 사용 |
 | [세이브](docs/saves.md) | Shift-JIS 세이브 읽기, 세이브 압축, 저장 실패 원인 기록 |
-| [앱 기능](docs/app.md) | 한국어 UI, 빠른 버튼, 들여쓰기, 업데이트 확인, 화면 글자 복사, 디버그 모드 |
+| [앱 기능](docs/app.md) | 한국어 UI, 빠른 버튼, 되돌리기, 들여쓰기, 업데이트 확인, 화면 글자 복사, 디버그 모드 |
 | [성능](docs/performance.md) | 로딩 시간 단축, 화면이 멈춰 있을 때 발열 줄이기 |
 
 <details>

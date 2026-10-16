@@ -48,8 +48,12 @@ namespace MinorShift.Emuera
 #if UEMUERA_DEBUG
 		public static List<FunctionLabelLine> StackList = new List<FunctionLabelLine>();
 #endif
+		/// <summary>EEのCtrl-Z(直前の入力を取り消す)の記録</summary>
+		internal static Sub.CtrlZ ctrlZ = new Sub.CtrlZ();
+
 		public static void Reset()
 		{
+			ctrlZ = new Sub.CtrlZ();
 			Process = null;
 			ConstantData = null;
 			GameBaseData = null;

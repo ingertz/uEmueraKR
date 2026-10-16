@@ -31,6 +31,7 @@ public class OptionWindow : MonoBehaviour
         GenericUtils.SetListenerOnClick(menu_1_github, OnGithub);
         GenericUtils.SetListenerOnClick(menu_1_exit, OnMenuExit);
         CreateUpdateButton();
+        CreateUndoButton();
         menu_2_copy = InsertMenuButton(menu_2_savelog, "copy", Localized("[CopyScreen]", "화면 글자 복사"), OnCopyScreen);
 
         GenericUtils.SetListenerOnClick(menu_2_back, OnMenu2Back);
@@ -739,6 +740,130 @@ public class OptionWindow : MonoBehaviour
     /// 게임 리스트 메뉴의 Github 아래에 "업데이트 확인"을 끼워 넣는다.
     /// 프리팹은 고치지 않고 Github 버튼을 복제해서, 게임 종료를 한 칸 내리고 메뉴를 한 칸 늘린다
     /// </summary>
+    /// <summary>
+    /// 오른쪽 위 아이콘 줄(잠금 왼쪽)에 되돌리기(EE의 Ctrl-Z) 버튼을 만든다.
+    /// 아이콘 그림은 따로 없어서 실행할 때 그린다
+    /// </summary>
+    void CreateUndoButton()
+    {
+        if (orientation_lock_button == null)
+            return;
+        var src = orientation_lock_button.transform as RectTransform;
+        var obj = new GameObject("undobutton", typeof(RectTransform));
+        var rt = obj.transform as RectTransform;
+        rt.SetParent(src.parent, false);
+        rt.anchorMin = src.anchorMin;
+        rt.anchorMax = src.anchorMax;
+        rt.pivot = src.pivot;
+        rt.sizeDelta = src.sizeDelta;
+        //아이콘 사이 간격은 오른쪽 두 아이콘(빠른 버튼·입력)의 간격과 같게
+        float gap = 65;
+        if (quick_button != null && input_button != null)
+            gap = Mathf.Abs((quick_button.transform as RectTransform).anchoredPosition.x
+                - (input_button.transform as RectTransform).anchoredPosition.x);
+        rt.anchoredPosition = new Vector2(src.anchoredPosition.x - gap, src.anchoredPosition.y);
+        undo_image_ = obj.AddComponent<Image>();
+        undo_image_.sprite = MakeUndoSprite();
+        undo_image_.preserveAspect = true;
+        undo_color_ = orientation_lock_image != null ? orientation_lock_image.color : Color.white;
+        undo_image_.color = undo_color_;
+        GenericUtils.SetListenerOnClick(obj, OnUndo);
+        undo_enabled_ = true;
+        UpdateUndoButton();
+    }
+
+    Image undo_image_ = null;
+    Color undo_color_ = Color.white;
+    bool undo_enabled_ = false;
+
+    void Update()
+    {
+        UpdateUndoButton();
+    }
+
+    /// <summary>되돌릴 것이 없으면 아이콘을 흐리게 한다. 바뀔 때만 손댄다</summary>
+    void UpdateUndoButton()
+    {
+        if (undo_image_ == null)
+            return;
+        bool can = MinorShift.Emuera.GlobalStatic.ctrlZ.CanUndo && !MinorShift.Emuera.Config.UseNewRandom;
+        if (can == undo_enabled_)
+            return;
+        undo_enabled_ = can;
+        var c = undo_color_;
+        c.a *= can ? 1f : 0.35f;
+        undo_image_.color = c;
+    }
+
+    void OnUndo()
+    {
+        var title = Localized("[Undo]", "되돌리기");
+        if (MinorShift.Emuera.Config.UseNewRandom)
+        {
+            ShowMessageBox(title, Localized("[UndoNewRandom]", "이 게임은 setting.json의 UseNewRandom을 켜고 있어서 되돌릴 수 없습니다."));
+            return;
+        }
+        if (!MinorShift.Emuera.GlobalStatic.ctrlZ.CanUndo)
+        {
+            ShowMessageBox(title, Localized("[UndoNone]", "되돌릴 입력이 없습니다.\n세이브하거나 불러온 뒤에 한 입력만 되돌릴 수 있습니다.").Replace("\\n", "\n"));
+            return;
+        }
+        EmueraThread.instance.RequestUndo();
+    }
+
+    /// <summary>반시계 방향 화살표(⟲)를 그린 흰색 아이콘</summary>
+    static Sprite MakeUndoSprite()
+    {
+        const int S = 128;
+        const int SS = 4;//한 화소를 4x4로 나눠 가장자리를 부드럽게
+        float cx = S * 0.5f, cy = S * 0.5f, r = S * 0.30f, w = S * 0.085f;
+        //고리는 100도~150도를 비우고, 100도 끝에 화살촉을 단다(각도는 오른쪽 0, 위쪽 90)
+        float tipA = 100f * Mathf.Deg2Rad;
+        var p = new Vector2(cx + r * Mathf.Cos(tipA), cy + r * Mathf.Sin(tipA));
+        var tangent = new Vector2(-Mathf.Sin(tipA), Mathf.Cos(tipA));
+        var radial = new Vector2(Mathf.Cos(tipA), Mathf.Sin(tipA));
+        var t0 = p + tangent * (w * 2.0f);
+        var t1 = p + radial * (w * 1.6f);
+        var t2 = p - radial * (w * 1.6f);
+        var px = new Color32[S * S];
+        for (int y = 0; y < S; y++)
+        {
+            for (int x = 0; x < S; x++)
+            {
+                int hit = 0;
+                for (int sy = 0; sy < SS; sy++)
+                {
+                    for (int sx = 0; sx < SS; sx++)
+                    {
+                        var q = new Vector2(x + (sx + 0.5f) / SS, y + (sy + 0.5f) / SS);
+                        float dx = q.x - cx, dy = q.y - cy;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy);
+                        float a = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg;
+                        if (a < 0) a += 360f;
+                        bool ring = Mathf.Abs(d - r) <= w * 0.5f && !(a > 100f && a < 150f);
+                        if (ring || InTriangle(q, t0, t1, t2))
+                            hit++;
+                    }
+                }
+                px[y * S + x] = new Color32(255, 255, 255, (byte)(255 * hit / (SS * SS)));
+            }
+        }
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+        tex.SetPixels32(px);
+        tex.Apply(false, true);
+        return Sprite.Create(tex, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f));
+    }
+
+    static bool InTriangle(Vector2 q, Vector2 a, Vector2 b, Vector2 c)
+    {
+        float d1 = (q.x - b.x) * (a.y - b.y) - (a.x - b.x) * (q.y - b.y);
+        float d2 = (q.x - c.x) * (b.y - c.y) - (b.x - c.x) * (q.y - c.y);
+        float d3 = (q.x - a.x) * (c.y - a.y) - (c.x - a.x) * (q.y - a.y);
+        bool neg = d1 < 0 || d2 < 0 || d3 < 0;
+        bool pos = d1 > 0 || d2 > 0 || d3 > 0;
+        return !(neg && pos);
+    }
+
     void CreateUpdateButton()
     {
         menu_1_update = InsertMenuButton(menu_1_github, "update", Localized("[CheckUpdate]", "업데이트 확인"), OnCheckUpdate);

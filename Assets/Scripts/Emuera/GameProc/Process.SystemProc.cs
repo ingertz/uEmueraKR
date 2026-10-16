@@ -887,6 +887,7 @@ namespace MinorShift.Emuera.GameProc
 				return;
 			}
 			saveTarget = (int)systemResult;
+			GlobalStatic.ctrlZ.OnSavePrepare(saveTarget);
 			//既存データがあるなら選択肢を表示してSaveGame_WaitInputOverwriteへ移行。
 			if (available)
 			{
@@ -930,6 +931,7 @@ namespace MinorShift.Emuera.GameProc
 				console.PrintError("セーブ中に予期しないエラーが発生しました");
 				console.ReadAnyKey();
 			}
+			GlobalStatic.ctrlZ.OnSave();
 			loadPrevState();
 		}
 
@@ -983,6 +985,7 @@ namespace MinorShift.Emuera.GameProc
 				return;
 			}
 
+			GlobalStatic.ctrlZ.OnLoad((int)systemResult);
 			if (!vEvaluator.LoadFrom((int)systemResult))
 				throw new ExeEE("ファイルのロード中に予期しないエラーが発生しました");
 			deletePrevState();
@@ -999,6 +1002,30 @@ namespace MinorShift.Emuera.GameProc
 		{
 			loadPrevState();
 			console.ReloadErbFinished();
+		}
+
+		/// <summary>
+		/// EEのCtrl-Z用。タイトルの「ロード」と同じ待ちに入るが、セーブの一覧は表示しない
+		/// </summary>
+		public void LoadSilent()
+		{
+			state.SystemState = SystemStateCode.LoadGameOpenning_Begin;
+			if (isFirstTime)
+			{
+				isFirstTime = false;
+				dataIsAvailable = new bool[Config.SaveDataNos + 1];
+			}
+			for (int i = 0; i < 20; i++)
+			{
+				int dataNo = page * 20 + i;
+				if (dataNo == dataIsAvailable.Length - 1)
+					break;
+				dataIsAvailable[dataNo] = vEvaluator.CheckData(dataNo, EraSaveFileType.Normal).State == EraDataState.OK;
+			}
+			dataIsAvailable[dataIsAvailable.Length - 1] =
+				vEvaluator.CheckData(AutoSaveIndex, EraSaveFileType.Normal).State == EraDataState.OK;
+			setWaitInput();
+			state.SystemState = SystemStateCode.LoadGameOpenning_WaitInput;
 		}
 
 		private bool writeSavedataTextFrom(int saveIndex)
