@@ -31,6 +31,7 @@ public class OptionWindow : MonoBehaviour
         GenericUtils.SetListenerOnClick(menu_1_github, OnGithub);
         GenericUtils.SetListenerOnClick(menu_1_exit, OnMenuExit);
         CreateUpdateButton();
+        menu_2_copy = InsertMenuButton(menu_2_savelog, "copy", Localized("[CopyScreen]", "화면 글자 복사"), OnCopyScreen);
 
         GenericUtils.SetListenerOnClick(menu_2_back, OnMenu2Back);
         GenericUtils.SetListenerOnClick(menu_2_restart, OnMenu2Restart);
@@ -740,28 +741,70 @@ public class OptionWindow : MonoBehaviour
     /// </summary>
     void CreateUpdateButton()
     {
-        if (menu_1_github == null || menu_1_exit == null)
-            return;
-        var src = menu_1_github.transform as RectTransform;
-        var exit = menu_1_exit.transform as RectTransform;
-        float step = src.anchoredPosition.y - exit.anchoredPosition.y;
+        menu_1_update = InsertMenuButton(menu_1_github, "update", Localized("[CheckUpdate]", "업데이트 확인"), OnCheckUpdate);
+    }
+
+    /// <summary>
+    /// 메뉴의 after 버튼 바로 아래에 같은 모양의 버튼을 끼워 넣는다.
+    /// 프리팹은 고치지 않고 after를 복제해서, 그 아래 버튼들을 한 칸씩 내리고 메뉴를 한 칸 늘린다.
+    /// name은 다국어 파일의 Options.MenuPad.Menu?.(name).Text 가 찾는 이름
+    /// </summary>
+    GameObject InsertMenuButton(GameObject after, string name, string label, System.Action onClick)
+    {
+        if (after == null)
+            return null;
+        var src = after.transform as RectTransform;
+        var menu = src.parent as RectTransform;
+        //버튼 간격은 바로 아래 버튼과의 거리. 없으면 버튼 높이
+        float step = 0;
+        for (int i = 0; i < menu.childCount; ++i)
+        {
+            var c = menu.GetChild(i) as RectTransform;
+            if (c == null || c == src || !c.gameObject.activeSelf)
+                continue;
+            float d = src.anchoredPosition.y - c.anchoredPosition.y;
+            if (d > 0 && (step == 0 || d < step))
+                step = d;
+        }
         if (step <= 0)
             step = src.rect.height;
+        for (int i = 0; i < menu.childCount; ++i)
+        {
+            var c = menu.GetChild(i) as RectTransform;
+            if (c != null && c != src && c.anchoredPosition.y < src.anchoredPosition.y)
+                c.anchoredPosition = new Vector2(c.anchoredPosition.x, c.anchoredPosition.y - step);
+        }
 
-        menu_1_update = Instantiate(menu_1_github, src.parent, false);
-        //다국어 파일의 Options.MenuPad.Menu1.update.Text 가 이 이름으로 찾는다
-        menu_1_update.name = "update";
-        var rt = menu_1_update.transform as RectTransform;
+        var obj = Instantiate(after, menu, false);
+        obj.name = name;
+        var rt = obj.transform as RectTransform;
         rt.SetSiblingIndex(src.GetSiblingIndex() + 1);
-        rt.anchoredPosition = exit.anchoredPosition;
-        exit.anchoredPosition = new Vector2(exit.anchoredPosition.x, exit.anchoredPosition.y - step);
-        var menu = src.parent as RectTransform;
+        rt.anchoredPosition = new Vector2(src.anchoredPosition.x, src.anchoredPosition.y - step);
         menu.sizeDelta = new Vector2(menu.sizeDelta.x, menu.sizeDelta.y + step);
 
-        var text = menu_1_update.GetComponentInChildren<Text>(true);
+        var text = obj.GetComponentInChildren<Text>(true);
         if (text != null)
-            text.text = Localized("[CheckUpdate]", "업데이트 확인");
-        GenericUtils.SetListenerOnClick(menu_1_update, OnCheckUpdate);
+            text.text = label;
+        GenericUtils.SetListenerOnClick(obj, onClick);
+        return obj;
+    }
+
+    /// <summary>
+    /// 지금 화면에 보이는 글자를 클립보드로 복사한다. 번역기에 붙여 넣는 용도
+    /// </summary>
+    void OnCopyScreen()
+    {
+        HideMenu();
+        var title = Localized("[CopyScreen]", "화면 글자 복사");
+        string text = EmueraContent.instance != null ? EmueraContent.instance.GetVisibleText() : "";
+        if (string.IsNullOrEmpty(text))
+        {
+            ShowMessageBox(title, Localized("[CopyScreenEmpty]", "복사할 글자가 없습니다."));
+            return;
+        }
+        GUIUtility.systemCopyBuffer = text;
+        int lines = text.Split('\n').Length;
+        ShowMessageBox(title, string.Format(Localized("[CopyScreenDone]", "{0}줄을 클립보드에 복사했습니다."), lines));
     }
 
     const string kLatestReleaseApi = "https://api.github.com/repos/ingertz/uEmueraKR/releases/latest";
@@ -1142,6 +1185,7 @@ public class OptionWindow : MonoBehaviour
     public GameObject menu_2_gototitle;
     public GameObject menu_2_savelog;
     public GameObject menu_2_intent;
+    GameObject menu_2_copy = null;
     public GameObject menu_2_exit;
 
     public GameObject resolution_pad;

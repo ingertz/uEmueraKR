@@ -1098,6 +1098,40 @@ public class EmueraContent : MonoBehaviour
     /// 获取文本显示控件
     /// </summary>
     /// <returns></returns>
+    /// <summary>
+    /// 지금 화면에 걸쳐 보이는 행의 글자를 위에서부터 돌려준다(화면 글자 복사용).
+    /// 로그 저장과 같은 글자(색·버튼 구분 없음)이고, 글자 없는 행은 빈 줄로 둔다
+    /// </summary>
+    public string GetVisibleText()
+    {
+        var lines = new SortedDictionary<int, string>();
+        for (int i = 0; i < display_lines_.Count; ++i)
+        {
+            var l = display_lines_[i];
+            if (l.line_desc == null || lines.ContainsKey(l.LineNo))
+                continue;
+            var cl = l.line_desc.console_line as MinorShift.Emuera.GameView.ConsoleDisplayLine;
+            if (cl != null)
+                lines[l.LineNo] = cl.ToString();
+        }
+        if (lines.Count == 0)
+            return "";
+        var sb = new System.Text.StringBuilder();
+        int prev = -1;
+        foreach (var kv in lines)
+        {
+            if (prev >= 0)
+            {
+                for (int n = prev + 1; n < kv.Key; ++n)
+                    sb.Append('\n');
+                sb.Append('\n');
+            }
+            sb.Append(kv.Value.TrimEnd());
+            prev = kv.Key;
+        }
+        return sb.ToString().Trim('\n');
+    }
+
     public EmueraLine PullLine()
     {
         EmueraLine line = null;
