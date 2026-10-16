@@ -2,6 +2,7 @@
 Options.MenuPad.Menu1.resolution.Text=Resolution
 Options.MenuPad.Menu1.language.Text=Language
 Options.MenuPad.Menu1.path.Text=Path
+Options.MenuPad.Menu1.update.Text=Check Update
 Options.MenuPad.Menu1.exit.Text=Exit
 Options.MenuPad.Menu2.back.Text=Back To Menu
 Options.MenuPad.Menu2.savelog.Text=Save Log
@@ -42,3 +43,8 @@ FirstWindow.Titlebar.title=Game List
 [IntentR]=Right
 [IntentT]=Top
 [IntentB]=Bottom
+[CheckUpdate]=Check Update
+[UpdateChecking]=Checking...
+[UpdateLatest]=You have the latest version. ({0})
+[UpdateAvailable]=Version {0} is available. (current {1})\nOpen the download page?
+[UpdateFailed]=Could not check.\nPlease check your internet connection.

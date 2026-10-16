@@ -2,6 +2,7 @@
 Options.MenuPad.Menu1.resolution.Text=해상도 설정
 Options.MenuPad.Menu1.language.Text=언어 선택
 Options.MenuPad.Menu1.path.Text=경로 변경
+Options.MenuPad.Menu1.update.Text=업데이트 확인
 Options.MenuPad.Menu1.exit.Text=게임 종료
 Options.MenuPad.Menu2.back.Text=메뉴
 Options.MenuPad.Menu2.savelog.Text=로그를 저장
@@ -42,3 +43,8 @@ FirstWindow.Titlebar.title=게임 리스트
 [IntentR]=오른쪽
 [IntentT]=위
 [IntentB]=아래
+[CheckUpdate]=업데이트 확인
+[UpdateChecking]=확인하는 중...
+[UpdateLatest]=최신 버전입니다. ({0})
+[UpdateAvailable]=새 버전 {0}이(가) 있습니다. (현재 {1})\n다운로드 페이지를 열까요?
+[UpdateFailed]=확인하지 못했습니다.\n인터넷 연결을 확인해 주세요.

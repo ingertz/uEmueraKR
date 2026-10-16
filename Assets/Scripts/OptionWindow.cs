@@ -30,6 +30,7 @@ public class OptionWindow : MonoBehaviour
             GenericUtils.SetListenerOnClick(menu_1_path, OnMenuPath);
         GenericUtils.SetListenerOnClick(menu_1_github, OnGithub);
         GenericUtils.SetListenerOnClick(menu_1_exit, OnMenuExit);
+        CreateUpdateButton();
 
         GenericUtils.SetListenerOnClick(menu_2_back, OnMenu2Back);
         GenericUtils.SetListenerOnClick(menu_2_restart, OnMenu2Restart);
@@ -733,6 +734,154 @@ public class OptionWindow : MonoBehaviour
         Application.OpenURL("https://github.com/xerysherry/uEmuera/releases");
     }
 
+    /// <summary>
+    /// 게임 리스트 메뉴의 Github 아래에 "업데이트 확인"을 끼워 넣는다.
+    /// 프리팹은 고치지 않고 Github 버튼을 복제해서, 게임 종료를 한 칸 내리고 메뉴를 한 칸 늘린다
+    /// </summary>
+    void CreateUpdateButton()
+    {
+        if (menu_1_github == null || menu_1_exit == null)
+            return;
+        var src = menu_1_github.transform as RectTransform;
+        var exit = menu_1_exit.transform as RectTransform;
+        float step = src.anchoredPosition.y - exit.anchoredPosition.y;
+        if (step <= 0)
+            step = src.rect.height;
+
+        menu_1_update = Instantiate(menu_1_github, src.parent, false);
+        //다국어 파일의 Options.MenuPad.Menu1.update.Text 가 이 이름으로 찾는다
+        menu_1_update.name = "update";
+        var rt = menu_1_update.transform as RectTransform;
+        rt.SetSiblingIndex(src.GetSiblingIndex() + 1);
+        rt.anchoredPosition = exit.anchoredPosition;
+        exit.anchoredPosition = new Vector2(exit.anchoredPosition.x, exit.anchoredPosition.y - step);
+        var menu = src.parent as RectTransform;
+        menu.sizeDelta = new Vector2(menu.sizeDelta.x, menu.sizeDelta.y + step);
+
+        var text = menu_1_update.GetComponentInChildren<Text>(true);
+        if (text != null)
+            text.text = Localized("[CheckUpdate]", "업데이트 확인");
+        GenericUtils.SetListenerOnClick(menu_1_update, OnCheckUpdate);
+    }
+
+    const string kLatestReleaseApi = "https://api.github.com/repos/ingertz/uEmueraKR/releases/latest";
+    bool checking_update_ = false;
+
+    [System.Serializable]
+    class ReleaseInfo
+    {
+        public string tag_name;
+        public string name;
+        public string html_url;
+    }
+
+    /// <summary>
+    /// 눌렀을 때만 GitHub에 한 번 물어본다. 그 밖에는 앱이 통신하지 않는다
+    /// </summary>
+    void OnCheckUpdate()
+    {
+        HideMenu();
+        if (checking_update_)
+            return;
+        checking_update_ = true;
+        ShowMessageBox(Localized("[CheckUpdate]", "업데이트 확인"),
+            Localized("[UpdateChecking]", "확인하는 중..."));
+        StartCoroutine(CheckUpdate());
+    }
+
+    IEnumerator CheckUpdate()
+    {
+        var title = Localized("[CheckUpdate]", "업데이트 확인");
+        var current = Application.version;
+        ReleaseInfo info = null;
+        using (var req = UnityEngine.Networking.UnityWebRequest.Get(kLatestReleaseApi))
+        {
+            req.timeout = 15;
+            req.SetRequestHeader("Accept", "application/vnd.github+json");
+            req.SetRequestHeader("User-Agent", "uEmueraKR");
+            yield return req.SendWebRequest();
+            if (req.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                try { info = JsonUtility.FromJson<ReleaseInfo>(req.downloadHandler.text); }
+                catch (System.Exception) { info = null; }
+            }
+            else
+                Debug.LogWarning("CheckUpdate failed: " + req.error);
+        }
+        checking_update_ = false;
+
+        //예전 릴리스는 태그가 main이고 이름이 버전이었다
+        string latest = null;
+        if (info != null)
+            latest = LooksLikeVersion(info.tag_name) ? info.tag_name : info.name;
+        if (!LooksLikeVersion(latest))
+        {
+            ShowMessageBox(title, Localized("[UpdateFailed]", "확인하지 못했습니다.\n인터넷 연결을 확인해 주세요.").Replace("\\n", "\n"));
+            yield break;
+        }
+        if (CompareVersion(latest, current) <= 0)
+        {
+            ShowMessageBox(title, string.Format(Localized("[UpdateLatest]", "최신 버전입니다. ({0})"), current));
+            yield break;
+        }
+        var url = string.IsNullOrEmpty(info.html_url) ? "https://github.com/ingertz/uEmueraKR/releases/latest" : info.html_url;
+        ShowMessageBox(title,
+            string.Format(Localized("[UpdateAvailable]", "새 버전 {0}이(가) 있습니다. (현재 {1})\n다운로드 페이지를 열까요?").Replace("\\n", "\n"), latest, current),
+            () => Application.OpenURL(url), () => { });
+    }
+
+    static bool LooksLikeVersion(string v)
+    {
+        if (string.IsNullOrEmpty(v))
+            return false;
+        v = v.TrimStart('v', 'V');
+        return v.Length > 0 && char.IsDigit(v[0]);
+    }
+
+    /// <summary>
+    /// "0.3.1d" 같은 버전을 숫자와 글자 덩어리로 나눠 앞에서부터 비교한다.
+    /// 0.3.1 &lt; 0.3.1d &lt; 0.3.1e &lt; 0.3.2
+    /// </summary>
+    static int CompareVersion(string a, string b)
+    {
+        var pa = SplitVersion(a);
+        var pb = SplitVersion(b);
+        for (int i = 0; i < pa.Count || i < pb.Count; ++i)
+        {
+            if (i >= pa.Count) return -1;
+            if (i >= pb.Count) return 1;
+            long na, nb;
+            bool da = long.TryParse(pa[i], out na);
+            bool db = long.TryParse(pb[i], out nb);
+            int c = (da && db) ? na.CompareTo(nb) : string.CompareOrdinal(pa[i].ToLowerInvariant(), pb[i].ToLowerInvariant());
+            if (c != 0)
+                return c;
+        }
+        return 0;
+    }
+
+    static List<string> SplitVersion(string v)
+    {
+        var parts = new List<string>();
+        var sb = new System.Text.StringBuilder();
+        int kind = 0;//1:숫자 2:글자
+        foreach (var ch in v.TrimStart('v', 'V'))
+        {
+            int k = char.IsDigit(ch) ? 1 : char.IsLetter(ch) ? 2 : 0;
+            if (k != kind && sb.Length > 0)
+            {
+                parts.Add(sb.ToString());
+                sb.Length = 0;
+            }
+            kind = k;
+            if (k != 0)
+                sb.Append(ch);
+        }
+        if (sb.Length > 0)
+            parts.Add(sb.ToString());
+        return parts;
+    }
+
     void OnIntentBoxShow()
     {
         intentbox.SetActive(true);
@@ -984,6 +1133,7 @@ public class OptionWindow : MonoBehaviour
     public GameObject menu_1_path;
     public GameObject menu_1_github;
     public GameObject menu_1_exit;
+    GameObject menu_1_update = null;
     GameObject pathDialogObj_ = null;
 
     public GameObject menu_2;

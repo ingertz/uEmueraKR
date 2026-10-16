@@ -2,6 +2,7 @@
 Options.MenuPad.Menu1.resolution.Text=解像度を設定します
 Options.MenuPad.Menu1.language.Text=言語の選択
 Options.MenuPad.Menu1.path.Text=パス変更
+Options.MenuPad.Menu1.update.Text=アップデート確認
 Options.MenuPad.Menu1.exit.Text=ゲームを終了します
 Options.MenuPad.Menu2.back.Text=メニューに戻る
 Options.MenuPad.Menu2.savelog.Text=ログを保存する
@@ -42,3 +43,8 @@ FirstWindow.Titlebar.title=ゲームリスト
 [IntentR]=右
 [IntentT]=上
 [IntentB]=下
+[CheckUpdate]=アップデート確認
+[UpdateChecking]=確認中...
+[UpdateLatest]=最新バージョンです。({0})
+[UpdateAvailable]=新しいバージョン {0} があります。(現在 {1})\nダウンロードページを開きますか？
+[UpdateFailed]=確認できませんでした。\nインターネット接続を確認してください。
