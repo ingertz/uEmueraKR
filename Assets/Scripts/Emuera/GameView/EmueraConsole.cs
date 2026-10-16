@@ -1984,7 +1984,14 @@ namespace MinorShift.Emuera.GameView
 					redraw = ConsoleRedraw.Normal;
 					UseUserStyle = false;
 					userStyle = new StringStyle(Config.ForeColor, FontStyle.Regular, null);
-					uEmuera.Utils.ResourcePrepareSimple();
+					//リソースCSVの読み直しはPlayerPrefsを使うのでメインスレッドに任せて待つ
+					var prepared = new System.Threading.ManualResetEvent(false);
+					SpriteManager.RunOnMainThread(() =>
+					{
+						try { uEmuera.Utils.ResourcePrepareSimple(); }
+						finally { prepared.Set(); }
+					});
+					prepared.WaitOne();
 					emuera.BeginTitle();
 					ReadAnyKey(false, false);
 					if (z.Kind == Sub.CtrlZ.CheckpointKind.Title)
