@@ -50,3 +50,4 @@ desktop.ini
 # Tools のビルド出力
 Tools/**/bin/
 Tools/**/obj/
+!Tools/**/*.csproj
