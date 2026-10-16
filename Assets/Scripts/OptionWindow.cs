@@ -762,6 +762,10 @@ public class OptionWindow : MonoBehaviour
             gap = Mathf.Abs((quick_button.transform as RectTransform).anchoredPosition.x
                 - (input_button.transform as RectTransform).anchoredPosition.x);
         rt.anchoredPosition = new Vector2(src.anchoredPosition.x - gap, src.anchoredPosition.y);
+        //잠금 바로 왼쪽에 있던 처리 중 표시(소녀기도중)가 가려지므로 한 칸 왼쪽으로 민다
+        var inprocess = src.parent.Find("inprocess") as RectTransform;
+        if (inprocess != null)
+            inprocess.anchoredPosition = new Vector2(inprocess.anchoredPosition.x - gap, inprocess.anchoredPosition.y);
         undo_image_ = obj.AddComponent<Image>();
         undo_image_.sprite = Resources.Load<Sprite>("icon_undo");
         undo_image_.preserveAspect = true;

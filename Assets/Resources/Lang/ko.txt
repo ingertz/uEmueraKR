@@ -1,4 +1,12 @@
 ;ko
+Options.Buttons.inprocess.char1=소
+Options.Buttons.inprocess.char2=녀
+Options.Buttons.inprocess.char3=기
+Options.Buttons.inprocess.char4=도
+Options.Buttons.inprocess.char5=중
+Options.Buttons.inprocess.char6=.
+Options.Buttons.inprocess.char7=.
+Options.Buttons.inprocess.char8=.
 Options.MenuPad.Menu1.resolution.Text=해상도 설정
 Options.MenuPad.Menu1.language.Text=언어 선택
 Options.MenuPad.Menu1.path.Text=경로 변경

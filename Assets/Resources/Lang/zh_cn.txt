@@ -1,4 +1,12 @@
 ;ZH-CN
+Options.Buttons.inprocess.char1=少
+Options.Buttons.inprocess.char2=女
+Options.Buttons.inprocess.char3=祈
+Options.Buttons.inprocess.char4=祷
+Options.Buttons.inprocess.char5=中
+Options.Buttons.inprocess.char6=。
+Options.Buttons.inprocess.char7=。
+Options.Buttons.inprocess.char8=。
 Options.MenuPad.Menu1.resolution.Text=设置分辨率
 Options.MenuPad.Menu1.language.Text=语言选择
 Options.MenuPad.Menu1.path.Text=更改路径
