@@ -434,6 +434,20 @@ public class EmueraContent : MonoBehaviour
         //CBGのボタン(画像・ボタンマップ)とINPUTMOUSEKEY待ちは先に処理する
         if(CBGLayer.TryHandleTap(e))
             return;
+        //入力欄のあるINPUT待ちでは、ボタン以外のタップは何もしない(EmueraThread.Input)。
+        //行が細く指より小さいので、ボタンのすぐ脇に外れただけで無反応になっていた。
+        //捨てられるはずのタップに限り、近くのボタンを押した事にする
+        var console = MinorShift.Emuera.GlobalStatic.Console;
+        if(console != null && console.IsWaitingInputSomething && !console.IsWaitingInputWithMouse)
+        {
+            var near = FindNearestButton(e.position, e.pressEventCamera);
+            if(near != null)
+            {
+                near.FlashPressed();
+                EmueraBehaviour.Press(near, e);
+            }
+            return;
+        }
         var nowtick = MinorShift._Library.WinmmTimer.TickCount;
         var skipflag = (nowtick - last_click_tic < 200);
         EmueraThread.instance.Input("", false, skipflag);
@@ -442,6 +456,59 @@ public class EmueraContent : MonoBehaviour
     Vector2 drag_begin_position = Vector2.zero;
     Vector2 drag_curr_position = Vector2.zero;
     Vector2 drag_delta = Vector2.zero;
+
+    /// <summary>
+    /// 外れたタップを近くのボタンへ寄せる距離(画面のピクセル)。およそ2mm。
+    /// 描画解像度を下げている時はタッチ座標も同じ比で小さくなるので合わせる
+    /// </summary>
+    static float SnapTolerance()
+    {
+        float dpi = Screen.dpi > 0 ? Screen.dpi : 160f;
+        int native = Display.main != null ? Display.main.systemWidth : 0;
+        if(native > 0 && Screen.width > 0 && Screen.width < native)
+            dpi *= (float)Screen.width / native;
+        return Mathf.Max(12f, dpi * 0.08f);
+    }
+
+    /// <summary>
+    /// 画面上の点に一番近い、今選べるボタン。SnapTolerance()より遠ければnull。
+    /// divの中の行は表示中の一覧に入っていないので、子を全部見る
+    /// </summary>
+    EmueraBehaviour FindNearestButton(Vector2 screen, Camera cam)
+    {
+        EmueraBehaviour best = null;
+        float best_distance = SnapTolerance();
+        GetComponentsInChildren(false, snap_candidates_);
+        for(int i = 0; i < snap_candidates_.Count; ++i)
+        {
+            var b = snap_candidates_[i];
+            if(!b.IsSelectableButton)
+                continue;
+            b.HitRect.GetWorldCorners(snap_corners_);
+            float xmin = float.MaxValue, xmax = float.MinValue;
+            float ymin = float.MaxValue, ymax = float.MinValue;
+            for(int c = 0; c < 4; ++c)
+            {
+                var p = RectTransformUtility.WorldToScreenPoint(cam, snap_corners_[c]);
+                xmin = Mathf.Min(xmin, p.x); xmax = Mathf.Max(xmax, p.x);
+                ymin = Mathf.Min(ymin, p.y); ymax = Mathf.Max(ymax, p.y);
+            }
+            if(xmax - xmin < 1f || ymax - ymin < 1f)
+                continue;
+            float dx = Mathf.Max(xmin - screen.x, 0f, screen.x - xmax);
+            float dy = Mathf.Max(ymin - screen.y, 0f, screen.y - ymax);
+            float distance = Mathf.Sqrt(dx * dx + dy * dy);
+            if(distance < best_distance)
+            {
+                best_distance = distance;
+                best = b;
+            }
+        }
+        snap_candidates_.Clear();
+        return best;
+    }
+    static readonly List<EmueraBehaviour> snap_candidates_ = new List<EmueraBehaviour>();
+    static readonly Vector3[] snap_corners_ = new Vector3[4];
 
     public void SetBackgroundColor(uEmuera.Drawing.Color color)
     {

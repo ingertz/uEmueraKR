@@ -69,3 +69,7 @@ EmueraMain.Template.template_text=uEmuera
 [UpdateAllowInstall]=请在设置中允许此应用"安装未知应用"，\n然后再次点击检查更新。
 [UpdateInstallStarted]=请在安装界面点击"更新"。\n存档会保留。
 [UpdateDownloadFailed]=无法下载或安装。\n要打开下载页面吗？
+[QuickSize]=快捷按钮大小
+[QuickSizeL]=大
+[QuickSizeM]=中
+[QuickSizeS]=小

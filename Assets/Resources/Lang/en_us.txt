@@ -68,3 +68,7 @@ FirstWindow.Titlebar.title=Game List
 [UpdateAllowInstall]=Allow "Install unknown apps" for this app in Settings,\nthen press Check Update again.
 [UpdateInstallStarted]=Press "Update" on the install screen.\nYour saves are kept.
 [UpdateDownloadFailed]=Could not download or install.\nOpen the download page?
+[QuickSize]=Quick Button Size
+[QuickSizeL]=Large
+[QuickSizeM]=Medium
+[QuickSizeS]=Small

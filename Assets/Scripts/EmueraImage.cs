@@ -4,7 +4,8 @@ using UnityEngine;
 using MinorShift.Emuera.GameView;
 using MinorShift.Emuera.Content;
 
-public class EmueraImage : EmueraBehaviour
+public class EmueraImage : EmueraBehaviour,
+    UnityEngine.EventSystems.IPointerDownHandler, UnityEngine.EventSystems.IPointerUpHandler
 {
     internal class ImageInfo : MonoBehaviour
     {
@@ -55,14 +56,23 @@ public class EmueraImage : EmueraBehaviour
             else
             {
                 image.sprite = spriteinfo.sprite;
-                image.color = new Color(1, 1, 1, alpha);
+                image.color = new Color(tint_, tint_, tint_, alpha);
             }
             this.spriteinfo = spriteinfo;
             RenderThrottle.Wake();
         }
+        /// <summary>明るさ(1がそのまま)。押している間だけ少し暗くするのに使う</summary>
+        public void SetTint(float tint)
+        {
+            tint_ = tint;
+            if(spriteinfo != null)
+                image.color = new Color(tint_, tint_, tint_, alpha);
+        }
+        float tint_ = 1;
         public void Clear()
         {
             alpha = 1;
+            tint_ = 1;
             anime_ = null;
             anime_frame_ = -1;
             SpriteManager.GivebackSpriteInfo(spriteinfo);
@@ -95,6 +105,41 @@ public class EmueraImage : EmueraBehaviour
         GenericUtils.SetListenerOnClick(gameObject, OnClick);
         click_handler_ = GetComponent<GenericUtils.PointerClickListener>();
     }
+
+    //画像のボタンは、指が触れている間だけ少し暗くして押した事が分かるようにする
+    public void OnPointerDown(UnityEngine.EventSystems.PointerEventData e)
+    {
+        SetPressed(true);
+    }
+    public void OnPointerUp(UnityEngine.EventSystems.PointerEventData e)
+    {
+        if(pressed_ && e != null && e.eligibleForClick && !e.dragging)
+            Invoke("ReleasePressed", 0.12f);
+        else
+            SetPressed(false);
+    }
+    public override void SetPressed(bool on)
+    {
+        CancelInvoke("ReleasePressed");
+        if(on == pressed_ || (on && !IsSelectableButton))
+            return;
+        pressed_ = on;
+        for(int i = 0; i < image_infos_.Count; ++i)
+            image_infos_[i].SetTint(on ? kPressedTint : 1f);
+        RenderThrottle.Wake();
+    }
+    void ReleasePressed()
+    {
+        SetPressed(false);
+    }
+    public override void FlashPressed()
+    {
+        SetPressed(true);
+        if(pressed_)
+            Invoke("ReleasePressed", 0.15f);
+    }
+    bool pressed_ = false;
+    const float kPressedTint = 0.7f;
 
     public override void UpdateContent()
     {
@@ -184,6 +229,8 @@ public class EmueraImage : EmueraBehaviour
     }
     public void Clear()
     {
+        CancelInvoke("ReleasePressed");
+        pressed_ = false;
         var count = image_infos_.Count;
         for(var i=0; i<count; ++i)
         {

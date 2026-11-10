@@ -3,7 +3,8 @@
 #
 #   powershell -ExecutionPolicy Bypass -File Tools/EngineTests/run.ps1
 #
-# 要る物: .NET SDK(10以上)、Unityが作る Assembly-CSharp.csproj(Unityで一度開けば出来る)。
+# 要る物: Unityが作る Assembly-CSharp.csproj(Unityで一度開けば出来る)と .NET SDK(8以上)。
+# SDKが入っていなければ、Unityエディタに付いてくる物(Editor\Data\DotNetSdk)を使う。
 # 終了コードは 0 なら全部通った、1 なら失敗かコンパイルエラー
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -19,8 +20,24 @@ New-Item -ItemType Directory -Force $work | Out-Null
 $dll = Join-Path $work 'Assembly-CSharp.dll'
 $rsp = Join-Path $work 'engine.rsp'
 
-# --- Roslyn の場所: 一番新しいSDKの中にある
-$sdkLine = (& dotnet --list-sdks | Select-Object -Last 1)
+# --- dotnet と Roslyn の場所: 一番新しいSDKの中にある。
+# ランタイムだけでSDKの無いPCでは dotnet --list-sdks が空になるので、エディタ付属のSDKへ切り替える
+$dotnet = 'dotnet'
+$sdkLine = $null
+if (Get-Command dotnet -ErrorAction SilentlyContinue) {
+    $sdkLine = (& dotnet --list-sdks | Select-Object -Last 1)
+}
+if (-not $sdkLine) {
+    $hint = $csproj.SelectNodes('//Reference/HintPath') | ForEach-Object { $_.InnerText } |
+        Where-Object { $_ -match '\\Editor\\Data\\' } | Select-Object -First 1
+    if ($hint) {
+        $bundled = Join-Path ($hint -replace '(\\Editor\\Data)\\.*$', '$1') 'DotNetSdk\dotnet.exe'
+        if (Test-Path $bundled) {
+            $dotnet = $bundled
+            $sdkLine = (& $dotnet --list-sdks | Select-Object -Last 1)
+        }
+    }
+}
 if (-not $sdkLine) { Write-Host '.NET SDK が見つかりません'; exit 1 }
 $m = [regex]::Match($sdkLine, '^(\S+)\s+\[(.+)\]$')
 $csc = Join-Path (Join-Path $m.Groups[2].Value $m.Groups[1].Value) 'Roslyn\bincore\csc.dll'
@@ -65,7 +82,7 @@ foreach ($s in $sources.Keys) { $lines.Add("`"$s`"") }
 [System.IO.File]::WriteAllLines($rsp, $lines)
 
 Write-Host "compiling $($sources.Count) files..."
-$out = & dotnet $csc "@$rsp" 2>&1
+$out = & $dotnet $csc "@$rsp" 2>&1
 if ($LASTEXITCODE -ne 0) {
     $out | Where-Object { $_ -match 'error' } | ForEach-Object { Write-Host $_ }
     Write-Host 'COMPILE FAILED'
@@ -73,5 +90,5 @@ if ($LASTEXITCODE -ne 0) {
 }
 if (-not $unityDir) { Write-Host 'UnityEngine.dll の場所が分かりません'; exit 1 }
 
-& dotnet run --project (Join-Path $PSScriptRoot 'EngineTests.csproj') -c Release -- $dll $unityDir
+& $dotnet run --project (Join-Path $PSScriptRoot 'EngineTests.csproj') -c Release -- $dll $unityDir
 exit $LASTEXITCODE

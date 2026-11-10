@@ -3,13 +3,84 @@ using System.Collections.Generic;
 using UnityEngine;
 using MinorShift.Emuera;
 
-public class EmueraLine : EmueraBehaviour
+public class EmueraLine : EmueraBehaviour,
+    UnityEngine.EventSystems.IPointerDownHandler, UnityEngine.EventSystems.IPointerUpHandler
 {
     void Awake()
     {
         GenericUtils.SetListenerOnClick(gameObject, OnClick);
         click_handler_ = GetComponent<GenericUtils.PointerClickListener>();
     }
+
+    //指が触れている間、ボタンを選択中の色(本家でマウスを載せた時のFocusColor)にする。
+    //タッチにはホバーが無く、押すまでどのボタンに当たったのか分からなかった。
+    //違うボタンだったら指をずらせばスクロール扱いになって取り消せる
+    public void OnPointerDown(UnityEngine.EventSystems.PointerEventData e)
+    {
+        SetPressed(true);
+    }
+    public void OnPointerUp(UnityEngine.EventSystems.PointerEventData e)
+    {
+        //そのまま離した(押した扱いになる)時は少しだけ残す。
+        //素早いタップだと数フレームで消えて、色が変わったのが見えない
+        if(pressed_ && e != null && e.eligibleForClick && !e.dragging)
+            Invoke("ReleasePressed", 0.12f);
+        else
+            SetPressed(false);
+    }
+
+    public override void SetPressed(bool on)
+    {
+        CancelInvoke("ReleasePressed");
+        if(on == pressed_)
+            return;
+        if(on)
+        {
+            var ud = unit_desc;
+            if(ud == null || !ud.isbutton || ud.generation < EmueraContent.instance.button_generation)
+                return;
+            pressed_ = true;
+            var focus = Config.FocusColor.ToUnityColor();
+            //複数の色を持つボタンは<color>タグで塗られているので、タグより優先させる
+            text.overrideColorTags = true;
+            text.color = focus;
+            if(hit_area_img_ != null && hit_area_ != null && hit_area_.gameObject.activeSelf)
+                hit_area_img_.color = new UnityEngine.Color(focus.r, focus.g, focus.b, 0.25f);
+        }
+        else
+        {
+            pressed_ = false;
+            text.overrideColorTags = false;
+            var ud = unit_desc;
+            if(ud != null)
+                text.color = ud.color;
+            if(hit_area_img_ != null)
+                hit_area_img_.color = kHitAreaColor;
+        }
+        RenderThrottle.Wake();
+    }
+    void ReleasePressed()
+    {
+        SetPressed(false);
+    }
+    public override RectTransform HitRect
+    {
+        get
+        {
+            if(hit_area_ != null && hit_area_.gameObject.activeSelf)
+                return hit_area_;
+            return rect_transform;
+        }
+    }
+    public override void FlashPressed()
+    {
+        SetPressed(true);
+        if(pressed_)
+            Invoke("ReleasePressed", 0.15f);
+    }
+    bool pressed_ = false;
+    //alphaを完全な0にすると描画が省かれ、depth==-1でレイキャスト対象から外れる
+    static readonly UnityEngine.Color kHitAreaColor = new UnityEngine.Color(0f, 0f, 0f, 1f / 255f);
 
     public TMPro.TMP_Text text
     {
@@ -119,6 +190,10 @@ public class EmueraLine : EmueraBehaviour
         //text.alignment = (TextAnchor)line_desc.align;
         //if((int)text.alignment > 0)
         //    ud.posx = 0;
+        //行は使い回されるので、押している途中で中身が替わったら押下表示を外す
+        CancelInvoke("ReleasePressed");
+        pressed_ = false;
+        text.overrideColorTags = false;
         text.color = ud.color;
         text.richText = ud.richedit;
 
@@ -376,8 +451,7 @@ public class EmueraLine : EmueraBehaviour
         if(hit_area_img_ != null)
         {
             hit_area_img_.enabled = true;//テンプレート側で無効になっていることがある
-            //alphaを完全な0にすると描画が省かれ、depth==-1でレイキャスト対象から外れる
-            hit_area_img_.color = new UnityEngine.Color(0f, 0f, 0f, 1f / 255f);
+            hit_area_img_.color = kHitAreaColor;
         }
         hit_area_.SetAsFirstSibling();//文字より後ろに置いて表示を邪魔しない
         hit_area_.anchoredPosition = new Vector2(x, y);
@@ -621,6 +695,9 @@ public class EmueraLine : EmueraBehaviour
         }
         div_bgs_.Clear();
 
+        CancelInvoke("ReleasePressed");
+        pressed_ = false;
+        text.overrideColorTags = false;
         line_desc = null;
         UnitIdx = -1;
         text.text = "";

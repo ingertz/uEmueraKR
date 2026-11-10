@@ -465,6 +465,31 @@ public abstract class EmueraBehaviour : MonoBehaviour
         //ここで処理する
         if(CBGLayer.TryHandleTap(e, SelectableButton(behaviour)))
             return;
+        Press(behaviour, e);
+    }
+
+    /// <summary>今選べるボタンか(押せば入力になる世代のボタン)</summary>
+    public bool IsSelectableButton
+    {
+        get
+        {
+            var ud = unit_desc;
+            return ud != null && ud.isbutton
+                && ud.generation >= EmueraContent.instance.button_generation;
+        }
+    }
+
+    /// <summary>当たり判定の矩形。中身がdivだけの行は別に敷いた矩形になる</summary>
+    public virtual RectTransform HitRect { get { return rect_transform; } }
+
+    /// <summary>押している間の表示。行は文字色、画像は少し暗くする</summary>
+    public virtual void SetPressed(bool on) { }
+    /// <summary>押した事を一瞬だけ見せる(指が直接触れていないボタンを押した時用)</summary>
+    public virtual void FlashPressed() { }
+
+    /// <summary>behaviourのボタンを押した事にする。ボタンでなければ空の入力(Enter)</summary>
+    public static void Press(EmueraBehaviour behaviour, UnityEngine.EventSystems.PointerEventData e)
+    {
         if(behaviour == null)
         {
             EmueraThread.instance.Input("", false);

@@ -6,6 +6,11 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+- 본문의 버튼을 누르고 있는 동안 선택 색(PC판에서 마우스를 올렸을 때의 색)으로 바뀜. 그림 버튼은 살짝 어두워짐 ([app.md](docs/app.md))
+- 입력을 기다리는 화면에서 버튼 바로 옆(약 2mm 안)을 눌러도 가장 가까운 버튼이 눌림 ([app.md](docs/app.md))
+- 게임 중 메뉴에 「빠른 버튼 크기」 추가. 누를 때마다 대 → 중 → 소로 바뀜 ([app.md](docs/app.md))
+- 개발: 엔진 테스트가 .NET SDK가 없는 PC에서도 Unity 에디터에 딸린 SDK로 돌아감 ([development.md](docs/development.md))
+
 </details>
 
 <details>

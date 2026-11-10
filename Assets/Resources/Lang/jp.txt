@@ -68,3 +68,7 @@ FirstWindow.Titlebar.title=ゲームリスト
 [UpdateAllowInstall]=設定でこのアプリの「不明なアプリのインストール」を許可してから、\nもう一度アップデート確認を押してください。
 [UpdateInstallStarted]=インストール画面で「更新」を押してください。\nセーブはそのまま残ります。
 [UpdateDownloadFailed]=ダウンロードまたはインストールできませんでした。\nダウンロードページを開きますか？
+[QuickSize]=クイックボタンの大きさ
+[QuickSizeL]=大
+[QuickSizeM]=中
+[QuickSizeS]=小

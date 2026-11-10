@@ -86,7 +86,7 @@ public class QuickButtons : MonoBehaviour
         Image picture_ = null;
         SpriteManager.SpriteInfo spriteinfo_ = null;
 
-        public float x;
+        public int col;
         public int line;
         public Image background;
         public Text content;
@@ -172,8 +172,10 @@ public class QuickButtons : MonoBehaviour
             var b = display_buttons_[i];
             var rt = b.transform as RectTransform;
             
-            rt.anchoredPosition = 
-                new Vector2(- total_width + b.x, (b.line + 1) * (height + interval)) + pos;
+            //位置は列番号から求める。大きさを変えた時に置き直せるように
+            float bx = b.col * (width + interval) - interval;
+            rt.anchoredPosition =
+                new Vector2(- total_width + bx, (b.line + 1) * (height + interval)) + pos;
         }
 	}
 
@@ -271,12 +273,63 @@ public class QuickButtons : MonoBehaviour
             PushButton(b);
         }
         display_buttons_.Clear();
-        add_x = 0;
         lineidx = 0;
         curr_line_count = 0;
         max_line_count = 0;
         local_position.x = 0;
         dirty = true;
+    }
+
+    /// <summary>
+    /// ボタンの大きさの倍率(1がプリファブの大きさ)。
+    /// 画面を覆って邪魔だという声があったので小さくできるようにした。
+    /// 文字も同じ比で縮める
+    /// </summary>
+    public void SetScale(float scale)
+    {
+        if(scale <= 0f || Mathf.Approximately(scale, scale_))
+            return;
+        scale_ = scale;
+        if(!ReadBaseSize())
+            return;
+        for(int i = 0; i < display_buttons_.Count; ++i)
+            ApplySize(display_buttons_[i]);
+        foreach(var b in cache_buttons_)
+            ApplySize(b);
+        dirty = true;
+    }
+
+    /// <summary>プリファブの大きさを覚え、倍率を掛けた今の大きさを決める</summary>
+    bool ReadBaseSize()
+    {
+        if(base_width_ <= 0f)
+        {
+            if(template_button == null)
+                return false;
+            var size = (template_button.transform as RectTransform).sizeDelta;
+            base_width_ = size.x;
+            base_height_ = size.y;
+            var t = template_button.GetComponentInChildren<Text>(true);
+            base_font_ = t != null ? t.fontSize : 21;
+        }
+        width = base_width_ * scale_;
+        height = base_height_ * scale_;
+        return true;
+    }
+
+    void ApplySize(QuickButton button)
+    {
+        (button.transform as RectTransform).sizeDelta = new Vector2(width, height);
+        //長い見出しは折り返して切れるより、枠に合わせて縮める方が読める。
+        //「[r]ＲＥＣＯＶＥＲ」が「ＲＥＣＯＶＥ/Ｒ」と割れるのを防ぐ
+        var content = button.content;
+        if(content == null)
+            return;
+        int font = Mathf.Max(8, Mathf.RoundToInt(base_font_ * scale_));
+        content.fontSize = font;
+        content.resizeTextForBestFit = true;
+        content.resizeTextMaxSize = font;
+        content.resizeTextMinSize = System.Math.Max(8, font / 2);
     }
     //ASpriteがinternalなのでpublicにはできない(CS0051)
     internal void AddButton(string text, Color color, string code,
@@ -289,28 +342,19 @@ public class QuickButtons : MonoBehaviour
 #if UNITY_EDITOR
         button.name = "Code:" + code;
 #endif
-        //長い見出しは折り返して切れるより、枠に合わせて縮める方が読める。
-        //「[r]ＲＥＣＯＶＥＲ」が「ＲＥＣＯＶＥ/Ｒ」と割れるのを防ぐ
         var content = button.content;
-        if(!content.resizeTextForBestFit)
-        {
-            content.resizeTextForBestFit = true;
-            content.resizeTextMaxSize = content.fontSize;
-            content.resizeTextMinSize = System.Math.Max(8, content.fontSize / 2);
-        }
         content.text = text.Trim();
         content.color = color;
         button.SetPicture(picture);
         button.code = code;
         button.line = lineidx;
-        button.x = add_x - interval;
+        button.col = curr_line_count;
         //var bc = button.background.color;
         var bc = color;
         button.background.color = new Color(
             Mathf.Clamp(1 - bc.r + 0.10f, 0, 1),
             Mathf.Clamp(1 - bc.g + 0.10f, 0, 1),
             Mathf.Clamp(1 - bc.b + 0.10f, 0, 1), 0.6f);
-        add_x += (width + interval);
         curr_line_count += 1;
         max_line_count = System.Math.Max(max_line_count, curr_line_count);
 
@@ -322,7 +366,6 @@ public class QuickButtons : MonoBehaviour
         if(curr_line_count == 0)
             return;
         lineidx += 1;
-        add_x = 0;
         curr_line_count = 0;
     }
     QuickButton PullButton()
@@ -336,16 +379,17 @@ public class QuickButtons : MonoBehaviour
             button = obj.AddComponent<QuickButton>();
             button.transform.SetParent(transform);
             var rt = button.transform as RectTransform;
-            if(width == 0 || height == 0)
-            {
-                width = rt.sizeDelta.x;
-                height = rt.sizeDelta.y;
-            }
+            ReadBaseSize();
 
             rt.localScale = Vector3.one;
             rt.anchorMax = new Vector2(1, 0);
             rt.anchorMin = rt.anchorMax;
             rt.pivot = Vector2.one;
+            //AddComponent直後はAwakeが済んでいる(親が有効な時)。無効な間に作られた物は
+            //contentがまだ無いので、大きさは使う時にも合わせ直す
+            if(button.content == null)
+                button.content = obj.GetComponentInChildren<Text>(true);
+            ApplySize(button);
         }
         return button;
     }
@@ -365,8 +409,11 @@ public class QuickButtons : MonoBehaviour
     float width = 0;
     float height = 0;
     float interval = 5;
+    float scale_ = 1f;
+    float base_width_ = 0;
+    float base_height_ = 0;
+    int base_font_ = 21;
 
-    float add_x = 0;
     int lineidx = 0;
     int curr_line_count = 0;
     int max_line_count = 0;

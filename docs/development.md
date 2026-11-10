@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File Tools/EngineTests/run.ps1
 
 - 확인하는 것: 바이너리·텍스트 세이브 읽기와 쓰기(압축, MAP·XML·DataTable, 예전 형식, Shift-JIS), 읽은 뒤 파일이 닫히는지,
   `HASH_XXH32`/`HASH_XXH3` 값, `UseNewRandom` 난수, 업데이트 확인의 버전 비교
-- Unity가 만드는 `Assembly-CSharp.csproj`와 .NET SDK 10 이상이 필요합니다.
+- Unity가 만드는 `Assembly-CSharp.csproj`가 필요합니다. .NET SDK(8 이상)가 깔려 있으면 그걸 쓰고, 없으면 Unity 에디터에 딸린 SDK를 씁니다.
 - 화면 그리기처럼 Unity가 있어야 하는 부분은 여기서 확인할 수 없습니다.
 - 코드: [Tools/EngineTests](../Tools/EngineTests)
 

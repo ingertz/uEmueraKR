@@ -33,6 +33,9 @@ public class OptionWindow : MonoBehaviour
         CreateUpdateButton();
         CreateUndoButton();
         menu_2_copy = InsertMenuButton(menu_2_savelog, "copy", Localized("[CopyScreen]", "화면 글자 복사"), OnCopyScreen);
+        menu_2_quicksize = InsertMenuButton(menu_2_copy != null ? menu_2_copy : menu_2_savelog,
+            "quicksize", QuickSizeLabel(), OnQuickSize);
+        ApplyQuickSize();
 
         GenericUtils.SetListenerOnClick(menu_2_back, OnMenu2Back);
         GenericUtils.SetListenerOnClick(menu_2_restart, OnMenu2Restart);
@@ -151,6 +154,8 @@ public class OptionWindow : MonoBehaviour
 
     void OnShowMenu2()
     {
+        //언어를 바꾼 뒤에도 맞는 말로 보이게 열 때마다 다시 쓴다
+        ApplyQuickSize();
         menu_pad.SetActive(true);
         menu_2.SetActive(true);
     }
@@ -863,6 +868,47 @@ public class OptionWindow : MonoBehaviour
             text.text = label;
         GenericUtils.SetListenerOnClick(obj, onClick);
         return obj;
+    }
+
+    //빠른 버튼 크기. 0=대(원래 크기) 1=중 2=소.
+    //화면을 많이 가려서 거슬린다는 얘기가 있어 줄일 수 있게 했다. 누를 때마다 다음 크기로 넘어간다
+    static readonly float[] kQuickScales = { 1f, 0.8f, 0.62f };
+    const string kQuickSizeKey = "QuickButtonSize";
+    GameObject menu_2_quicksize = null;
+
+    static int QuickSizeIndex
+    {
+        get { return Mathf.Clamp(PlayerPrefs.GetInt(kQuickSizeKey, 0), 0, kQuickScales.Length - 1); }
+    }
+
+    static string QuickSizeLabel()
+    {
+        string size;
+        switch (QuickSizeIndex)
+        {
+        case 1: size = Localized("[QuickSizeM]", "중"); break;
+        case 2: size = Localized("[QuickSizeS]", "소"); break;
+        default: size = Localized("[QuickSizeL]", "대"); break;
+        }
+        return Localized("[QuickSize]", "빠른 버튼 크기") + ": " + size;
+    }
+
+    void OnQuickSize()
+    {
+        PlayerPrefs.SetInt(kQuickSizeKey, (QuickSizeIndex + 1) % kQuickScales.Length);
+        PlayerPrefs.Save();
+        ApplyQuickSize();
+    }
+
+    void ApplyQuickSize()
+    {
+        if (quick_buttons != null)
+            quick_buttons.SetScale(kQuickScales[QuickSizeIndex]);
+        if (menu_2_quicksize == null)
+            return;
+        var text = menu_2_quicksize.GetComponentInChildren<Text>(true);
+        if (text != null)
+            text.text = QuickSizeLabel();
     }
 
     /// <summary>
