@@ -280,6 +280,44 @@ namespace MinorShift.Emuera.GameView
 		/// </summary>
 		/// <param name="lines"></param>
 		/// <returns></returns>
+		/// <summary>
+		/// eraJSのHTML_GETPRINTEDSTREX。表示済みの行から文字だけを取り出し、
+		/// 既定と違う色の区間を &lt;span style='color:#rrggbb'&gt; で囲んで返す。
+		/// 画像・図形・ボタンのタグは含めない。ERB側がこの書式を前提に切り分けるので形を変えない
+		/// </summary>
+		public static string DisplayLine2SpanHtml(ConsoleDisplayLine[] lines)
+		{
+			if (lines == null || lines.Length == 0)
+				return "";
+			StringBuilder b = new StringBuilder();
+			for (int i = 0; i < lines.Length; i++)
+			{
+				ConsoleButtonString[] buttons = lines[i].Buttons;
+				for (int j = 0; j < buttons.Length; j++)
+				{
+					AConsoleDisplayPart[] parts = buttons[j].StrArray;
+					for (int k = 0; k < parts.Length; k++)
+					{
+						ConsoleStyledString css = parts[k] as ConsoleStyledString;
+						if (css == null || string.IsNullOrEmpty(css.Str))
+							continue;
+						string body = css.Str.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+						if (css.StringStyle.ColorChanged)
+						{
+							b.Append("<span style='color:#");
+							b.Append((css.StringStyle.Color.ToArgb() & 0xFFFFFF).ToString("x6"));
+							b.Append("'>");
+							b.Append(body);
+							b.Append("</span>");
+						}
+						else
+							b.Append(body);
+					}
+				}
+			}
+			return b.ToString();
+		}
+
 		public static string DisplayLine2Html(ConsoleDisplayLine[] lines, bool needPandN)
 		{
 			if (lines == null || lines.Length == 0)
@@ -856,6 +894,11 @@ namespace MinorShift.Emuera.GameView
 							return null;
 						state.FlagNobrClosed = true;
 						return null;
+					case "span":
+						//eraJSの色指定。<font color>と同じに扱う
+						if (!Config.EraJSDialect)
+							return null;
+						goto case "font";
 					case "font":
 						if (state.FonttagList.Count == 0)
 							return null;
@@ -1375,6 +1418,40 @@ namespace MinorShift.Emuera.GameView
 								font.FontName = oldFont.FontName;
 						}
 						state.FonttagList.Add(font);
+						return null;
+					}
+				case "span":
+					{
+						//eraJSの <span style='color:#rrggbb'>。色だけを見て<font color>と同じに扱う
+						if (!Config.EraJSDialect)
+							goto error;
+						HtmlAnalzeStateFontTag span = new HtmlAnalzeStateFontTag();
+						while (wc != null && !wc.EOL)
+						{
+							word = wc.Current as IdentifierWord;
+							wc.ShiftNext();
+							OperatorWord op = wc.Current as OperatorWord;
+							wc.ShiftNext();
+							LiteralStringWord attr = wc.Current as LiteralStringWord;
+							wc.ShiftNext();
+							if (word == null || op == null || op.Code != OperatorCode.Assignment || attr == null)
+								goto error;
+							if (word.Code.ToLower() != "style")
+								continue;
+							var m = System.Text.RegularExpressions.Regex.Match(Unescape(attr.Str),
+								@"(?:^|;)\s*color\s*:\s*(#[0-9A-Fa-f]{6})");
+							if (m.Success)
+								span.Color = stringToColorInt32(m.Groups[1].Value);
+						}
+						if (state.FonttagList.Count > 0)
+						{
+							HtmlAnalzeStateFontTag oldFont = state.FonttagList[state.FonttagList.Count - 1];
+							if (span.Color < 0)
+								span.Color = oldFont.Color;
+							span.BColor = oldFont.BColor;
+							span.FontName = oldFont.FontName;
+						}
+						state.FonttagList.Add(span);
 						return null;
 					}
 				default:

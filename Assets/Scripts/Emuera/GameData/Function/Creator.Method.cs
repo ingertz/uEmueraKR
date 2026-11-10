@@ -3104,6 +3104,37 @@ namespace MinorShift.Emuera.GameData.Function
 			}
 		}
 
+		/// <summary>eraJSの関数。HTML_GETPRINTEDSTRと違い、文字と色だけを&lt;span&gt;付きで返す</summary>
+		private sealed class HtmlGetPrintedStrExMethod : FunctionMethod
+		{
+			public HtmlGetPrintedStrExMethod()
+			{
+				ReturnType = typeof(string);
+				argumentTypeArray = null;
+				CanRestructure = false;
+			}
+
+			public override string CheckArgumentType(string name, IOperandTerm[] arguments)
+			{
+				if (arguments.Length > 1)
+					return name + "関数の引数が多すぎます";
+				if (arguments.Length == 0 || arguments[0] == null)
+					return null;
+				if (arguments[0].GetOperandType() != typeof(Int64))
+					return name + "関数の1番目の引数の型が正しくありません";
+				return null;
+			}
+			public override string GetStrValue(ExpressionMediator exm, IOperandTerm[] arguments)
+			{
+				Int64 lineNo = 0;
+				if (arguments.Length > 0 && arguments[0] != null)
+					lineNo = arguments[0].GetIntValue(exm);
+				if (lineNo < 0)
+					return "";
+				return HtmlManager.DisplayLine2SpanHtml(exm.Console.GetDisplayLines(lineNo));
+			}
+		}
+
 		private sealed class HtmlPopPrintingStrMethod : FunctionMethod
 		{
 			public HtmlPopPrintingStrMethod()

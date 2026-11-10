@@ -160,6 +160,8 @@ namespace MinorShift.Emuera.GameData.Function
 
                 //html系
                 ["HTML_GETPRINTEDSTR"] = new HtmlGetPrintedStrMethod(),
+                //eraJS(EmueraのJavaScript実装)の関数。eraJS向けに書き直されたERBが使う
+                ["HTML_GETPRINTEDSTREX"] = new HtmlGetPrintedStrExMethod(),
                 ["HTML_POPPRINTINGSTR"] = new HtmlPopPrintingStrMethod(),
                 ["HTML_TOPLAINTEXT"] = new HtmlToPlainTextMethod(),
                 ["HTML_ESCAPE"] = new HtmlEscapeMethod(),

@@ -464,6 +464,10 @@ namespace MinorShift.Emuera.GameProc
 				if (idWT != null)
 				{
 					FunctionIdentifier func = GlobalStatic.IdentifierDictionary.GetFunctionIdentifier(idWT.Code);
+					//eraJS: #FUNCTION中のRETURNは値を返す。RETURNFとして読む
+					if (func != null && Config.EraJSDialect && func.Code == FunctionCode.RETURN
+						&& parentLine != null && parentLine.IsMethod)
+						func = GlobalStatic.IdentifierDictionary.GetFunctionIdentifier("RETURNF") ?? func;
 					//命令文
 					if (func != null)//関数文
 					{

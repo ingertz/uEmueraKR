@@ -398,7 +398,10 @@ namespace MinorShift.Emuera
 						warnLevel = 2;
 						return;
 					case DefinedNameType.SystemVariable:
-						//システム変数の上書きは不可
+						//システム変数の上書きは不可。
+						//eraJSは許していて、関数の中ではプライベート変数が先に引かれる(#DIM i など)
+						if (Config.EraJSDialect)
+							break;
                         errMes = "変数名" + varName + "はEmueraの変数名として使われています";
                         warnLevel = 2;
 						break;

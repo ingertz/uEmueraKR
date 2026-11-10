@@ -2320,6 +2320,9 @@ namespace MinorShift.Emuera.GameProc.Function
 				FunctionLabelLine label = func.ParentLabelLine;
 				if (!label.IsMethod)
 				{
+					//eraJSは#FUNCTION以外のRETURNFを、値をRESULT(文字列ならRESULTS)へ入れるRETURNとして扱う
+					if (Config.EraJSDialect)
+						return;
 					ParserMediator.Warn("RETURNFは#FUNCTION以外では使用できません", func, 2, true, false);
 				}
 				if (func.Argument != null)
@@ -2345,6 +2348,17 @@ namespace MinorShift.Emuera.GameProc.Function
 				if (term != null)
 				{
 					ret = term.GetValue(exm);
+				}
+				if (Config.EraJSDialect && !func.ParentLabelLine.IsMethod)
+				{
+					long result = 0;
+					if (ret != null && ret.GetOperandType() == typeof(string))
+						exm.VEvaluator.RESULTS = ret.Str;
+					else if (ret != null)
+						result = ret.Int;
+					exm.VEvaluator.RESULT = result;
+					state.Return(result);
+					return;
 				}
 				state.ReturnF(ret);
 			}

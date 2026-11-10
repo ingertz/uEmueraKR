@@ -125,6 +125,11 @@ namespace MinorShift.Emuera
 			ForbidUpdateCheck = instance.GetConfigValue<bool>(ConfigCode.ForbidUpdateCheck);
 			ZipSaveData = instance.GetConfigValue<bool>(ConfigCode.ZipSaveData);
 			UseNewRandom = ReadSettingJsonBool("UseNewRandom");
+			EraJSDialect = DetectEraJS();
+			//eraJSは読み込み時に何も報告しない。重複定義の警告だけで数千行になり、
+			//タイトルの前に延々と流れるので、致命的でない物は出さない
+			if (EraJSDialect && DisplayWarningLevel < 3)
+				DisplayWarningLevel = 3;
 			
 			CompatiFuncArgAutoConvert = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgAutoConvert);
 			CompatiFuncArgOptional = instance.GetConfigValue<bool>(ConfigCode.CompatiFuncArgOptional);
@@ -756,6 +761,34 @@ namespace MinorShift.Emuera
 		/// 立っているとRANDが.NETのRandomを使い、RANDOMIZEやRANDDATAの影響を受けなくなる
 		/// </summary>
 		public static bool UseNewRandom { get; private set; } = false;
+
+		/// <summary>
+		/// eraJS(EmueraをJavaScriptで書き直したElectron製の実行環境)向けに配られているゲームか。
+		/// ERBとCSVはEmueraと同じ物だが、eraJSでしか通らない書き方が混ざっているので、
+		/// 立っている時はeraJSの挙動に合わせる:
+		///  - 解釈できない行があっても起動し、その行を実行した時にエラーにする
+		///  - #FUNCTION中のRETURNは値を返す。#FUNCTION以外のRETURNFはRESULT(S)へ入れて戻る
+		///  - 関数内の#DIMは組み込み変数と同じ名前を付けられる(関数の中ではそちらが優先)
+		///  - HTML_GETPRINTEDSTREX が使える
+		/// </summary>
+		public static bool EraJSDialect { get; private set; } = false;
+
+		/// <summary>eraJSの配布物に入っているファイルがゲームフォルダにあるかで見分ける</summary>
+		static bool DetectEraJS()
+		{
+			try
+			{
+				foreach (var name in new[] { "README_eraJS.txt", "eraJS.exe", "eraJS_settings.json", "resources/app/engine/compiler.js" })
+				{
+					if (File.Exists(uEmuera.Utils.ResolvePath(Program.ExeDir + name)))
+						return true;
+				}
+			}
+			catch
+			{
+			}
+			return false;
+		}
 
 		/// <summary>
 		/// ShinEraTensei(メガテンP版)のEmueraは一部の設定をemuera.configではなく

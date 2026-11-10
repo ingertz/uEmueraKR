@@ -9,6 +9,8 @@
 - 본문의 버튼을 누르고 있는 동안 선택 색(PC판에서 마우스를 올렸을 때의 색)으로 바뀜. 그림 버튼은 살짝 어두워짐 ([app.md](docs/app.md))
 - 입력을 기다리는 화면에서 버튼 바로 옆(약 2mm 안)을 눌러도 가장 가까운 버튼이 눌림 ([app.md](docs/app.md))
 - 게임 중 메뉴에 「빠른 버튼 크기」 추가. 누를 때마다 대 → 중 → 소로 바뀜 ([app.md](docs/app.md))
+- eraJS용으로 배포된 팩(TW JS판 등)을 읽을 수 있게 함. 팩 폴더에 eraJS 파일이 있으면, eraJS처럼 해석 못 하는 줄이 있어도 시작하고 그 줄을 실행할 때 오류를 냄. eraJS 전용 문법 몇 가지(`#FUNCTION` 안의 `RETURN`, `HTML_GETPRINTEDSTREX`, `<span style='color:…'>` 등)도 받음
+- 개발: 게임을 Unity 배치 모드로 돌려 화면 글자를 뽑는 도구 `Assets/Editor/PlayTest.cs` 추가
 - 개발: 엔진 테스트가 .NET SDK가 없는 PC에서도 Unity 에디터에 딸린 SDK로 돌아감 ([development.md](docs/development.md))
 
 </details>

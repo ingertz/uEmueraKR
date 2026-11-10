@@ -231,7 +231,8 @@ namespace MinorShift.Emuera.GameProc
 				console.ThrowTitleError(false);
 				return;
 			}
-			if ((!noError) && (!Config.CompatiErrorLine))
+			//eraJS向けのゲームは、eraJSと同じく解釈できない行があっても始める(実行した時にエラーになる)
+			if ((!noError) && (!Config.CompatiErrorLine) && (!Config.EraJSDialect))
 			{
 				console.PrintSystemLine("ERBコードに解釈不可能な行があるためEmueraを終了します");
 				console.PrintSystemLine("※互換性オプション「" + Config.GetConfigName(ConfigCode.CompatiErrorLine) + "」により強制的に動作させることができます");
