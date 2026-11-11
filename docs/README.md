@@ -8,7 +8,7 @@
 | 분류 | 내용 | 문서 |
 |---|---|---|
 | EE 호환 | EE의 명령·함수·인자, ERD, HTML·그래픽 확장, VarExt 저장 | [ee.md](ee.md) |
-| 다른 Emuera 파생판 | 메가텐 P판(ShinEraTensei) 전용 기능, `MATCHALL`, `CHECK_OVERFLOW` | [other-engines.md](other-engines.md) |
+| 다른 Emuera 파생판 | 메가텐 P판(ShinEraTensei) 전용 기능, `MATCHALL`, `CHECK_OVERFLOW`, eraJS용 팩(TW JS판) | [other-engines.md](other-engines.md) |
 | 화면 표시 | 글자 렌더링, 글꼴, 레이아웃, `<div>` 배치 | [display.md](display.md) |
 | 세이브 | 문자 코드 판별, 압축, 오류 기록 | [saves.md](saves.md) |
 | 앱 기능 | 한국어 UI, 메뉴, 빠른 버튼, 업데이트 확인, 화면 글자 복사, 디버그 모드 | [app.md](app.md) |

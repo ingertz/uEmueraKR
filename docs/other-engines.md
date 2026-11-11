@@ -84,3 +84,20 @@ EE에는 없지만, 그 기능을 쓰는 게임이 있어서 넣은 것들입니
 - `CHECK_OVERFLOW 1`이면 정수 계산이 넘칠 때 INT64 최댓값/최솟값에서 멈춥니다.
 
 </details>
+
+<details>
+<summary><b>eraJS용 팩</b> (TW JS판 / 키매라팩 등)</summary>
+
+- eraJS는 Emuera를 JavaScript로 다시 만든 PC용 실행기(Electron)입니다. 게임 데이터(ERB/CSV)는 Emuera와 같아서 이 앱으로 그대로 돌릴 수 있습니다.
+- 게임 폴더에 `README_eraJS.txt`, `eraJS.exe`, `eraJS_settings.json`, `resources/app/engine/compiler.js` 중 하나가 있으면 eraJS용 팩으로 보고 eraJS처럼 동작합니다.
+  - 해석할 수 없는 줄이 있어도 게임을 시작하고, 그 줄을 실제로 실행할 때 오류를 냅니다.
+    Emuera는 시작할 때 전부 검사해서 멈춥니다.
+  - 읽는 중의 경고(함수 중복 정의 등, 이 팩은 수천 줄)는 화면에 띄우지 않습니다.
+  - `#FUNCTION` 안의 `RETURN 값`은 값을 돌려줍니다(`RETURNF`와 같음). `#FUNCTION`이 아닌 함수의 `RETURNF 값`은 `RESULT`(문자열이면 `RESULTS`)에 넣고 돌아갑니다.
+  - 함수 안의 `#DIM`에 `LINECOUNT`, `I` 같은 내장 변수 이름을 쓸 수 있습니다. 그 함수 안에서는 지역 변수가 우선합니다.
+  - `HTML_GETPRINTEDSTREX(n)`: 표시된 줄의 글자를, 색이 다른 부분만 `<span style='color:#rrggbb'>`로 감싸서 돌려줍니다.
+  - HTML의 `<span style='color:#rrggbb'>`를 `<font color>`처럼 받습니다.
+- eraJS의 세이브(`erajs_save00.sav` 등)는 형식이 달라서 읽지 못합니다.
+- CSV에 없는 이름(`TALENT:악취민감` 등)을 쓰는 줄은 팩 쪽 오류라서, 그 줄에 닿으면 eraJS에서처럼 오류가 납니다.
+
+</details>

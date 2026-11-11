@@ -415,7 +415,9 @@ public class EmueraContent : MonoBehaviour
             drag_begin_position = Vector2.zero;
             drag_curr_position = Vector2.zero;
             drag_delta = Vector2.zero;
-            OnClick(e);
+            //少しだけ動かした指はタップ扱いにするが、近くのボタンへは寄せない。
+            //ボタンの上からスクロールしかけて止めただけで、そのボタンが押されていた
+            HandleTap(e, false);
             return;
         }
 
@@ -431,6 +433,12 @@ public class EmueraContent : MonoBehaviour
     }
     void OnClick(UnityEngine.EventSystems.PointerEventData e)
     {
+        HandleTap(e, true);
+    }
+
+    /// <summary>背景のタップ。snapの時だけ、外れたタップを近くのボタンへ寄せる</summary>
+    void HandleTap(UnityEngine.EventSystems.PointerEventData e, bool snap)
+    {
         //CBGのボタン(画像・ボタンマップ)とINPUTMOUSEKEY待ちは先に処理する
         if(CBGLayer.TryHandleTap(e))
             return;
@@ -440,6 +448,8 @@ public class EmueraContent : MonoBehaviour
         var console = MinorShift.Emuera.GlobalStatic.Console;
         if(console != null && console.IsWaitingInputSomething && !console.IsWaitingInputWithMouse)
         {
+            if(!snap)
+                return;
             var near = FindNearestButton(e.position, e.pressEventCamera);
             if(near != null)
             {
