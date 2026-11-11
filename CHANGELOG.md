@@ -6,6 +6,7 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+- eraJS용 팩: `@COMxx` 함수가 없는 커맨드(키메라팩의 `촛농` 등)를 목록에서 뺌. 고르면 `関数"@COM717"が見つかりません`로 멈추던 문제 수정 ([other-engines.md](docs/other-engines.md))
 </details>
 
 <details>

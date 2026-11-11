@@ -98,6 +98,8 @@ EE에는 없지만, 그 기능을 쓰는 게임이 있어서 넣은 것들입니
   - `HTML_GETPRINTEDSTREX(n)`: 표시된 줄의 글자를, 색이 다른 부분만 `<span style='color:#rrggbb'>`로 감싸서 돌려줍니다.
   - HTML의 `<span style='color:#rrggbb'>`를 `<font color>`처럼 받습니다.
   - `PRINTFORMW%CALLNAME%…`처럼 명령어 바로 뒤에 공백 없이 기호가 붙은 줄도 받습니다(eraJS는 기호 앞에서 명령어를 끊습니다).
+  - Train.csv에 있어도 `@COMxx` 함수가 없는 커맨드는 커맨드 목록에 넣지 않습니다(eraJS와 같음).
+    Emuera에서는 `촛농[235]` 같은 줄이 나오고, 고르면 `関数"@COM717"が見つかりません`로 멈춥니다.
 - eraJS의 세이브(`erajs_save00.sav` 등)는 형식이 달라서 읽지 못합니다.
 - CSV에 없는 이름(`TALENT:악취민감` 등)을 쓰는 줄은 팩 쪽 오류라서, 그 줄에 닿으면 eraJS에서처럼 오류가 납니다.
 

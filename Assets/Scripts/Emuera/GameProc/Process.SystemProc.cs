@@ -418,6 +418,12 @@ namespace MinorShift.Emuera.GameProc
 			{
 				if (TrainName[lastCalledComable] == null)
 					continue;
+				//eraJS版パックにはTrain.csvにあっても@COMxxの無いコマンドがある。eraJSと同じく選択肢に出さない
+				if (Config.EraJSDialect && labelDic.GetNonEventLabel("COM" + lastCalledComable) == null)
+				{
+					lastAddCom++;
+					continue;
+				}
 				string comName = string.Format("COM_ABLE{0}", lastCalledComable);
 				if (!callFunction(comName, false, false))
 				{
