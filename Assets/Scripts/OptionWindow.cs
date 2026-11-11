@@ -873,6 +873,8 @@ public class OptionWindow : MonoBehaviour
     //빠른 버튼 크기. 0=대(원래 크기) 1=중 2=소.
     //화면을 많이 가려서 거슬린다는 얘기가 있어 줄일 수 있게 했다. 누를 때마다 다음 크기로 넘어간다
     static readonly float[] kQuickScales = { 1f, 0.8f, 0.62f };
+    //한 번에 옆으로 보이는 칸 수. 작게 한 만큼 더 많이 보이게 한다
+    static readonly int[] kQuickColumns = { 4, 5, 6 };
     const string kQuickSizeKey = "QuickButtonSize";
     GameObject menu_2_quicksize = null;
 
@@ -903,7 +905,7 @@ public class OptionWindow : MonoBehaviour
     void ApplyQuickSize()
     {
         if (quick_buttons != null)
-            quick_buttons.SetScale(kQuickScales[QuickSizeIndex]);
+            quick_buttons.SetScale(kQuickScales[QuickSizeIndex], kQuickColumns[QuickSizeIndex]);
         if (menu_2_quicksize == null)
             return;
         var text = menu_2_quicksize.GetComponentInChildren<Text>(true);

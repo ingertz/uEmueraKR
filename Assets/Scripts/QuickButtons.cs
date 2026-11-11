@@ -93,7 +93,8 @@ public class QuickButtons : MonoBehaviour
         public string code;
     }
 
-    static readonly int kMaxContentButtonCountShow = 4;
+    /// <summary>横に一度に見せるボタンの数。ボタンを小さくした時は増やす(SetScale)</summary>
+    int max_columns_ = 4;
 
     public Button template_button;
 
@@ -137,7 +138,7 @@ public class QuickButtons : MonoBehaviour
 
         float content_width = max_line_count * (width + interval);
         float content_height = lineidx * (height + interval);
-        float max_width = (width + interval) * kMaxContentButtonCountShow;
+        float max_width = (width + interval) * max_columns_;
         float display_width = System.Math.Min(content_width, max_width);
 
         var ec_rt = parent.rect;
@@ -283,10 +284,16 @@ public class QuickButtons : MonoBehaviour
     /// <summary>
     /// ボタンの大きさの倍率(1がプリファブの大きさ)。
     /// 画面を覆って邪魔だという声があったので小さくできるようにした。
-    /// 文字も同じ比で縮める
+    /// 文字も同じ比で縮める。columnsは横に一度に見せる数で、
+    /// 小さくした分だけ多く見せないと、枠が狭くなるだけで見える数が変わらない
     /// </summary>
-    public void SetScale(float scale)
+    public void SetScale(float scale, int columns)
     {
+        if(columns > 0 && columns != max_columns_)
+        {
+            max_columns_ = columns;
+            dirty = true;
+        }
         if(scale <= 0f || Mathf.Approximately(scale, scale_))
             return;
         scale_ = scale;

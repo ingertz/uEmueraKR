@@ -6,6 +6,7 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+- 「빠른 버튼 크기」를 줄이면 한 번에 옆으로 보이는 칸 수도 늘어남 (대 4칸 · 중 5칸 · 소 6칸) ([app.md](docs/app.md))
 </details>
 
 <details>
