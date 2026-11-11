@@ -12,7 +12,7 @@
 | 화면 표시 | 글자 렌더링, 글꼴, 레이아웃, `<div>` 배치 | [display.md](display.md) |
 | 세이브 | 문자 코드 판별, 압축, 오류 기록 | [saves.md](saves.md) |
 | 앱 기능 | 한국어 UI, 메뉴, 빠른 버튼, 업데이트 확인, 화면 글자 복사, 디버그 모드 | [app.md](app.md) |
-| 성능 | 로딩 시간, 발열·배터리 | [performance.md](performance.md) |
+| 성능 | 로딩 시간, 지연 로딩, 발열·배터리 | [performance.md](performance.md) |
 | 개발 | 빌드, 릴리스, 테스트 | [development.md](development.md) |
 
 버전별로 무엇이 바뀌었는지는 [CHANGELOG.md](../CHANGELOG.md)에 있습니다.

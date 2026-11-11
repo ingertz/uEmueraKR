@@ -24,7 +24,7 @@ namespace MinorShift.Emuera.GameProc
 		}
 
 		public FunctionLabelLine ParentLabelLine { get; set; }
-		public LogicalLine NextLine
+		public virtual LogicalLine NextLine
 		{
 			get { return nextLine; }
 			set { nextLine = value; }
@@ -243,6 +243,35 @@ namespace MinorShift.Emuera.GameProc
 			//ArgOptional = true;
 			//ArgAutoConvert = true;
 		}
+		/// <summary>
+		/// 本体をまだ読んでいない関数なら、読むためのローダー(ErbLoaderの遅延読み込み)。
+		/// 本体へ最初に進む時(NextLine)に読んでnullにする
+		/// </summary>
+		internal ErbLoader LazyLoader;
+		/// <summary>見出しの所で[SKIPSTART]や[IF]の中に居なかった。本体を読む時にファイルの途中から読み始められる</summary>
+		internal bool LazyCleanStart;
+		/// <summary>
+		/// 関数(@行から次の@行の手前まで)がファイルの何バイト目から何バイト目か。
+		/// 分かっていればその部分だけ読む。UTF-8でないファイルなどは-1でファイル全体を読む
+		/// </summary>
+		internal long LazyByteStart = -1;
+		internal long LazyByteEnd = -1;
+		public bool IsLazyPending { get { return LazyLoader != null; } }
+		public override LogicalLine NextLine
+		{
+			get
+			{
+				if (LazyLoader != null)
+				{
+					var loader = LazyLoader;
+					LazyLoader = null;
+					loader.LoadLazyBody(this);
+				}
+				return base.NextLine;
+			}
+			set { base.NextLine = value; }
+		}
+
 		WordCollection wc;
 		public WordCollection PopRowArgs()
 		{

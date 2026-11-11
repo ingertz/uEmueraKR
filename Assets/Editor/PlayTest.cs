@@ -158,6 +158,13 @@ public static class PlayTest
 
         if(phase_ == Phase.Loading)
         {
+            //読み込み後のメモリ。端末では大きいゲームで落ちる事があるので量っておく
+            Debug.Log(string.Format("PlayTest: memory managed={0}MB monoUsed={1}MB monoHeap={2}MB private={3}MB load={4:F0}s",
+                GC.GetTotalMemory(true) >> 20,
+                UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() >> 20,
+                UnityEngine.Profiling.Profiler.GetMonoHeapSizeLong() >> 20,
+                System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64 >> 20,
+                now - started_));
             Dump("loaded");
             phase_ = Phase.Playing;
         }

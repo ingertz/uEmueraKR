@@ -43,6 +43,7 @@ namespace MinorShift.Emuera.GameProc
 			labelDic.Initialized = false;
 			//Config.GetFilesが大文字小文字を区別しないので、綴り違いの二度読みは要らない
 			List<KeyValuePair<string, string>> erbFiles = Config.GetFiles(erbDir, "*.ERB");
+			lazyMode = UseLazyLoading(erbFiles);
             List<string> isOnlyEvent = new List<string>();
             noError = true;
 			uint starttime = WinmmTimer.TickCount;
@@ -68,7 +69,10 @@ namespace MinorShift.Emuera.GameProc
 						output.PrintSystemLine(filename + "読み込み中・・・");
 #endif
 					//System.Windows.Forms.//Application.DoEvents();
-					loadErb(file, filename, isOnlyEvent);
+					if (lazyMode)
+						scanErbLazy(file, filename, isOnlyEvent);
+					else
+						loadErb(file, filename, isOnlyEvent);
 				}
 				ParserMediator.FlushWarningList();
 				uEmuera.FilePrefetch.End();
@@ -146,11 +150,399 @@ namespace MinorShift.Emuera.GameProc
             return noError;
 		}
 
+		#region 遅延読み込み
+		/// <summary>
+		/// ERBがこれ以上あると、関数の本体を呼ばれるまで読まない。
+		/// 全部を読むと1行あたり400バイトほど使い、TW キメラパック(ERB 364MB, 940万行)では
+		/// 4GBを超えて端末で落ちていた。PC版のEmueraLazyLoadingやeraJSと同じ考え方
+		/// </summary>
+		const long kLazyLoadingThreshold = 100L * 1024 * 1024;
+		bool lazyMode = false;
+
+		bool UseLazyLoading(List<KeyValuePair<string, string>> erbFiles)
+		{
+			if (Program.AnalysisMode)
+				return false;
+			long total = 0;
+			foreach (var f in erbFiles)
+			{
+				try { total += new System.IO.FileInfo(f.Value).Length; }
+				catch { }
+			}
+			bool lazy = total >= kLazyLoadingThreshold;
+			UnityEngine.Debug.Log(string.Format("ErbLoader: ERB {0} files, {1}MB, lazy={2}", erbFiles.Count, total >> 20, lazy));
+			return lazy;
+		}
+
+		/// <summary>
+		/// 関数の見出し(@行と#行)だけを読み、本体は読まずに飛ばす。
+		/// 本体は最初に呼ばれた時にLoadLazyBodyが読む
+		/// </summary>
+		private void scanErbLazy(string filepath, string filename, List<string> isOnlyEvent)
+		{
+			labelDic.AddFilename(filename);
+			string text;
+			if (!uEmuera.FilePrefetch.TryTake(filepath, out text))
+				text = uEmuera.TextFileReader.ReadAllText(filepath);
+			if (text == null)
+			{
+				output.PrintError(filename + "のオープンに失敗しました");
+				return;
+			}
+			EraStreamReader eReader = new EraStreamReader(Config.UseRenameFile && ParserMediator.RenameDic != null);
+			eReader.OpenText(text, filename);
+			//関数ごとの位置(文字目)。最後にバイト位置へ直す
+			var fileLabels = new List<FunctionLabelLine>();
+			var fileLabelChars = new List<int>();
+			try
+			{
+				PPState ppstate = new PPState();
+				FunctionLabelLine lastLabelLine = null;
+				bool inHeader = false;
+				StringStream st;
+				ScriptPosition position;
+				while ((st = eReader.ReadEnabledLine(ppstate.Disabled)) != null)
+				{
+					position = new ScriptPosition(eReader.Filename, eReader.LineNo);
+					if (st.Current == '[' && st.Next != '[')
+					{
+						st.ShiftNext();
+						string token = LexicalAnalyzer.ReadSingleIdentifier(st);
+						LexicalAnalyzer.SkipWhiteSpace(st);
+						string token2 = LexicalAnalyzer.ReadSingleIdentifier(st);
+						if ((string.IsNullOrEmpty(token)) || (st.Current != ']'))
+							ParserMediator.Warn("[]の使い方が不正です", position, 1);
+						ppstate.AddKeyWord(token, token2, position);
+						continue;
+					}
+					if (ppstate.Disabled)
+						continue;
+					if (st.Current == '#')
+					{
+						if (!inHeader)
+						{
+							ParserMediator.Warn("関数宣言の直後以外で#行が使われています", position, 1);
+							continue;
+						}
+						if (!LogicalLineParser.ParseSharpLine(lastLabelLine, st, position, isOnlyEvent))
+							noError = false;
+						continue;
+					}
+					if (st.Current != '@')
+					{
+						inHeader = false;
+						continue;
+					}
+					//前の関数はここまで。読み込み直す時もこの@行で止まる
+					fileLabels.Add(null);
+					fileLabelChars.Add(eReader.LastLineStart);
+					FunctionLabelLine label = (FunctionLabelLine)LogicalLineParser.ParseLabelLine(st, position, output);
+					//見出しの引数(#DIMの変数)を解決する時に、自分の関数として引かれる
+					label.ParentLabelLine = label;
+					label.NextLine = new NullLine();
+					lastLabelLine = label;
+					inHeader = true;
+					if (label is InvalidLabelLine)
+					{
+						noError = false;
+						ParserMediator.Warn(label.ErrMes, position, 2);
+						labelDic.AddInvalidLabel(label);
+						continue;
+					}
+					label.LazyLoader = this;
+					label.LazyCleanStart = ppstate.IsTopLevel;
+					fileLabels[fileLabels.Count - 1] = label;
+					lazyPaths[filename] = filepath;
+					labelDic.AddLabel(label);
+					if (!label.IsEvent && (Config.WarnNormalFunctionOverloading || Program.AnalysisMode))
+					{
+						FunctionLabelLine seniorLabel = labelDic.GetSameNameLabel(label);
+						if (seniorLabel != null)
+							ParserMediator.Warn("関数@" + label.LabelName + "は既に定義(" + seniorLabel.Position.Filename + "の" + seniorLabel.Position.LineNo.ToString() + "行目)されています", position, 1);
+					}
+				}
+				ppstate.FileEnd(new ScriptPosition(eReader.Filename, -1));
+				fileLabelChars.Add(text.Length);
+				SetLazyByteRanges(filepath, text, fileLabels, fileLabelChars);
+			}
+			finally
+			{
+				eReader.Close();
+			}
+		}
+
+		/// <summary>
+		/// 関数の範囲を文字目からバイト目へ直す。UTF-8(BOMは有っても無くても)と確かめられた時だけ。
+		/// 呼ばれた時にその部分だけを読めば、2.5MBの口上ファイルを丸ごと読み直さずに済む
+		/// </summary>
+		static void SetLazyByteRanges(string filepath, string text, List<FunctionLabelLine> labels, List<int> chars)
+		{
+			if (labels.Count == 0)
+				return;
+			long fileLength;
+			byte[] head = new byte[3];
+			try
+			{
+				using (var fs = new System.IO.FileStream(filepath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read))
+				{
+					fileLength = fs.Length;
+					fs.Read(head, 0, 3);
+				}
+			}
+			catch
+			{
+				return;
+			}
+			long bom = (head[0] == 0xEF && head[1] == 0xBB && head[2] == 0xBF) ? 3 : 0;
+			//復号した文字列をUTF-8に戻した長さがファイルと合わなければUTF-8ではない(Shift-JISなど)
+			if (Utf8ByteCount(text, 0, text.Length) + bom != fileLength)
+				return;
+			long bytePos = bom;
+			int charPos = 0;
+			var starts = new long[chars.Count];
+			for (int i = 0; i < chars.Count; i++)
+			{
+				int c = chars[i];
+				if (c < charPos || c > text.Length)
+					return;
+				bytePos += Utf8ByteCount(text, charPos, c);
+				charPos = c;
+				starts[i] = bytePos;
+			}
+			for (int i = 0; i < labels.Count; i++)
+			{
+				var label = labels[i];
+				if (label == null || !label.LazyCleanStart)
+					continue;
+				label.LazyByteStart = starts[i];
+				label.LazyByteEnd = starts[i + 1];
+			}
+		}
+
+		/// <summary>
+		/// s[start..end)をUTF-8にした時のバイト数。
+		/// Encoding.GetByteCount(string, int, int)はMonoでは文字列全体を写すらしく、
+		/// 関数が数千ある2.5MBのファイルで読み込みが5倍遅くなった
+		/// </summary>
+		static long Utf8ByteCount(string s, int start, int end)
+		{
+			long n = 0;
+			for (int i = start; i < end; i++)
+			{
+				char c = s[i];
+				if (c < 0x80)
+					n += 1;
+				else if (c < 0x800)
+					n += 2;
+				else if (char.IsHighSurrogate(c) && i + 1 < end && char.IsLowSurrogate(s[i + 1]))
+				{
+					n += 4;
+					i++;
+				}
+				else
+					n += 3;
+			}
+			return n;
+		}
+
+		/// <summary>関数の部分だけをファイルから読む。読めなければnull</summary>
+		string ReadLazyRange(FunctionLabelLine label)
+		{
+			string path;
+			if (label.LazyByteStart < 0 || !lazyPaths.TryGetValue(label.Position.Filename, out path))
+				return null;
+			try
+			{
+				long length = label.LazyByteEnd - label.LazyByteStart;
+				if (length < 0 || length > int.MaxValue)
+					return null;
+				var bytes = new byte[length];
+				using (var fs = new System.IO.FileStream(path, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read))
+				{
+					fs.Seek(label.LazyByteStart, System.IO.SeekOrigin.Begin);
+					int read = 0;
+					while (read < length)
+					{
+						int n = fs.Read(bytes, read, (int)length - read);
+						if (n <= 0)
+							return null;
+						read += n;
+					}
+				}
+				return System.Text.Encoding.UTF8.GetString(bytes);
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		readonly Dictionary<string, string> lazyPaths = new Dictionary<string, string>();
+
+		/// <summary>読んだファイルの中身と、各行の頭の位置</summary>
+		sealed class LazyFile
+		{
+			public string Name;
+			public string Text;
+			public List<int> LineStarts;
+		}
+		//最近読んだファイル。口上は同じファイルの関数を続けて呼ぶ事が多い
+		readonly List<LazyFile> lazyTextCache = new List<LazyFile>();
+		const int kLazyTextCacheCount = 4;
+
+		LazyFile LazyFileText(string filename)
+		{
+			for (int i = 0; i < lazyTextCache.Count; i++)
+			{
+				if (lazyTextCache[i].Name == filename)
+				{
+					var hit = lazyTextCache[i];
+					lazyTextCache.RemoveAt(i);
+					lazyTextCache.Insert(0, hit);
+					return hit;
+				}
+			}
+			string path;
+			if (!lazyPaths.TryGetValue(filename, out path))
+				return null;
+			string text = uEmuera.TextFileReader.ReadAllText(path);
+			if (text == null)
+				return null;
+			//TextReader.ReadLineと同じ区切り(\r\n, \r, \n)で数える
+			var starts = new List<int>(text.Length / 32 + 1);
+			starts.Add(0);
+			for (int i = 0; i < text.Length; i++)
+			{
+				char c = text[i];
+				if (c == '\r')
+				{
+					if (i + 1 < text.Length && text[i + 1] == '\n')
+						i++;
+					starts.Add(i + 1);
+				}
+				else if (c == '\n')
+					starts.Add(i + 1);
+			}
+			var file = new LazyFile { Name = filename, Text = text, LineStarts = starts };
+			lazyTextCache.Insert(0, file);
+			if (lazyTextCache.Count > kLazyTextCacheCount)
+				lazyTextCache.RemoveAt(lazyTextCache.Count - 1);
+			return file;
+		}
+
+		/// <summary>
+		/// 遅延読み込みの関数の本体を読み、読み込み時と同じ検査(引数・入れ子・飛び先)をする。
+		/// 解釈できない行は、読み込み時と同じくその行を実行した時にエラーになる
+		/// </summary>
+		internal void LoadLazyBody(FunctionLabelLine label)
+		{
+			LogicalLine savedScaning = parentProcess.scaningLine;
+			LogicalLine last = label;
+			uint startTick = MinorShift._Library.WinmmTimer.TickCount;
+			try
+			{
+				EraStreamReader eReader = new EraStreamReader(Config.UseRenameFile && ParserMediator.RenameDic != null);
+				int lineNo = label.Position.LineNo;
+				string part = ReadLazyRange(label);
+				if (part != null)
+				{
+					//関数の部分だけ。行番号は@行から数える
+					eReader.OpenText(part, label.Position.Filename, 0, lineNo);
+				}
+				else
+				{
+					LazyFile file = LazyFileText(label.Position.Filename);
+					if (file == null)
+						throw new CodeEE("関数@" + label.LabelName + "のファイルが読めません");
+					//見出しが[SKIPSTART]や[IF]の外なら、その行から読めば手前の状態は要らない
+					if (label.LazyCleanStart && lineNo >= 1 && lineNo <= file.LineStarts.Count)
+						eReader.OpenText(file.Text, label.Position.Filename, file.LineStarts[lineNo - 1], lineNo);
+					else
+						eReader.OpenText(file.Text, label.Position.Filename);
+				}
+				PPState ppstate = new PPState();
+				bool started = false;
+				StringStream st;
+				while ((st = eReader.ReadEnabledLine(ppstate.Disabled)) != null)
+				{
+					ScriptPosition position = new ScriptPosition(eReader.Filename, eReader.LineNo);
+					if (st.Current == '[' && st.Next != '[')
+					{
+						st.ShiftNext();
+						string token = LexicalAnalyzer.ReadSingleIdentifier(st);
+						LexicalAnalyzer.SkipWhiteSpace(st);
+						string token2 = LexicalAnalyzer.ReadSingleIdentifier(st);
+						ppstate.AddKeyWord(token, token2, position);
+						continue;
+					}
+					if (ppstate.Disabled)
+						continue;
+					if (!started)
+					{
+						if (st.Current == '@' && eReader.LineNo == label.Position.LineNo)
+						{
+							started = true;
+							//手前の[]の警告は読み込み時に出し済み
+							ParserMediator.ClearWarningList();
+						}
+						continue;
+					}
+					if (st.Current == '@')
+						break;
+					//#行は見出しとして読み込み時に処理済み。本体の途中の物は無視される(読み込み時に警告済み)
+					if (st.Current == '#')
+						continue;
+					parentProcess.scaningLine = label;
+					LogicalLine nextLine;
+					if (st.Current == '$')
+					{
+						nextLine = LogicalLineParser.ParseLabelLine(st, position, output);
+						if (nextLine is GotoLabelLine gotoLabel)
+						{
+							gotoLabel.ParentLabelLine = label;
+							if (!labelDic.AddLabelDollar(gotoLabel))
+							{
+								ScriptPosition pos = labelDic.GetLabelDollar(gotoLabel.LabelName, label).Position;
+								ParserMediator.Warn("ラベル名$" + gotoLabel.LabelName + "は既に同じ関数内(" + pos.Filename + "の" + pos.LineNo.ToString() + "行目)で使用されています", position, 2);
+							}
+						}
+					}
+					else
+						nextLine = LogicalLineParser.ParseLine(st, position, output, label);
+					if (nextLine == null)
+						continue;
+					if (nextLine is InvalidLine)
+						ParserMediator.Warn(nextLine.ErrMes, position, 2);
+					nextLine.ParentLabelLine = label;
+					last.NextLine = nextLine;
+					last = nextLine;
+				}
+			}
+			catch (Exception e)
+			{
+				string mes = (e is EmueraException) ? e.Message : e.GetType().ToString() + ":" + e.Message;
+				var err = new InvalidLine(label.Position, "関数@" + label.LabelName + "の読み込みに失敗しました:" + mes);
+				err.ParentLabelLine = label;
+				last.NextLine = err;
+				last = err;
+			}
+			last.NextLine = new NullLine();
+			checkFunctionWithCatch(label);
+			parentProcess.scaningLine = savedScaning;
+			ParserMediator.FlushWarningList();
+			uint elapsed = MinorShift._Library.WinmmTimer.TickCount - startTick;
+			if (elapsed >= 100)
+				UnityEngine.Debug.LogWarning(string.Format("ErbLoader: @{0} の本体の読み込みに {1}ms ({2})", label.LabelName, elapsed, label.Position.Filename));
+		}
+		#endregion
+
 		private sealed class PPState
 		{
 			bool skip = false;
 			bool done = false;
 			public bool Disabled = false;
+			/// <summary>[SKIPSTART]・[IF]のどれの中にも居ない</summary>
+			public bool IsTopLevel { get { return !Disabled && ppMatch.Count == 0; } }
             readonly Stack<bool> disabledStack = new Stack<bool>();
             readonly Stack<bool> doneStack = new Stack<bool>();
             readonly Stack<string> ppMatch = new Stack<string>();
@@ -645,7 +1037,7 @@ namespace MinorShift.Emuera.GameProc
 				int countInDepth = 0;
 				foreach (FunctionLabelLine label in labelList)
 				{
-					if (label.Depth != labelDepth)
+					if (label.Depth != labelDepth || label.IsLazyPending)//本体を読んでいない関数は呼ばれた時に読んで調べる
 						continue;
 					//1756beta003 なんで追加したんだろう デバグ中になんかやったのか とりあえずコメントアウトしておく
 					//if (label.LabelName == "EVENTTURNEND")
@@ -676,7 +1068,7 @@ namespace MinorShift.Emuera.GameProc
 					output.PrintSystemLine("CALLFORM系命令が使われたため、呼び出されない関数のチェックは行われません。");
 				foreach (FunctionLabelLine label in labelList)
 				{
-					if (label.Depth != labelDepth)
+					if (label.Depth != labelDepth || label.IsLazyPending)
 						continue;
 					checkFunctionWithCatch(label);
 				}
@@ -686,7 +1078,7 @@ namespace MinorShift.Emuera.GameProc
 				bool ignoreUncalledFunction = Config.IgnoreUncalledFunction;
 				foreach (FunctionLabelLine label in labelList)
 				{
-					if (label.Depth != labelDepth)
+					if (label.Depth != labelDepth || label.IsLazyPending)
 						continue;
                     //解析モード時は呼ばれなかったものをここで解析
                     if (Program.AnalysisMode)

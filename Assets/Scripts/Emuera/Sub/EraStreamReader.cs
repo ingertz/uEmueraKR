@@ -60,6 +60,53 @@ namespace MinorShift.Emuera.Sub
 			return true;
 		}
 
+		/// <summary>読み込み済みの文字列から読む(遅延読み込みで同じファイルを何度も開かないため)</summary>
+		public bool OpenText(string text, string name)
+		{
+			return OpenText(text, name, 0, 1);
+		}
+
+		/// <summary>start文字目(lineNo行目の頭)から読む。行番号はlineNoから数える</summary>
+		public bool OpenText(string text, string name, int start, int lineNo)
+		{
+			filepath = name;
+			filename = name;
+			nextNo = lineNo - 1;
+			curNo = lineNo - 1;
+			reader = new OffsetStringReader(text ?? "", start);
+			return true;
+		}
+
+		/// <summary>文字列の途中から読むTextReader。Substringで写さずに済ませる</summary>
+		sealed class OffsetStringReader : TextReader
+		{
+			readonly string s;
+			int pos;
+			public int Position { get { return pos; } }
+			public OffsetStringReader(string s, int start)
+			{
+				this.s = s;
+				pos = Math.Min(Math.Max(0, start), s.Length);
+			}
+			public override int Peek() { return pos < s.Length ? s[pos] : -1; }
+			public override int Read() { return pos < s.Length ? s[pos++] : -1; }
+			public override string ReadLine()
+			{
+				if (pos >= s.Length)
+					return null;
+				int i = pos;
+				while (i < s.Length && s[i] != '\r' && s[i] != '\n')
+					i++;
+				string line = s.Substring(pos, i - pos);
+				if (i < s.Length && s[i] == '\r')
+					i++;
+				if (i < s.Length && s[i] == '\n')
+					i++;
+				pos = i;
+				return line;
+			}
+		}
+
 		public string ReadLine()
 		{
 			nextNo++;
@@ -70,13 +117,21 @@ namespace MinorShift.Emuera.Sub
 		/// <summary>
 		/// 次の有効な行を読む。LexicalAnalyzer経由でConfigを参照するのでConfig完成までつかわないこと。
 		/// </summary>
+		/// <summary>
+		/// 直前にReadEnabledLineが返した行の頭が、文字列の何文字目だったか。
+		/// OpenTextで開いた時だけ分かり、それ以外は-1
+		/// </summary>
+		public int LastLineStart { get; private set; } = -1;
+
 		public StringStream ReadEnabledLine(bool disabled = false)
 		{
 			string line = null;
 			StringStream st = new StringStream();
 			curNo = nextNo;
+			var offsetReader = reader as OffsetStringReader;
 			while (true)
 			{
+				LastLineStart = offsetReader != null ? offsetReader.Position : -1;
 				line = reader.ReadLine();
 				curNo++;
 				nextNo++;
