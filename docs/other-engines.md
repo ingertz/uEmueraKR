@@ -97,6 +97,7 @@ EE에는 없지만, 그 기능을 쓰는 게임이 있어서 넣은 것들입니
   - 함수 안의 `#DIM`에 `LINECOUNT`, `I` 같은 내장 변수 이름을 쓸 수 있습니다. 그 함수 안에서는 지역 변수가 우선합니다.
   - `HTML_GETPRINTEDSTREX(n)`: 표시된 줄의 글자를, 색이 다른 부분만 `<span style='color:#rrggbb'>`로 감싸서 돌려줍니다.
   - HTML의 `<span style='color:#rrggbb'>`를 `<font color>`처럼 받습니다.
+  - `PRINTFORMW%CALLNAME%…`처럼 명령어 바로 뒤에 공백 없이 기호가 붙은 줄도 받습니다(eraJS는 기호 앞에서 명령어를 끊습니다).
 - eraJS의 세이브(`erajs_save00.sav` 등)는 형식이 달라서 읽지 못합니다.
 - CSV에 없는 이름(`TALENT:악취민감` 등)을 쓰는 줄은 팩 쪽 오류라서, 그 줄에 닿으면 eraJS에서처럼 오류가 납니다.
 

@@ -484,6 +484,10 @@ namespace MinorShift.Emuera.GameProc
 							return new InstructionLine(position, func, stream);
 						if ((stream.Current != ';') && (stream.Current != ' ') && (stream.Current != '\t') && (!Config.SystemAllowFullSpace || (stream.Current != '　')))
 						{
+							//eraJSは命令名を記号の手前で切るので「PRINTFORMW%CALLNAME%…」のように
+							//間を空けずに書いた行も通る。eraJS向けのゲームではその記号から引数として読む
+							if (Config.EraJSDialect && stream.Current != '　')
+								return new InstructionLine(position, func, stream);
 							if (stream.Current == '　')
 								errMes = "命令で行が始まっていますが、命令の直後に半角スペース・タブ以外の文字が来ています(この警告はシステムオプション「" + Config.GetConfigName(ConfigCode.SystemAllowFullSpace) + "」により無視できます)";
 							else
