@@ -6,8 +6,14 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+</details>
+
+<details>
+<summary><b>0.3.2d</b> (2026-11-12)</summary>
+
 - ERB가 100MB 이상인 아주 큰 게임은 함수를 처음 불릴 때 읽음. TW 키메라팩이 로딩 중에 튕기던 문제 수정(메모리 4GB → 약 200MB) ([performance.md](docs/performance.md))
 - 「빠른 버튼 크기」를 줄이면 한 번에 옆으로 보이는 칸 수도 늘어남 (대 4칸 · 중 5칸 · 소 6칸) ([app.md](docs/app.md))
+
 </details>
 
 <details>
