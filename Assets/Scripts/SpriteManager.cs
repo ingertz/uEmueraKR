@@ -63,8 +63,13 @@ internal static class SpriteManager
         internal void Release()
         {
             refcount -= 1;
-            pasttime = Time.unscaledTime + kPastTime;
+            pasttime = Time.unscaledTime + (orphaned ? kOrphanTime : kPastTime);
         }
+        /// <summary>
+        /// GDISPOSEされたか作り直されて、もう誰も新しく取りに来ないテクスチャ。
+        /// 表示中の画像が使い終わったらすぐ捨てる
+        /// </summary>
+        internal bool orphaned = false;
         public void Dispose()
         {
             var iter = sprites.Values.GetEnumerator();
@@ -339,9 +344,52 @@ internal static class SpriteManager
             ti.texture.width == width && ti.texture.height == height)
             return ti.texture;
 
+        //大きさが変わった古い方は、表示中の画像が使い終わってから捨てる
+        if (ti != null)
+            OrphanTexture(ti);
         var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
         texture_dict[name] = new TextureInfo(name, tex) { isDynamic = true };
         return tex;
+    }
+
+    /// <summary>
+    /// GDISPOSE等で要らなくなった書き込み用テクスチャを手放す。
+    /// 表示中の画像が参照している間は残し、使い終わったら捨てる。
+    /// 手放さないとGCREATEの度にテクスチャが積み上がり、長く遊ぶとメモリ不足で落ちる
+    /// </summary>
+    public static void ReleaseDynamicTexture(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+            return;
+        RunOnMainThread(() => {
+            TextureInfo ti = null;
+            if (!texture_dict.TryGetValue(name, out ti) || ti == null || !ti.isDynamic)
+                return;
+            texture_dict.Remove(name);
+            OrphanTexture(ti);
+        });
+    }
+
+    const float kOrphanTime = 2.0f;
+    static readonly List<TextureInfo> orphan_textures = new List<TextureInfo>();
+    static void OrphanTexture(TextureInfo ti)
+    {
+        if (ti == null || ti.orphaned)
+            return;
+        ti.orphaned = true;
+        ti.pasttime = Time.unscaledTime + kOrphanTime;
+        orphan_textures.Add(ti);
+    }
+    static void DisposeOrphans(float now)
+    {
+        for (int i = orphan_textures.Count - 1; i >= 0; --i)
+        {
+            var ti = orphan_textures[i];
+            if (ti.refcount > 0 || now <= ti.pasttime)
+                continue;
+            ti.Dispose();
+            orphan_textures.RemoveAt(i);
+        }
     }
 
     public static TextureInfoOtherThread GetTextureInfoOtherThread(
@@ -489,6 +537,8 @@ internal static class SpriteManager
             do
             {
                 yield return new WaitForSeconds(1.0f);
+                if(orphan_textures.Count > 0)
+                    DisposeOrphans(Time.unscaledTime);
             } while(texture_dict.Count == 0);
 
             var now = Time.unscaledTime;
@@ -569,6 +619,9 @@ internal static class SpriteManager
             iter.Current.Dispose();
         }
         texture_dict.Clear();
+        foreach(var ti in orphan_textures)
+            ti.Dispose();
+        orphan_textures.Clear();
         GC.Collect();
     }
     /// <summary>

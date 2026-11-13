@@ -16,6 +16,7 @@ using UnityEngine;
 ///
 /// 入力ファイルは1行が1回の入力で、ゲームが入力待ちになる度に1行ずつ送る。
 /// 空行はEnter(WAITを進める)。「!log 名前」はその時点の画面を 名前.log に書き出す。
+/// 「!mem 名前」はTexture2Dの数と大きさをログへ書き、「!wait 秒」は次の入力までその秒数待つ。
 /// 入力を使い切るか、エラーで止まるか、時間切れになったら final.log と result.txt を書いて終了する。
 /// -ptLive を付けると入力を使い切っても終わらず、入力ファイルへ行が足されるのを待つ(「!quit」で終了)。
 /// 入力待ちになる度に screen.log(今の画面)と step.txt(送った入力の数)を書くので、対話的に進められる。
@@ -187,10 +188,23 @@ public static class PlayTest
             Finish(state == "Error" ? 1 : 0, "console " + state);
             return;
         }
-        while(next_ < inputs_.Count && inputs_[next_].StartsWith("!log "))
+        if(now < wait_until_)
+            return;
+        while(next_ < inputs_.Count && (inputs_[next_].StartsWith("!log ") ||
+            inputs_[next_].StartsWith("!mem ") || inputs_[next_].StartsWith("!wait ")))
         {
-            Dump(inputs_[next_].Substring(5).Trim());
-            ++next_;
+            var cmd = inputs_[next_++];
+            var arg = cmd.Substring(cmd.IndexOf(' ') + 1).Trim();
+            if(cmd.StartsWith("!log "))
+                Dump(arg);
+            else if(cmd.StartsWith("!mem "))
+                LogTextures(arg);
+            else
+            {
+                //画面側の後始末(使い終わったテクスチャの解放など)を待つ
+                wait_until_ = now + double.Parse(arg);
+                return;
+            }
         }
         if(next_ >= inputs_.Count)
         {
@@ -215,6 +229,17 @@ public static class PlayTest
     }
 
     static int reported_ = -1;
+    static double wait_until_ = -1;
+
+    /// <summary>今あるTexture2Dの数と大きさを書く。画像を使うゲームのメモリの増え方を見る</summary>
+    static void LogTextures(string name)
+    {
+        var all = Resources.FindObjectsOfTypeAll<Texture2D>();
+        long bytes = 0;
+        foreach(var t in all)
+            bytes += UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(t);
+        Debug.Log(string.Format("PlayTest: textures {0} count={1} size={2}MB", name, all.Length, bytes >> 20));
+    }
 
     /// <summary>入力ファイルを読み直す。-ptLiveでは実行中に行が足される</summary>
     static void ReadInputs()

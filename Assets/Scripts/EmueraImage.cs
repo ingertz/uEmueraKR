@@ -45,8 +45,9 @@ public class EmueraImage : EmueraBehaviour,
         }
         void SetSprite(SpriteManager.SpriteInfo spriteinfo)
         {
-            //差し替え前の物は参照を返しておく。返さないとテクスチャが解放されない
-            if(this.spriteinfo != null && this.spriteinfo != spriteinfo)
+            //差し替え前の物は参照を返しておく。返さないとテクスチャが解放されない。
+            //同じ物を取り直した時も取得の度に参照が増えているので、前の分を返す
+            if(this.spriteinfo != null)
                 SpriteManager.GivebackSpriteInfo(this.spriteinfo);
             if(spriteinfo == null)
             {

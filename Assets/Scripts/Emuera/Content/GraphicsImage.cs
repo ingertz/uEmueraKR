@@ -1252,6 +1252,10 @@ namespace MinorShift.Emuera.Content
             is_created = false;
             width = 0;
             height = 0;
+            //GCREATEのテクスチャは呼ぶ度に別名で作るので、手放さないと積み上がる。
+            //(GCREATEFROMFILEのものは番号ごとに1枚を使い回すので残す)
+            if (this.Bitmap != null && this.Bitmap.name != null && this.Bitmap.name.StartsWith("GCREATE_"))
+                SpriteManager.ReleaseDynamicTexture(this.Bitmap.name);
             this.Bitmap = null;
         }
 
