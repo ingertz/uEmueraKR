@@ -137,6 +137,7 @@ namespace MinorShift.Emuera.GameProc
 		
 		
 		static FunctionMethod tostrMethod = null;
+		static FunctionMethod tointMethod = null;
 		/// <summary>
 		/// 1803beta005 予め引数の数を合わせて規定値を代入しておく
         /// 1806+v6.99 式中関数の引数に無効な#DIM変数を与えている場合に例外になるのを修正
@@ -201,7 +202,15 @@ namespace MinorShift.Emuera.GameProc
 				{
 					if (term.GetOperandType() == typeof(string))
 					{
-						errMes = "\"@" + func.LabelName + "\"の" + (i + 1).ToString() + "番目の引数を文字列型から整数型に変換できません";
+						//eraJSは整数の引数に渡された文字列を数値に直す("4.861"→4)。eraJS版パックはこれに頼っている
+						if (Config.EraJSDialect)
+						{
+							if (tointMethod == null)
+								tointMethod = FunctionMethodCreator.GetMethodList()["TOINT"];
+							convertedArg[i] = new FunctionMethodTerm(tointMethod, new IOperandTerm[] { term });
+							continue;
+						}
+						errMes ="\"@" + func.LabelName + "\"の" + (i + 1).ToString() + "番目の引数を文字列型から整数型に変換できません";
 						return null;
 					}
 					else

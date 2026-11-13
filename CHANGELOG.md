@@ -7,6 +7,7 @@
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
 - eraJS용 팩: `@COMxx` 함수가 없는 커맨드(키메라팩의 `촛농` 등)를 목록에서 뺌. 고르면 `関数"@COM717"が見つかりません`로 멈추던 문제 수정 ([other-engines.md](docs/other-engines.md))
+- eraJS용 팩: 정수 인수에 넘긴 문자열을 숫자로 바꿈. 키메라팩 세이브를 불러올 때 `"@CHECK_UPDATE"の1番目の引数を文字列型から整数型に変換できません`로 멈추던 문제 수정 ([other-engines.md](docs/other-engines.md))
 </details>
 
 <details>
