@@ -6,6 +6,11 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+</details>
+
+<details>
+<summary><b>0.3.2f</b> (2026-11-13)</summary>
+
 - `GDISPOSE`한 그래픽의 메모리를 실제로 해제함. OCG 등에서 듀얼을 몇 번 하면 메모리가 쌓여 튕기던 문제 수정 ([performance.md](docs/performance.md))
 </details>
 
