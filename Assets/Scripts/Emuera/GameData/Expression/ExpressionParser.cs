@@ -267,6 +267,13 @@ namespace MinorShift.Emuera.GameData.Expression
 				VariableToken id = ReduceVariableIdentifier(wc, idStr);
 				if (id != null)//idStrが変数名の場合、
 				{
+					//eraJSは添字の名前を、関数内の変数でなければCSVの名前として先に見る。
+					//eraJS版パックの STAIN:X:A はStain.csvのA(4)であって変数Aではない。
+					//キャラ番号の位置(後ろにまだ:が続く)は名前で書けないので従来通り
+					if (Config.EraJSDialect && varCode != VariableCode.__NULL__ && !id.IsPrivate && !id.IsLocal
+						&& !(varId != null && varId.IsCharacterData && wc.Current.Type == ':')
+						&& GlobalStatic.ConstantData.isDefined(varCode, idStr))
+						return new SingleTerm(idStr);
 					if (varCode != VariableCode.__NULL__)//変数の引数が引数を持つことはない
 						return VariableParser.ReduceVariable(id, null, null, null);
 					else

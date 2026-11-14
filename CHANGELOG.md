@@ -6,6 +6,7 @@
 <details open>
 <summary><b>다음 버전</b> (아직 배포 안 함)</summary>
 
+- eraJS용 팩: 배열 첨자의 이름을 변수보다 CSV 이름으로 먼저 읽음. 키메라팩 능력 표시의 신체 정보에서 `STAIN의 第２引数(669)は配列の範囲外です`로 멈추던 문제 수정 ([other-engines.md](docs/other-engines.md))
 </details>
 
 <details>
